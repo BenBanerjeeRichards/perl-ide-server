@@ -83,7 +83,56 @@ public:
     }
 };
 
+// Operators
+// For our use case I don't care much about the operators so we just use a single class
+// with the data as the operator (e.g. we don't have AddOperator, SubtractOperator, ...)
+// This may change in the future
+class OperatorToken : public Token {
+    explicit OperatorToken(const std::string &token) {
+        this->type = "OP";
+        this->data = token;
+    }
+};
 
+// {
+class LBracketToken : public Token {
+    explicit LBracketToken() {
+        this->type = "LBRACKET";
+    }
+};
+
+// }
+class RBracketToken : public Token {
+    explicit RBracketToken() {
+        this->type = "RBRACKET";
+    }
+};
+
+// (
+class LParenToken : public Token {
+    explicit LParenToken() {
+        this->type = "LPAREN";
+    }
+};
+
+// )
+class RParenToken : public Token {
+    explicit RParenToken() {
+        this->type = "RPAREN";
+    }
+};
+
+class LSquareBracketToken : public Token {
+    explicit LSquareBracketToken() {
+        this->type = "LSQUARE";
+    }
+};
+
+class RSquareBracketToken : public Token {
+    explicit RSquareBracketToken() {
+        this->type = "RSQUARE";
+    }
+};
 
 
 #endif //PERLPARSER_TOKEN_H
