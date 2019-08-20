@@ -89,11 +89,11 @@ class HashVariableToken : public Token {
 
 public:
     explicit HashVariableToken(const std::string &name, int startLine, int startCol)
-            : Token("%ARRAY", name, startLine, startCol, startCol + 1) {}
+            : Token("%HASH", name, startLine, startCol, startCol + 1) {}
 };
 
 
-// Function calls, constant names etc..
+// Function name, constant name etc..
 // We need more context to figure out what it is
 class WordToken : public Token {
 public:
