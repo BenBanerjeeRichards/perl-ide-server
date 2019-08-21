@@ -31,7 +31,8 @@ public:
         this->endCol = startCol + data.size();
     }
 
-    Token(const std::string &type, const std::string &data, unsigned int line, unsigned int startCol, unsigned int endCol) {
+    Token(const std::string &type, const std::string &data, unsigned int line, unsigned int startCol,
+          unsigned int endCol) {
         this->type = type;
         this->data = data;
         this->startLine = line;
@@ -39,6 +40,18 @@ public:
 
         // Compute ending position from data
         this->endLine = line;
+        this->endCol = endCol;
+    }
+
+    Token(const std::string &type, const std::string &data, unsigned int startLine, unsigned int startCol,
+          unsigned int endLine, unsigned int endCol) {
+        this->type = type;
+        this->data = data;
+        this->startLine = startLine;
+        this->startCol = startCol;
+
+        // Compute ending position from data
+        this->endLine = endLine;
         this->endCol = endCol;
     }
 
@@ -56,38 +69,28 @@ protected:
     unsigned int endCol;
 };
 
-class KeywordToken : public Token {
-
-public:
+struct KeywordToken : public Token {
     explicit KeywordToken(const std::string &keyword, int startLine, int startCol)
             : Token("KEYWORD", keyword, startLine, startCol) {}
 };
 
-class StringToken : public Token {
-
-public:
+struct StringToken : public Token {
     explicit StringToken(const std::string &contents, int startLine, int startCol)
             : Token("STRING", contents, startLine, startCol) {}
 };
 
 // Dollar variable such as $thing
-class ScalarVariableToken : public Token {
-
-public:
+struct ScalarVariableToken : public Token {
     explicit ScalarVariableToken(const std::string &name, int startLine, int startCol)
             : Token("$SCALAR", name, startLine, startCol, startCol + 1) {}
 };
 
-class ArrayVariableToken : public Token {
-
-public:
+struct ArrayVariableToken : public Token {
     explicit ArrayVariableToken(const std::string &name, int startLine, int startCol)
             : Token("@ARRAY", name, startLine, startCol, startCol + 1) {}
 };
 
-class HashVariableToken : public Token {
-
-public:
+struct HashVariableToken : public Token {
     explicit HashVariableToken(const std::string &name, int startLine, int startCol)
             : Token("%HASH", name, startLine, startCol, startCol + 1) {}
 };
@@ -95,8 +98,7 @@ public:
 
 // Function name, constant name etc..
 // We need more context to figure out what it is
-class WordToken : public Token {
-public:
+struct WordToken : public Token {
     explicit WordToken(const std::string &word, int startLine, int startCol)
             : Token("WORD", word, startLine, startCol) {}
 };
@@ -105,43 +107,60 @@ public:
 // For our use case I don't care much about the operators so we just use a single class
 // with the data as the operator (e.g. we don't have AddOperator, SubtractOperator, ...)
 // This may change in the future
-class OperatorToken : public Token {
+struct OperatorToken : public Token {
     explicit OperatorToken(const std::string &op, int startLine, int startCol)
             : Token("OP", op, startLine, startCol) {}
 };
 
 // {
-class LBracketToken : public Token {
+struct LBracketToken : public Token {
     explicit LBracketToken(int startLine, int startCol)
             : Token("LBRACKET", "", startLine, startCol, startCol + 1) {}
 };
 
 // }
-class RBracketToken : public Token {
+struct RBracketToken : public Token {
     explicit RBracketToken(int startLine, int startCol)
             : Token("RBRACKET", "", startLine, startCol, startCol + 1) {}
 };
 
 // (
-class LParenToken : public Token {
+struct LParenToken : public Token {
     explicit LParenToken(int startLine, int startCol)
             : Token("LPAREN", "", startLine, startCol, startCol + 1) {}
 };
 
 // )
-class RParenToken : public Token {
+struct RParenToken : public Token {
     explicit RParenToken(int startLine, int startCol)
             : Token("RPAREN", "", startLine, startCol, startCol + 1) {}
 };
 
-class LSquareBracketToken : public Token {
+struct LSquareBracketToken : public Token {
     explicit LSquareBracketToken(int startLine, int startCol)
             : Token("RPAREN", "", startLine, startCol, startCol + 1) {}
 };
 
-class RSquareBracketToken : public Token {
+struct RSquareBracketToken : public Token {
     explicit RSquareBracketToken(int startLine, int startCol)
             : Token("RPAREN", "", startLine, startCol, startCol + 1) {}
 };
+
+struct CommentToken : public Token {
+    CommentToken(const std::string &comment, int startLine, int startCol, int endLine, int endCol)
+            : Token("COMMENT", comment, startLine, startCol, endLine, endCol) {}
+};
+
+struct NewlineToken : public Token {
+    NewlineToken(const std::string &specifiers, int line, int col)
+            : Token("NEWLINE", specifiers, line, col) {}
+
+};
+
+struct WhitespaceToken : public Token {
+     WhitespaceToken(const std::string &whitespace, int startLine, int startCol, int endLine, int endCol)
+            : Token("WHITESPACE", whitespace, startLine, startCol, endLine, endCol) {}
+};
+
 
 #endif //PERLPARSER_TOKEN_H

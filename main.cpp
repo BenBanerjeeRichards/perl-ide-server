@@ -1,12 +1,21 @@
 #include <iostream>
 #include "token/Token.h"
+#include "Tokeniser.h"
+#include <fstream>
 
 int main() {
-    auto t1 = new StringToken("Hello", 5, 3);
-    auto t2 = new KeywordToken("my", 3, 4);
-    auto t3 = new StringToken("World", 6, 5);
-
-    std::cout << t1->toString() << " " << t2->toString() << " " << t3->toString() << std::endl;
+    std::ifstream fileStream("../test.pl");
+    if (!fileStream.is_open()) {
+        std::cerr << "Failed to open file!" << std::endl;
+        return 1;
+    }
+    std::string program((std::istreambuf_iterator<char>(fileStream) ), (std::istreambuf_iterator<char>()    ) );
+    Tokeniser tokeniser(program);
+    auto token = tokeniser.nextToken();
+    while (token != nullptr) {
+        std::cout << token->toString() << std::endl;
+        token = tokeniser.nextToken();
+    }
 
     return 0;
 }
