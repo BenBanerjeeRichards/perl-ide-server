@@ -67,7 +67,7 @@ bool Tokeniser::isNumber(char c) {
 
 // Variable body i.e. variable name after any Sigil and then first char
 bool Tokeniser::isVariableBody(char c) {
-    return c == '_' || isNumber(c) || isUppercase(c) || isLowercase(c);
+    return c >= '!';
 }
 
 std::string Tokeniser::matchString(const std::vector<std::string> &options) {
@@ -103,27 +103,26 @@ Token Tokeniser::nextToken() {
     char peekChar = this->peek();
     // Variables
     if (peekChar == '$' || peekChar == '@' || peekChar == '%') {
-        char firstVariableChar = this->peekAhead(2);
-        if (firstVariableChar == '_' || isLowercase(firstVariableChar)) {
-            // At this point we have a valid variable
-            this->nextChar(); // Sigil
-            this->nextChar(); // First char
-            std::string variableRest = getUntil(isVariableBody);
-            std::string fullName;
-            fullName += peekChar;
-            fullName += firstVariableChar;
-            fullName += variableRest;
+        this->nextChar();   // Consume Sigil
 
-            if (peekChar == '$') return ScalarVariableToken(fullName, 0, 0);
-            if (peekChar == '%') return HashVariableToken(fullName, 0, 0);
-            return ArrayVariableToken(fullName, 0, 0);
-        }
+        std::string variableRest = getUntil(isVariableBody);
+        std::string fullName;
+        fullName += peekChar;
+        fullName += variableRest;
+
+        if (peekChar == '$') return ScalarVariableToken(fullName, 0, 0);
+        if (peekChar == '%') return HashVariableToken(fullName, 0, 0);
+        return ArrayVariableToken(fullName, 0, 0);
     }
 
-    // Now for some fairly easy operators
+    // Perl has so many operators...
+    // Thankfully we don't actually care what the do, just need to recognise them
+    // TODO complete this list
     auto operators = std::vector<std::string>{
-            "->", "++", "+", "--", "-", "**", "*", "!=", "!~", "!", "-", "~", "\\", "==", "=~", "/", "%", "x", ">>", ">",
-            ">=", "<=>", "<<", "<", ">=", "lt", "gt", "le", "ge", "eq", "ne", "cmp", "~~"
+            "->", "+=", "++", "+", "--", "-=", "-", "**=", "*=", "**", "*", "!=", "!~", "!", "-", "~", "\\", "==", "=~",
+            "=", "/=", "//=", "//", "/", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<", ">=",
+            "lt", "gt", "le", "ge", "eq", "ne", "cmp", "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
+            "~", "^=", "^.=", "^", "and", "or", "...", "..", "?:", ":", ".=", "not", "xor"
     };
 
     std::string op = matchString(operators);
