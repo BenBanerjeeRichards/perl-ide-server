@@ -1,5 +1,5 @@
 #include <iostream>
-#include "token/Token.h"
+#include "Token.h"
 #include "Tokeniser.h"
 #include <fstream>
 
@@ -12,10 +12,11 @@ int main() {
     std::string program((std::istreambuf_iterator<char>(fileStream) ), (std::istreambuf_iterator<char>()    ) );
     Tokeniser tokeniser(program);
     auto token = tokeniser.nextToken();
-    while (token != nullptr) {
-        std::cout << token->toString() << std::endl;
+    while (true) {
+        std::cout << token.toString() << std::endl;
         token = tokeniser.nextToken();
     }
 
+    std::cout << "DONE" << std::endl;
     return 0;
 }

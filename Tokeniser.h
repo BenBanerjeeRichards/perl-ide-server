@@ -7,13 +7,17 @@
 
 #include <string>
 #include <functional>
-#include "token/Token.h"
+#include "Token.h"
 #include <memory>
+#include <vector>
+#include "TokeniseException.h"
 
 class Tokeniser {
 public:
     explicit Tokeniser(std::string programStream);
-    std::unique_ptr<Token> nextToken();
+
+    Token nextToken();
+
 private:
     char nextChar();
 
@@ -25,17 +29,25 @@ private:
 
     // Whitespace such as tabs, empty spaces. Does NOT include new lines
     static bool isWhitespace(char c);
+
     static bool isNewline(char c);
+
     static bool isLowercase(char c);
+
     static bool isUppercase(char c);
+
     static bool isNumber(char c);
+
     static bool isVariableBody(char c);
 
-    std::string getUntil(const std::function<bool(char)>& nextCharTest);
+    std::string getUntil(const std::function<bool(char)> &nextCharTest);
+
+    // options should be sorted longest to shortest and in preference of match
+    std::string matchString(const std::vector<std::string>& options);
 
 
     std::string program;
-    int position = 0;
+    int position = -1;
 };
 
 

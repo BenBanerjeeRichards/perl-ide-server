@@ -5,6 +5,7 @@
 #include "Tokeniser.h"
 
 #include <utility>
+#include <iostream>
 
 Tokeniser::Tokeniser(std::string perl) {
     this->program = std::move(perl);
@@ -69,18 +70,34 @@ bool Tokeniser::isVariableBody(char c) {
     return c == '_' || isNumber(c) || isUppercase(c) || isLowercase(c);
 }
 
-std::unique_ptr<Token> Tokeniser::nextToken() {
+std::string Tokeniser::matchString(const std::vector<std::string> &options) {
+    for (const std::string &option : options) {
+        bool match = true;  // Assume match until proven otherwise
+        for (int i = 0; i < (int) option.length(); i++) {
+            match = match && (this->peekAhead(i + 1) == option[i]);
+        }
+
+        if (match) {
+            this->position += option.length();
+            return option;
+        }
+    }
+
+    return "";
+}
+
+Token Tokeniser::nextToken() {
     // First devour any whitespace
     std::string whitespace = this->getUntil(this->isWhitespace);
     if (whitespace.length() > 0) {
-        return std::make_unique<Token>(WhitespaceToken(whitespace, 1, 2, 3, 4));
+        return WhitespaceToken(whitespace, 1, 2, 3, 4);
     }
 
     // Now for newlines
     // TODO Ensure this works on all platforms
     std::string newlineTokens = this->getUntil(this->isNewline);
     if (newlineTokens.length() > 0) {
-        return std::make_unique<Token>(NewlineToken(newlineTokens, 1, 2));
+        return NewlineToken(newlineTokens, 1, 2);
     }
 
     char peekChar = this->peek();
@@ -97,14 +114,23 @@ std::unique_ptr<Token> Tokeniser::nextToken() {
             fullName += firstVariableChar;
             fullName += variableRest;
 
-            if (peekChar == '$') return std::make_unique<Token>(ScalarVariableToken(fullName, 0, 0));
-            if (peekChar == '%') return std::make_unique<Token>(HashVariableToken(fullName, 0, 0));
-            return std::make_unique<Token>(ArrayVariableToken(fullName, 0, 0));
+            if (peekChar == '$') return ScalarVariableToken(fullName, 0, 0);
+            if (peekChar == '%') return HashVariableToken(fullName, 0, 0);
+            return ArrayVariableToken(fullName, 0, 0);
         }
     }
 
     // Now for some fairly easy operators
+    auto operators = std::vector<std::string>{
+            "->", "++", "+", "--", "-", "**", "*", "!=", "!~", "!", "-", "~", "\\", "==", "=~", "/", "%", "x", ">>", ">",
+            ">=", "<=>", "<<", "<", ">=", "lt", "gt", "le", "ge", "eq", "ne", "cmp", "~~"
+    };
 
-    return nullptr;
+    std::string op = matchString(operators);
+    if (!op.empty()) {
+        return (OperatorToken(op, 0, 0));
+    }
+
+    throw TokeniseException(std::string("Remaining code exists"));
 }
 

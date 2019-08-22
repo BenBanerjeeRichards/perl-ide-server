@@ -163,4 +163,8 @@ struct WhitespaceToken : public Token {
 };
 
 
+struct DotToken : public Token {
+    DotToken(int line, int col) : Token("DOT", "", line, col) {};
+};
+
 #endif //PERLPARSER_TOKEN_H
