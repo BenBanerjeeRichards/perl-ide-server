@@ -67,7 +67,7 @@ bool Tokeniser::isNumber(char c) {
 
 // Variable body i.e. variable name after any Sigil and then first char
 bool Tokeniser::isVariableBody(char c) {
-    return c >= '!';
+    return c >= '!' && c != ';';
 }
 
 std::string Tokeniser::matchString(const std::vector<std::string> &options) {
@@ -100,18 +100,18 @@ Token Tokeniser::nextToken() {
         return NewlineToken(newlineTokens, 1, 2);
     }
 
-    char peekChar = this->peek();
+    char sigil = this->peek();
     // Variables
-    if (peekChar == '$' || peekChar == '@' || peekChar == '%') {
+    if (sigil == '$' || sigil == '@' || sigil == '%') {
         this->nextChar();   // Consume Sigil
 
         std::string variableRest = getUntil(isVariableBody);
         std::string fullName;
-        fullName += peekChar;
+        fullName += sigil;
         fullName += variableRest;
 
-        if (peekChar == '$') return ScalarVariableToken(fullName, 0, 0);
-        if (peekChar == '%') return HashVariableToken(fullName, 0, 0);
+        if (sigil == '$') return ScalarVariableToken(fullName, 0, 0);
+        if (sigil == '%') return HashVariableToken(fullName, 0, 0);
         return ArrayVariableToken(fullName, 0, 0);
     }
 
@@ -129,6 +129,39 @@ Token Tokeniser::nextToken() {
     if (!op.empty()) {
         return (OperatorToken(op, 0, 0));
     }
+
+    // Now consider the really easy single character tokens
+    char peek = this->peek();
+
+    if (peek == ';') {
+        this->nextChar();
+        return SemicolonToken(0, 0);
+    }
+    if (peek == '{') {
+        this->nextChar();
+        return LBracketToken(0, 0);
+    }
+    if (peek == '}') {
+        this->nextChar();
+        return RBracketToken(0, 0);
+    }
+    if (peek == '(') {
+        this->nextChar();
+        return LParenToken(0, 0);
+    }
+    if (peek == ')') {
+        this->nextChar();
+        return RParenToken(0, 0);
+    }
+    if (peek == '[') {
+        this->nextChar();
+        return LSquareBracketToken(0, 0);
+    }
+    if (peek == ']') {
+        this->nextChar();
+        return RSquareBracketToken(0, 0);
+    }
+
 
     throw TokeniseException(std::string("Remaining code exists"));
 }

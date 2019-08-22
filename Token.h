@@ -7,6 +7,7 @@
 
 
 #include <string>
+#include <algorithm>
 
 class Token {
 
@@ -16,7 +17,20 @@ public:
             return this->type;
         }
 
-        return this->type + "(" + this->data + ")";
+        // Don't print out newlines to console
+        std::string dataToShow = this->data;
+
+        // TODO move this into until function
+        while(dataToShow.find("\n") != std::string::npos) {
+            dataToShow.replace(dataToShow.find("\n"), 1,"\\n");
+        }
+
+        while(dataToShow.find("\t") != std::string::npos) {
+            dataToShow.replace(dataToShow.find("\t"), 1,"\\t");
+        }
+
+
+        return this->type + "(" + dataToShow + ")";
     }
 
     // When data is identical to code
@@ -166,5 +180,11 @@ struct WhitespaceToken : public Token {
 struct DotToken : public Token {
     DotToken(int line, int col) : Token("DOT", "", line, col) {};
 };
+
+struct SemicolonToken : public Token {
+    SemicolonToken(int line, int col) : Token("SEMICOLON", "", line, col) {};
+};
+
+
 
 #endif //PERLPARSER_TOKEN_H
