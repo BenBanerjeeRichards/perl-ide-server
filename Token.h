@@ -181,8 +181,16 @@ struct DotToken : public Token {
     DotToken(int line, int col) : Token("DOT", "", line, col) {};
 };
 
+struct AssignmentToken : public Token {
+    AssignmentToken(int line, int col) : Token("ASSIGN", "", line, col) {};
+};
+
 struct SemicolonToken : public Token {
     SemicolonToken(int line, int col) : Token("SEMICOLON", "", line, col) {};
+};
+
+struct EndOfInputToken : public Token {
+    EndOfInputToken(int line, int col) : Token("EOF", "", line, col) {};
 };
 
 

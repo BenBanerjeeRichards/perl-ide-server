@@ -3,4 +3,4 @@ project(PerlParser)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(PerlParser main.cpp Token.h Tokeniser.cpp Tokeniser.h TokeniseException.h)
+add_executable(PerlParser main.cpp Token.h Tokeniser.cpp Tokeniser.h TokeniseException.h search/Search.cpp search/Search.h)

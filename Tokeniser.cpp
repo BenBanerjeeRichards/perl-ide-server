@@ -87,7 +87,11 @@ std::string Tokeniser::matchString(const std::vector<std::string> &options) {
 }
 
 Token Tokeniser::nextToken() {
-    // First devour any whitespace
+    if (this->peek() == EOF) {
+        return EndOfInputToken(0, 0);
+    }
+
+    // Devour any whitespace
     std::string whitespace = this->getUntil(this->isWhitespace);
     if (whitespace.length() > 0) {
         return WhitespaceToken(whitespace, 1, 2, 3, 4);
@@ -161,7 +165,14 @@ Token Tokeniser::nextToken() {
         this->nextChar();
         return RSquareBracketToken(0, 0);
     }
-
+    if (peek == '.') {
+        this->nextChar();
+        return DotToken(0, 0);
+    }
+    if (peek == '=') {
+        this->nextChar();
+        return AssignmentToken(0, 0);
+    }
 
     throw TokeniseException(std::string("Remaining code exists"));
 }
