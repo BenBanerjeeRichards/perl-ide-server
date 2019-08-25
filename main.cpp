@@ -39,7 +39,7 @@ int searchMain() {
 
 
 int main() {
-    std::ifstream fileStream("../perl/tokeniser.pl");
+    std::ifstream fileStream("../perl/test.pl");
     if (!fileStream.is_open()) {
         std::cerr << "Failed to open file!" << std::endl;
         return 1;

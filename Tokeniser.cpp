@@ -86,7 +86,7 @@ bool Tokeniser::isAlphaNumeric(char c) {
 
 // Variable body i.e. variable name after any Sigil and then first char
 bool Tokeniser::isVariableBody(char c) {
-    return c >= '!' && c != ';';
+    return c >= '!' && c != ';' && c != ',';
 }
 
 std::string Tokeniser::matchString(const std::vector<std::string> &options) {
@@ -124,7 +124,7 @@ bool Tokeniser::matchKeyword(const std::string &keyword) {
 
 std::string Tokeniser::matchName() {
     std::string acc;
-    while (this->isAlphaNumeric(this->peek())) {
+    while (this->isVariableBody(this->peek())) {
         acc += this->peek();
         this->nextChar();
     }
@@ -271,6 +271,10 @@ Token Tokeniser::nextToken() {
         this->nextChar();
         return Token(TokenType::Semicolon, 0, 0);
     }
+    if (peek == ',') {
+        this->nextChar();
+        return Token(TokenType::Comma, 0, 0);
+    }
     if (peek == '{') {
         this->nextChar();
         return Token(TokenType::LBracket, 0, 0);
@@ -391,6 +395,7 @@ std::string tokenToString(const TokenType &t) {
     if (t == Name) return "Name";
     if (t == NumericLiteral) return "NumericLiteral";
     if (t == Pod) return "Pod";
+    if (t == Comma) return "Comma";
     return "TokenType toString NOT IMPLEMENTED";
 }
 

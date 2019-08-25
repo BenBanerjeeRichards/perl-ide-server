@@ -51,7 +51,8 @@ enum TokenType {
     Sub,
     Name,
     NumericLiteral,
-    Pod
+    Pod,
+    Comma
 };
 
 std::string tokenToString(const TokenType &t);
