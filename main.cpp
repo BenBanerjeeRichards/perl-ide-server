@@ -48,7 +48,7 @@ int main() {
     Tokeniser tokeniser(program);
     auto token = tokeniser.nextToken();
     // FIXME
-    while (true) {
+    while (token.type != TokenType::EndOfInput) {
         std::cout << token.toString() << std::endl;
         token = tokeniser.nextToken();
     }

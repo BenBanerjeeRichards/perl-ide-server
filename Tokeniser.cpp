@@ -174,20 +174,20 @@ std::string Tokeniser::matchComment() {
 
 Token Tokeniser::nextToken() {
     if (this->peek() == EOF) {
-        return EndOfInputToken(0, 0);
+        return Token(TokenType::EndOfInput, 0, 0);
     }
 
     // Devour any whitespace
     std::string whitespace = this->getUntil(this->isWhitespace);
     if (whitespace.length() > 0) {
-        return WhitespaceToken(whitespace, 1, 2, 3, 4);
+        return Token(TokenType::Whitespace, whitespace, 1, 2, 3, 4);
     }
 
     // Now for newlines
     // TODO Ensure this works on all platforms
     std::string newlineTokens = this->getUntil(this->isNewline);
     if (newlineTokens.length() > 0) {
-        return NewlineToken(newlineTokens, 1, 2);
+        return Token(TokenType::Newline, newlineTokens, 1, 2);
     }
 
     char sigil = this->peek();
@@ -200,9 +200,9 @@ Token Tokeniser::nextToken() {
         fullName += sigil;
         fullName += variableRest;
 
-        if (sigil == '$') return ScalarVariableToken(fullName, 0, 0);
-        if (sigil == '%') return HashVariableToken(fullName, 0, 0);
-        return ArrayVariableToken(fullName, 0, 0);
+        if (sigil == '$') return Token(TokenType::ScalarVariable, fullName, 0, 0);
+        if (sigil == '%') return Token(TokenType::HashVariable, fullName, 0, 0);
+        return Token(TokenType::ArrayVariable, fullName, 0, 0);
     }
 
     // Perl has so many operators...
@@ -217,7 +217,7 @@ Token Tokeniser::nextToken() {
 
     std::string op = matchString(operators);
     if (!op.empty()) {
-        return (OperatorToken(op, 0, 0));
+        return (Token(TokenType::Operator, op, 0, 0));
     }
 
     // Now consider the really easy single character tokens
@@ -225,77 +225,123 @@ Token Tokeniser::nextToken() {
 
     if (peek == ';') {
         this->nextChar();
-        return SemicolonToken(0, 0);
+        return Token(TokenType::Semicolon, 0, 0);
     }
     if (peek == '{') {
         this->nextChar();
-        return LBracketToken(0, 0);
+        return Token(TokenType::LBracket, 0, 0);
     }
     if (peek == '}') {
         this->nextChar();
-        return RBracketToken(0, 0);
+        return Token(TokenType::RBracket, 0, 0);
     }
     if (peek == '(') {
         this->nextChar();
-        return LParenToken(0, 0);
+        return Token(TokenType::LParen, 0, 0);
     }
     if (peek == ')') {
         this->nextChar();
-        return RParenToken(0, 0);
+        return Token(TokenType::RParen, 0, 0);
     }
     if (peek == '[') {
         this->nextChar();
-        return LSquareBracketToken(0, 0);
+        return Token(TokenType::LSquareBracket, 0, 0);
     }
     if (peek == ']') {
         this->nextChar();
-        return RSquareBracketToken(0, 0);
+        return Token(TokenType::RSquareBracket, 0, 0);
     }
     if (peek == '.') {
         this->nextChar();
-        return DotToken(0, 0);
+        return Token(TokenType::Dot, 0, 0);
     }
     if (peek == '=') {
         this->nextChar();
-        return AssignmentToken(0, 0);
+        return Token(TokenType::Assignment, 0, 0);
     }
 
     // Control flow keyword
-    if (this->matchKeyword("use")) return UseToken(0, 0);
-    if (this->matchKeyword("if")) return IfToken(0, 0);
-    if (this->matchKeyword("else")) return ElseToken(0, 0);
-    if (this->matchKeyword("elseif")) return ElseIfToken(0, 0);
-    if (this->matchKeyword("unless")) return UnlessToken(0, 0);
-    if (this->matchKeyword("while")) return WhileToken(0, 0);
-    if (this->matchKeyword("until")) return UntilToken(0, 0);
-    if (this->matchKeyword("for")) return ForToken(0, 0);
-    if (this->matchKeyword("foreach")) return ForeachToken(0, 0);
-    if (this->matchKeyword("when")) return WhenToken(0, 0);
-    if (this->matchKeyword("do")) return DoToken(0, 0);
-    if (this->matchKeyword("next")) return NextToken(0, 0);
-    if (this->matchKeyword("redo")) return RedoToken(0, 0);
-    if (this->matchKeyword("last")) return LastToken(0, 0);
-    if (this->matchKeyword("my")) return MyToken(0, 0);
-    if (this->matchKeyword("state")) return StateToken(0, 0);
-    if (this->matchKeyword("our")) return OurToken(0, 0);
-    if (this->matchKeyword("break")) return BreakToken(0, 0);
-    if (this->matchKeyword("continue")) return ContinueToken(0, 0);
-    if (this->matchKeyword("given")) return GivenToken(0, 0);
-    if (this->matchKeyword("sub")) return SubToken(0, 0);
+    if (this->matchKeyword("use")) return Token(TokenType::Use, 0, 0);
+    if (this->matchKeyword("if")) return Token(TokenType::If, 0, 0);
+    if (this->matchKeyword("else")) return Token(TokenType::Else, 0, 0);
+    if (this->matchKeyword("elseif")) return Token(TokenType::ElseIf, 0, 0);
+    if (this->matchKeyword("unless")) return Token(TokenType::Unless, 0, 0);
+    if (this->matchKeyword("while")) return Token(TokenType::While, 0, 0);
+    if (this->matchKeyword("until")) return Token(TokenType::Until, 0, 0);
+    if (this->matchKeyword("for")) return Token(TokenType::For, 0, 0);
+    if (this->matchKeyword("foreach")) return Token(TokenType::Foreach, 0, 0);
+    if (this->matchKeyword("when")) return Token(TokenType::When, 0, 0);
+    if (this->matchKeyword("do")) return Token(TokenType::Do, 0, 0);
+    if (this->matchKeyword("next")) return Token(TokenType::Next, 0, 0);
+    if (this->matchKeyword("redo")) return Token(TokenType::Redo, 0, 0);
+    if (this->matchKeyword("last")) return Token(TokenType::Last, 0, 0);
+    if (this->matchKeyword("my")) return Token(TokenType::My, 0, 0);
+    if (this->matchKeyword("state")) return Token(TokenType::State, 0, 0);
+    if (this->matchKeyword("our")) return Token(TokenType::Our, 0, 0);
+    if (this->matchKeyword("break")) return Token(TokenType::Break, 0, 0);
+    if (this->matchKeyword("continue")) return Token(TokenType::Continue, 0, 0);
+    if (this->matchKeyword("given")) return Token(TokenType::Given, 0, 0);
+    if (this->matchKeyword("sub")) return Token(TokenType::Sub, 0, 0);
 
     auto numeric = this->matchNumeric();
-    if (!numeric.empty()) return NumericLiteralToken(numeric, 0, 0);
+    if (!numeric.empty()) return Token(TokenType::NumericLiteral, numeric, 0, 0);
 
     auto name = this->matchName();
     if (!name.empty()) {
-        return NameToken(name, 0, 0);
+        return Token(TokenType::Name, name, 0, 0);
     }
 
     auto string = this->matchString();
-    if (!string.empty()) return StringToken(string, 0, 0);
+    if (!string.empty()) return Token(TokenType::String, string, 0, 0);
 
     auto comment = this->matchComment();
-    if (!comment.empty()) return CommentToken(comment, 0, 0, 0, 0);
+    if (!comment.empty()) return Token(TokenType::Comment, comment, 0, 0, 0, 0);
     throw TokeniseException(std::string("Remaining code exists"));
 }
+
+std::string tokenToString(const TokenType &t) {
+    if (t == String) return "String";
+    if (t == ScalarVariable) return "ScalarVariable";
+    if (t == ArrayVariable) return "ArrayVariable";
+    if (t == HashVariable) return "HashVariable";
+    if (t == Operator) return "Operator";
+    if (t == LBracket) return "LBracket";
+    if (t == RBracket) return "RBracket";
+    if (t == LParen) return "LParen";
+    if (t == RParen) return "RParen";
+    if (t == LSquareBracket) return "LSquareBracket";
+    if (t == RSquareBracket) return "RSquareBracket";
+    if (t == Comment) return "Comment";
+    if (t == Newline) return "Newline";
+    if (t == Whitespace) return "Whitespace";
+    if (t == Dot) return "Dot";
+    if (t == Assignment) return "Assignment";
+    if (t == Semicolon) return "Semicolon";
+    if (t == EndOfInput) return "EndOfInput";
+    if (t == If) return "If";
+    if (t == Else) return "Else";
+    if (t == ElseIf) return "ElseIf";
+    if (t == Unless) return "Unless";
+    if (t == While) return "While";
+    if (t == Until) return "Until";
+    if (t == For) return "For";
+    if (t == Foreach) return "Foreach";
+    if (t == When) return "When";
+    if (t == Do) return "Do";
+    if (t == Next) return "Next";
+    if (t == Redo) return "Redo";
+    if (t == Last) return "Last";
+    if (t == My) return "My";
+    if (t == State) return "State";
+    if (t == Our) return "Our";
+    if (t == Break) return "Break";
+    if (t == Continue) return "Continue";
+    if (t == Given) return "Given";
+    if (t == Use) return "Use";
+    if (t == Sub) return "Sub";
+    if (t == Name) return "Name";
+    if (t == NumericLiteral) return "NumericLiteral";
+    return "TokenType toString NOT IMPLEMENTED";
+}
+
 
