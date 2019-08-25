@@ -37,6 +37,7 @@ int searchMain() {
     return 0;
 }
 
+
 int main() {
     std::ifstream fileStream("../test.pl");
     if (!fileStream.is_open()) {
@@ -46,6 +47,7 @@ int main() {
     std::string program((std::istreambuf_iterator<char>(fileStream) ), (std::istreambuf_iterator<char>()    ) );
     Tokeniser tokeniser(program);
     auto token = tokeniser.nextToken();
+    // FIXME
     while (true) {
         std::cout << token.toString() << std::endl;
         token = tokeniser.nextToken();

@@ -159,6 +159,19 @@ std::string Tokeniser::matchNumeric() {
     return "";
 }
 
+std::string Tokeniser::matchComment() {
+    // TODO this may be too simple and lead to too much being commented - check
+    std::string comment;
+    if (this->peek() == '#') {
+        comment += this->nextChar();
+        while (this->peek() != '\n' && this->peek() != '\r' && this->peek() != EOF) {
+            comment += this->nextChar();
+        }
+    }
+
+    return comment;
+}
+
 Token Tokeniser::nextToken() {
     if (this->peek() == EOF) {
         return EndOfInputToken(0, 0);
@@ -281,6 +294,8 @@ Token Tokeniser::nextToken() {
     auto string = this->matchString();
     if (!string.empty()) return StringToken(string, 0, 0);
 
+    auto comment = this->matchComment();
+    if (!comment.empty()) return CommentToken(comment, 0, 0, 0, 0);
     throw TokeniseException(std::string("Remaining code exists"));
 }
 

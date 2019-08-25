@@ -54,6 +54,7 @@ private:
     std::string matchName();
     std::string matchString();
     std::string matchNumeric();
+    std::string matchComment();
 
     std::string program;
     int position = -1;
