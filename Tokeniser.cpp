@@ -4,9 +4,6 @@
 
 #include "Tokeniser.h"
 
-#include <utility>
-#include <iostream>
-
 static std::regex NUMERIC_REGEX(R"(^(\+|-)?(\d+\.?\d{0,}(e(\+|-)?\d+?)?|0x[\dabcdefABCDEF]+|0b[01]+|)$)");
 
 Tokeniser::Tokeniser(std::string perl) {
@@ -203,7 +200,7 @@ std::string Tokeniser::matchPod() {
                 char c3 = this->peekAhead(3);
                 char c4 = this->peekAhead(4);
                 pod += this->nextChar();
-                if ((c1 == '=' && c2=='c' && c3=='u' && c4 == 't')) {
+                if ((c1 == '=' && c2 == 'c' && c3 == 'u' && c4 == 't')) {
                     this->position += 3;
                     pod += "cut";
                     break;
@@ -213,6 +210,23 @@ std::string Tokeniser::matchPod() {
     }
 
     return pod;
+}
+
+FilePos Tokeniser::getLineCol(int pos) {
+    int line = 1;
+    int posAcc = pos;
+
+    for (auto lineStarPos : lineStartPositions) {
+        if (posAcc - lineStarPos < 0) {
+            // Got line, now figure out column
+            return FilePos(line, posAcc);
+        }
+
+        posAcc -= lineStarPos;
+        line += 1;
+    }
+
+    return FilePos(line, posAcc);
 }
 
 
@@ -231,6 +245,8 @@ Token Tokeniser::nextToken() {
     // TODO Ensure this works on all platforms
     std::string newlineTokens = this->getUntil(this->isNewline);
     if (newlineTokens.length() > 0) {
+        // We're now at the start of a new line
+        lineStartPositions.emplace_back(this->position + 1);
         return Token(TokenType::Newline, newlineTokens, 1, 2);
     }
 
@@ -349,8 +365,10 @@ Token Tokeniser::nextToken() {
 
     auto comment = this->matchComment();
     if (!comment.empty()) return Token(TokenType::Comment, comment, 0, 0, 0, 0);
+
     throw TokeniseException(std::string("Remaining code exists"));
 }
+
 
 std::string tokenToString(const TokenType &t) {
     if (t == String) return "String";

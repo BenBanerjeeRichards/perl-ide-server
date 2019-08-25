@@ -1,5 +1,4 @@
 #include <iostream>
-#include "Token.h"
 #include "Tokeniser.h"
 #include <fstream>
 #include "search/Search.h"
@@ -47,16 +46,21 @@ int main() {
     std::string program((std::istreambuf_iterator<char>(fileStream) ), (std::istreambuf_iterator<char>()    ) );
     Tokeniser tokeniser(program);
     auto token = tokeniser.nextToken();
-    // FIXME
+
     while (token.type != TokenType::EndOfInput) {
         if (token.type != Whitespace) {
             std::cout << token.toString() << " ";
             if (token.type == Newline) std::cout << std::endl;
         }
         token = tokeniser.nextToken();
-
-
     }
+
+    for (auto x : tokeniser.lineStartPositions) {
+        std::cout << x << " ";
+    }
+    std::cout << std::endl;
+
+
 
     std::cout << "DONE" << std::endl;
     return 0;
