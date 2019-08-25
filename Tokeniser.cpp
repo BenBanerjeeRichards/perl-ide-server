@@ -30,6 +30,18 @@ char Tokeniser::peekAhead(int i) {
     return this->program[this->position + i];
 }
 
+// Returns null for start of file
+char Tokeniser::prevChar(int i) {
+    // So i = 0 gets the same char as peekAhead(0) would except handles start of files correctly
+    if (this->position - i <= -1) {
+        // Start of file
+        return 0;
+    }
+
+    if (this->position - i > this->program.size() - 1) return EOF;
+    return this->program[this->position - i];
+}
+
 char Tokeniser::peek() {
     return this->peekAhead(1);
 }
@@ -172,6 +184,38 @@ std::string Tokeniser::matchComment() {
     return comment;
 }
 
+std::string Tokeniser::matchPod() {
+    char prevChar = this->prevChar(0);
+    std::string pod;
+    if (prevChar == 0 || prevChar == '\n' || prevChar == '\r') {
+        // Valid place to put a pod, now check if there is one
+        if (this->peek() == '=') {
+            // Yes
+            pod += this->nextChar();
+
+            // Consume until end of line (we can't start and end POD on same line)
+            pod += this->getUntil(isNewline);
+
+            // Now consume until ending
+            while (true) {
+                char c1 = this->peek();
+                char c2 = this->peekAhead(2);
+                char c3 = this->peekAhead(3);
+                char c4 = this->peekAhead(4);
+                pod += this->nextChar();
+                if ((c1 == '=' && c2=='c' && c3=='u' && c4 == 't')) {
+                    this->position += 3;
+                    pod += "cut";
+                    break;
+                }
+            }
+        }
+    }
+
+    return pod;
+}
+
+
 Token Tokeniser::nextToken() {
     if (this->peek() == EOF) {
         return Token(TokenType::EndOfInput, 0, 0);
@@ -210,7 +254,7 @@ Token Tokeniser::nextToken() {
     // TODO complete this list
     auto operators = std::vector<std::string>{
             "->", "+=", "++", "+", "--", "-=", "-", "**=", "*=", "**", "*", "!=", "!~", "!", "-", "~", "\\", "==", "=~",
-            "=", "/=", "//=", "//", "/", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<", ">=",
+            "/=", "//=", "//", "/", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<", ">=",
             "lt", "gt", "le", "ge", "eq", "ne", "cmp", "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
             "~", "^=", "^.=", "^", "and", "or", "...", "..", "?:", ":", ".=", "not", "xor"
     };
@@ -255,11 +299,6 @@ Token Tokeniser::nextToken() {
         this->nextChar();
         return Token(TokenType::Dot, 0, 0);
     }
-    if (peek == '=') {
-        this->nextChar();
-        return Token(TokenType::Assignment, 0, 0);
-    }
-
     // Control flow keyword
     if (this->matchKeyword("use")) return Token(TokenType::Use, 0, 0);
     if (this->matchKeyword("if")) return Token(TokenType::If, 0, 0);
@@ -285,6 +324,16 @@ Token Tokeniser::nextToken() {
 
     auto numeric = this->matchNumeric();
     if (!numeric.empty()) return Token(TokenType::NumericLiteral, numeric, 0, 0);
+
+    auto pod = this->matchPod();
+    if (!pod.empty()) return Token(TokenType::Pod, pod, 0, 0);
+
+    // POD takes priority
+    if (peek == '=') {
+        this->nextChar();
+        return Token(TokenType::Assignment, 0, 0);
+    }
+
 
     auto name = this->matchName();
     if (!name.empty()) {
@@ -341,6 +390,7 @@ std::string tokenToString(const TokenType &t) {
     if (t == Sub) return "Sub";
     if (t == Name) return "Name";
     if (t == NumericLiteral) return "NumericLiteral";
+    if (t == Pod) return "Pod";
     return "TokenType toString NOT IMPLEMENTED";
 }
 

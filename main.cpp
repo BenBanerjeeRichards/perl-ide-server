@@ -39,7 +39,7 @@ int searchMain() {
 
 
 int main() {
-    std::ifstream fileStream("../test.pl");
+    std::ifstream fileStream("../perl/tokeniser.pl");
     if (!fileStream.is_open()) {
         std::cerr << "Failed to open file!" << std::endl;
         return 1;
@@ -49,8 +49,13 @@ int main() {
     auto token = tokeniser.nextToken();
     // FIXME
     while (token.type != TokenType::EndOfInput) {
-        std::cout << token.toString() << std::endl;
+        if (token.type != Whitespace) {
+            std::cout << token.toString() << " ";
+            if (token.type == Newline) std::cout << std::endl;
+        }
         token = tokeniser.nextToken();
+
+
     }
 
     std::cout << "DONE" << std::endl;

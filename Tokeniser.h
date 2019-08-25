@@ -28,6 +28,8 @@ private:
 
     bool isEof();
 
+    char prevChar(int i);
+
     // Whitespace such as tabs, empty spaces. Does NOT include new lines
     static bool isWhitespace(char c);
 
@@ -41,20 +43,25 @@ private:
 
     static bool isAlphaNumeric(char c);
 
-    bool matchKeyword(const std::string& keyword);
+    bool matchKeyword(const std::string &keyword);
 
     static bool isVariableBody(char c);
 
     std::string getUntil(const std::function<bool(char)> &nextCharTest);
 
     // options should be sorted longest to shortest and in preference of match
-    std::string matchString(const std::vector<std::string>& options);
+    std::string matchString(const std::vector<std::string> &options);
 
     // Match some perl 'name' - could be a function name, function call, etc... We just don't know yet
     std::string matchName();
+
     std::string matchString();
+
     std::string matchNumeric();
+
     std::string matchComment();
+
+    std::string matchPod();
 
     std::string program;
     int position = -1;
