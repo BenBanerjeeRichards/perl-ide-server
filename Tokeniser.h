@@ -10,6 +10,7 @@
 #include "Token.h"
 #include <memory>
 #include <vector>
+#include <regex>
 #include "TokeniseException.h"
 
 class Tokeniser {
@@ -38,6 +39,8 @@ private:
 
     static bool isNumber(char c);
 
+    static bool isAlphaNumeric(char c);
+
     bool matchKeyword(const std::string& keyword);
 
     static bool isVariableBody(char c);
@@ -47,6 +50,10 @@ private:
     // options should be sorted longest to shortest and in preference of match
     std::string matchString(const std::vector<std::string>& options);
 
+    // Match some perl 'name' - could be a function name, function call, etc... We just don't know yet
+    std::string matchName();
+    std::string matchString();
+    std::string matchNumeric();
 
     std::string program;
     int position = -1;

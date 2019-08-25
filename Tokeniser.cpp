@@ -7,6 +7,8 @@
 #include <utility>
 #include <iostream>
 
+static std::regex NUMERIC_REGEX(R"(^(\+|-)?(\d+\.?\d{0,}(e(\+|-)?\d+?)?|0x[\dabcdefABCDEF]+|0b[01]+|)$)");
+
 Tokeniser::Tokeniser(std::string perl) {
     this->program = std::move(perl);
 }
@@ -65,6 +67,11 @@ bool Tokeniser::isNumber(char c) {
     return c >= '0' && c <= '9';
 }
 
+bool Tokeniser::isAlphaNumeric(char c) {
+    // TODO make more efficient by using better ASCII ranges
+    return isNumber(c) || isUppercase(c) || isLowercase(c);
+}
+
 // Variable body i.e. variable name after any Sigil and then first char
 bool Tokeniser::isVariableBody(char c) {
     return c >= '!' && c != ';';
@@ -86,8 +93,8 @@ std::string Tokeniser::matchString(const std::vector<std::string> &options) {
     return "";
 }
 
-bool Tokeniser::matchKeyword(const std::string& keyword) {
-    for (int i = 0; i < (int)keyword.size(); i++) {
+bool Tokeniser::matchKeyword(const std::string &keyword) {
+    for (int i = 0; i < (int) keyword.size(); i++) {
         if (this->peekAhead(i + 1) != keyword[i]) {
             return false;
         }
@@ -95,12 +102,61 @@ bool Tokeniser::matchKeyword(const std::string& keyword) {
 
     // Keyword has been matched
     // Keyword must be followed by non a-zA-Z0-9 character
-    char nextChar = this->peekAhead((int)keyword.size() + 1);
-    if (this->isNumber(nextChar) || this->isUppercase(nextChar) || this->isLowercase(nextChar)) return false;
+    char nextChar = this->peekAhead((int) keyword.size() + 1);
+    if (isAlphaNumeric(nextChar)) return false;
 
     // We have the keyword
     this->position += keyword.size();
     return true;
+}
+
+std::string Tokeniser::matchName() {
+    std::string acc;
+    while (this->isAlphaNumeric(this->peek())) {
+        acc += this->peek();
+        this->nextChar();
+    }
+
+    return acc;
+}
+
+std::string Tokeniser::matchString() {
+    std::string contents;
+    if (this->peek() == '"') {
+        this->nextChar();
+        while (this->peek() != '"' || (this->peek() == '"' && this->peekAhead(0) == '\\')) {
+            contents += this->peek();
+            this->nextChar();
+        }
+        this->nextChar();
+    } else if (this->peek() == '\'') {
+        this->nextChar();
+        while (this->peek() != '\'' || (this->peek() == '\'' && this->peekAhead(0) == '\\')) {
+            contents += this->peek();
+            this->nextChar();
+        }
+        this->nextChar();
+    }
+
+    return contents;
+}
+
+std::string Tokeniser::matchNumeric() {
+    std::string testString;
+    int i = 0;
+    while (isAlphaNumeric(peekAhead(i + 1))) {
+        testString += peekAhead(i + 1);
+        i += 1;
+    }
+    if (testString.empty()) return "";
+    std::smatch regexMatch;
+
+    if (std::regex_match(testString, regexMatch, NUMERIC_REGEX)) {
+        this->position += testString.size();
+        return testString;
+    }
+
+    return "";
 }
 
 Token Tokeniser::nextToken() {
@@ -212,7 +268,18 @@ Token Tokeniser::nextToken() {
     if (this->matchKeyword("break")) return BreakToken(0, 0);
     if (this->matchKeyword("continue")) return ContinueToken(0, 0);
     if (this->matchKeyword("given")) return GivenToken(0, 0);
+    if (this->matchKeyword("sub")) return SubToken(0, 0);
 
+    auto numeric = this->matchNumeric();
+    if (!numeric.empty()) return NumericLiteralToken(numeric, 0, 0);
+
+    auto name = this->matchName();
+    if (!name.empty()) {
+        return NameToken(name, 0, 0);
+    }
+
+    auto string = this->matchString();
+    if (!string.empty()) return StringToken(string, 0, 0);
 
     throw TokeniseException(std::string("Remaining code exists"));
 }

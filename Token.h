@@ -273,6 +273,20 @@ struct UseToken : public Token  {
     UseToken(int line, int col) : Token("USE", "", line, col, col + 3) {};
 };
 
+struct SubToken : public Token  {
+    SubToken(int line, int col) : Token("SUB", "", line, col, col + 3) {};
+};
 
+struct NameToken : public Token {
+    NameToken(const std::string& name, int line, int col) : Token("NAME", name, line, col, col + name.size()) {};
+};
+
+struct NumericLiteralToken : public Token {
+    NumericLiteralToken(const std::string& number, int line, int col) : Token("NUMERIC", number, line, col, col + number.size()) {};
+};
+
+struct StringLiteralToken : public Token {
+    StringLiteralToken(const std::string& contents, int line, int col) : Token("STRING", contents, line, col, col + 2 + contents.size()) {};
+};
 
 #endif //PERLPARSER_TOKEN_H
