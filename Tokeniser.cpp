@@ -86,6 +86,23 @@ std::string Tokeniser::matchString(const std::vector<std::string> &options) {
     return "";
 }
 
+bool Tokeniser::matchKeyword(const std::string& keyword) {
+    for (int i = 0; i < (int)keyword.size(); i++) {
+        if (this->peekAhead(i + 1) != keyword[i]) {
+            return false;
+        }
+    }
+
+    // Keyword has been matched
+    // Keyword must be followed by non a-zA-Z0-9 character
+    char nextChar = this->peekAhead((int)keyword.size() + 1);
+    if (this->isNumber(nextChar) || this->isUppercase(nextChar) || this->isLowercase(nextChar)) return false;
+
+    // We have the keyword
+    this->position += keyword.size();
+    return true;
+}
+
 Token Tokeniser::nextToken() {
     if (this->peek() == EOF) {
         return EndOfInputToken(0, 0);
@@ -173,6 +190,29 @@ Token Tokeniser::nextToken() {
         this->nextChar();
         return AssignmentToken(0, 0);
     }
+
+    // Control flow keyword
+    if (this->matchKeyword("use")) return UseToken(0, 0);
+    if (this->matchKeyword("if")) return IfToken(0, 0);
+    if (this->matchKeyword("else")) return ElseToken(0, 0);
+    if (this->matchKeyword("elseif")) return ElseIfToken(0, 0);
+    if (this->matchKeyword("unless")) return UnlessToken(0, 0);
+    if (this->matchKeyword("while")) return WhileToken(0, 0);
+    if (this->matchKeyword("until")) return UntilToken(0, 0);
+    if (this->matchKeyword("for")) return ForToken(0, 0);
+    if (this->matchKeyword("foreach")) return ForeachToken(0, 0);
+    if (this->matchKeyword("when")) return WhenToken(0, 0);
+    if (this->matchKeyword("do")) return DoToken(0, 0);
+    if (this->matchKeyword("next")) return NextToken(0, 0);
+    if (this->matchKeyword("redo")) return RedoToken(0, 0);
+    if (this->matchKeyword("last")) return LastToken(0, 0);
+    if (this->matchKeyword("my")) return MyToken(0, 0);
+    if (this->matchKeyword("state")) return StateToken(0, 0);
+    if (this->matchKeyword("our")) return OurToken(0, 0);
+    if (this->matchKeyword("break")) return BreakToken(0, 0);
+    if (this->matchKeyword("continue")) return ContinueToken(0, 0);
+    if (this->matchKeyword("given")) return GivenToken(0, 0);
+
 
     throw TokeniseException(std::string("Remaining code exists"));
 }

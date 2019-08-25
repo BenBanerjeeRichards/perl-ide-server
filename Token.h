@@ -193,6 +193,86 @@ struct EndOfInputToken : public Token {
     EndOfInputToken(int line, int col) : Token("EOF", "", line, col) {};
 };
 
+struct IfToken : public Token  {
+    IfToken(int line, int col) : Token("IF", "", line, col, col + 2) {};
+};
+
+struct ElseToken : public Token  {
+    ElseToken(int line, int col) : Token("ELSE", "", line, col, col + 4) {};
+};
+
+struct ElseIfToken : public Token  {
+    ElseIfToken(int line, int col) : Token("ELSEIF", "", line, col, col + 6) {};
+};
+
+struct UnlessToken : public Token  {
+    UnlessToken(int line, int col) : Token("UNLESS", "", line, col, col + 6) {};
+};
+
+struct WhileToken : public Token  {
+    WhileToken(int line, int col) : Token("WHILE", "", line, col, col + 5) {};
+};
+
+struct UntilToken : public Token  {
+    UntilToken(int line, int col) : Token("UNTIL", "", line, col, col + 5) {};
+};
+
+struct ForToken : public Token  {
+    ForToken(int line, int col) : Token("FOR", "", line, col, col + 3) {};
+};
+
+struct ForeachToken : public Token  {
+    ForeachToken(int line, int col) : Token("FOREACH", "", line, col, col + 7) {};
+};
+
+struct WhenToken : public Token  {
+    WhenToken(int line, int col) : Token("WHEN", "", line, col, col + 4) {};
+};
+
+struct DoToken : public Token  {
+    DoToken(int line, int col) : Token("DO", "", line, col, col + 2) {};
+};
+
+struct NextToken : public Token  {
+    NextToken(int line, int col) : Token("NEXT", "", line, col, col + 4) {};
+};
+
+struct RedoToken : public Token  {
+    RedoToken(int line, int col) : Token("REDO", "", line, col, col + 4) {};
+};
+
+struct LastToken : public Token  {
+    LastToken(int line, int col) : Token("LAST", "", line, col, col + 4) {};
+};
+
+struct MyToken : public Token  {
+    MyToken(int line, int col) : Token("MY", "", line, col, col + 2) {};
+};
+
+struct StateToken : public Token  {
+    StateToken(int line, int col) : Token("STATE", "", line, col, col + 5) {};
+};
+
+struct OurToken : public Token  {
+    OurToken(int line, int col) : Token("OUR", "", line, col, col + 3) {};
+};
+
+struct BreakToken : public Token  {
+    BreakToken(int line, int col) : Token("BREAK", "", line, col, col + 5) {};
+};
+
+struct ContinueToken : public Token  {
+    ContinueToken(int line, int col) : Token("BREAK", "", line, col, col + 8) {};
+};
+
+struct GivenToken : public Token  {
+    GivenToken(int line, int col) : Token("GIVEN", "", line, col, col + 5) {};
+};
+
+struct UseToken : public Token  {
+    UseToken(int line, int col) : Token("USE", "", line, col, col + 3) {};
+};
+
 
 
 #endif //PERLPARSER_TOKEN_H

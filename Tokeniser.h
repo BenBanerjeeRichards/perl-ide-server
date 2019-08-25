@@ -38,6 +38,8 @@ private:
 
     static bool isNumber(char c);
 
+    bool matchKeyword(const std::string& keyword);
+
     static bool isVariableBody(char c);
 
     std::string getUntil(const std::function<bool(char)> &nextCharTest);
