@@ -10,33 +10,51 @@ Tokeniser::Tokeniser(std::string perl) {
     this->program = std::move(perl);
 }
 
+int Tokeniser::nextLine() {
+    this->currentLine += 1;
+    this->currentCol = 1;
+    return this->currentLine;
+}
+
+void Tokeniser::advancePositionSameLine(int i) {
+    this->_position += i;
+    this->currentCol += i;
+}
+
 char Tokeniser::nextChar() {
-    if (this->position == this->program.length() - 1) {
+    if (this->_position == this->program.length() - 1) {
         return EOF;
     }
 
-    this->position += 1;
-    return this->program[this->position];
+    if ((this->peek() == '\r' && this->peekAhead(2) == '\n') || this->peek() == '\n') {
+        // Newline coming up, other code will handle token
+        this->nextLine();
+    } else {
+        this->currentCol += 1;
+    }
+
+    this->_position += 1;
+    return this->program[this->_position];
 }
 
 char Tokeniser::peekAhead(int i) {
-    if (this->position + i > this->program.length() - 1) {
+    if (this->_position + i > this->program.length() - 1) {
         return EOF;
     }
 
-    return this->program[this->position + i];
+    return this->program[this->_position + i];
 }
 
 // Returns null for start of file
 char Tokeniser::prevChar(int i) {
     // So i = 0 gets the same char as peekAhead(0) would except handles start of files correctly
-    if (this->position - i <= -1) {
+    if (this->_position - i <= -1) {
         // Start of file
         return 0;
     }
 
-    if (this->position - i > this->program.size() - 1) return EOF;
-    return this->program[this->position - i];
+    if (this->_position - i > this->program.size() - 1) return EOF;
+    return this->program[this->_position - i];
 }
 
 char Tokeniser::peek() {
@@ -44,10 +62,10 @@ char Tokeniser::peek() {
 }
 
 bool Tokeniser::isEof() {
-    return this->position > this->program.length() - 1;
+    return this->_position > this->program.length() - 1;
 }
 
-std::string Tokeniser::getUntil(const std::function<bool(char)> &nextCharTest) {
+std::string Tokeniser::getWhile(const std::function<bool(char)> &nextCharTest) {
     std::string acc;
     while (nextCharTest(this->peek()) && !this->isEof()) {
         acc += this->nextChar();
@@ -94,7 +112,7 @@ std::string Tokeniser::matchString(const std::vector<std::string> &options) {
         }
 
         if (match) {
-            this->position += option.length();
+            this->advancePositionSameLine(option.length());
             return option;
         }
     }
@@ -115,7 +133,7 @@ bool Tokeniser::matchKeyword(const std::string &keyword) {
     if (isAlphaNumeric(nextChar)) return false;
 
     // We have the keyword
-    this->position += keyword.size();
+    this->advancePositionSameLine(keyword.size());
     return true;
 }
 
@@ -161,7 +179,7 @@ std::string Tokeniser::matchNumeric() {
     std::smatch regexMatch;
 
     if (std::regex_match(testString, regexMatch, NUMERIC_REGEX)) {
-        this->position += testString.size();
+        this->advancePositionSameLine(testString.size());
         return testString;
     }
 
@@ -191,7 +209,7 @@ std::string Tokeniser::matchPod() {
             pod += this->nextChar();
 
             // Consume until end of line (we can't start and end POD on same line)
-            pod += this->getUntil(isNewline);
+            pod += this->getWhile(isNewline);
 
             // Now consume until ending
             while (true) {
@@ -201,7 +219,7 @@ std::string Tokeniser::matchPod() {
                 char c4 = this->peekAhead(4);
                 pod += this->nextChar();
                 if ((c1 == '=' && c2 == 'c' && c3 == 'u' && c4 == 't')) {
-                    this->position += 3;
+                    this->advancePositionSameLine(3);
                     pod += "cut";
                     break;
                 }
@@ -212,42 +230,31 @@ std::string Tokeniser::matchPod() {
     return pod;
 }
 
-FilePos Tokeniser::getLineCol(int pos) {
-    int line = 1;
-    int posAcc = pos;
-
-    for (auto lineStarPos : lineStartPositions) {
-        if (posAcc - lineStarPos < 0) {
-            // Got line, now figure out column
-            return FilePos(line, posAcc);
-        }
-
-        posAcc -= lineStarPos;
-        line += 1;
-    }
-
-    return FilePos(line, posAcc);
-}
-
 
 Token Tokeniser::nextToken() {
+    // Position before anything is consumed
+    auto startPos = FilePos(this->currentLine, this->currentCol);
+
     if (this->peek() == EOF) {
-        return Token(TokenType::EndOfInput, 0, 0);
+        return Token(TokenType::EndOfInput, startPos);
     }
 
     // Devour any whitespace
-    std::string whitespace = this->getUntil(this->isWhitespace);
+    std::string whitespace = this->getWhile(this->isWhitespace);
     if (whitespace.length() > 0) {
-        return Token(TokenType::Whitespace, whitespace, 1, 2, 3, 4);
+        return Token(TokenType::Whitespace, startPos, whitespace);
     }
 
     // Now for newlines
-    // TODO Ensure this works on all platforms
-    std::string newlineTokens = this->getUntil(this->isNewline);
-    if (newlineTokens.length() > 0) {
-        // We're now at the start of a new line
-        lineStartPositions.emplace_back(this->position + 1);
-        return Token(TokenType::Newline, newlineTokens, 1, 2);
+    if (this->peek() == '\n') {
+        // Linux/mac newline
+        this->nextChar();
+        return Token(TokenType::Newline, startPos, "\n");
+    } else if (this->peek() == '\r' && this->peekAhead(2) == '\n') {
+        // windows
+        this->nextChar();
+        this->nextChar();
+        return Token(TokenType::Newline, startPos, "\r\n");
     }
 
     char sigil = this->peek();
@@ -255,14 +262,16 @@ Token Tokeniser::nextToken() {
     if (sigil == '$' || sigil == '@' || sigil == '%') {
         this->nextChar();   // Consume Sigil
 
-        std::string variableRest = getUntil(isVariableBody);
+        std::string variableRest = getWhile(isVariableBody);
         std::string fullName;
         fullName += sigil;
         fullName += variableRest;
 
-        if (sigil == '$') return Token(TokenType::ScalarVariable, fullName, 0, 0);
-        if (sigil == '%') return Token(TokenType::HashVariable, fullName, 0, 0);
-        return Token(TokenType::ArrayVariable, fullName, 0, 0);
+        if (sigil == '$')
+            return Token(TokenType::ScalarVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
+        if (sigil == '%')
+            return Token(TokenType::HashVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
+        return Token(TokenType::ArrayVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
     }
 
     // Perl has so many operators...
@@ -277,7 +286,7 @@ Token Tokeniser::nextToken() {
 
     std::string op = matchString(operators);
     if (!op.empty()) {
-        return (Token(TokenType::Operator, op, 0, 0));
+        return (Token(TokenType::Operator, startPos, op));
     }
 
     // Now consider the really easy single character tokens
@@ -285,86 +294,89 @@ Token Tokeniser::nextToken() {
 
     if (peek == ';') {
         this->nextChar();
-        return Token(TokenType::Semicolon, 0, 0);
+        return Token(TokenType::Semicolon, startPos, startPos.col);
     }
     if (peek == ',') {
         this->nextChar();
-        return Token(TokenType::Comma, 0, 0);
+        return Token(TokenType::Comma, startPos, startPos.col);
     }
     if (peek == '{') {
         this->nextChar();
-        return Token(TokenType::LBracket, 0, 0);
+        return Token(TokenType::LBracket, startPos, startPos.col);
     }
     if (peek == '}') {
         this->nextChar();
-        return Token(TokenType::RBracket, 0, 0);
+        return Token(TokenType::RBracket, startPos, startPos.col);
     }
     if (peek == '(') {
         this->nextChar();
-        return Token(TokenType::LParen, 0, 0);
+        return Token(TokenType::LParen, startPos, startPos.col);
     }
     if (peek == ')') {
         this->nextChar();
-        return Token(TokenType::RParen, 0, 0);
+        return Token(TokenType::RParen, startPos, startPos.col);
     }
     if (peek == '[') {
         this->nextChar();
-        return Token(TokenType::LSquareBracket, 0, 0);
+        return Token(TokenType::LSquareBracket, startPos, startPos.col);
     }
     if (peek == ']') {
         this->nextChar();
-        return Token(TokenType::RSquareBracket, 0, 0);
+        return Token(TokenType::RSquareBracket, startPos, startPos.col);
     }
     if (peek == '.') {
         this->nextChar();
-        return Token(TokenType::Dot, 0, 0);
+        return Token(TokenType::Dot, startPos, startPos.col + 1);
     }
     // Control flow keyword
-    if (this->matchKeyword("use")) return Token(TokenType::Use, 0, 0);
-    if (this->matchKeyword("if")) return Token(TokenType::If, 0, 0);
-    if (this->matchKeyword("else")) return Token(TokenType::Else, 0, 0);
-    if (this->matchKeyword("elseif")) return Token(TokenType::ElseIf, 0, 0);
-    if (this->matchKeyword("unless")) return Token(TokenType::Unless, 0, 0);
-    if (this->matchKeyword("while")) return Token(TokenType::While, 0, 0);
-    if (this->matchKeyword("until")) return Token(TokenType::Until, 0, 0);
-    if (this->matchKeyword("for")) return Token(TokenType::For, 0, 0);
-    if (this->matchKeyword("foreach")) return Token(TokenType::Foreach, 0, 0);
-    if (this->matchKeyword("when")) return Token(TokenType::When, 0, 0);
-    if (this->matchKeyword("do")) return Token(TokenType::Do, 0, 0);
-    if (this->matchKeyword("next")) return Token(TokenType::Next, 0, 0);
-    if (this->matchKeyword("redo")) return Token(TokenType::Redo, 0, 0);
-    if (this->matchKeyword("last")) return Token(TokenType::Last, 0, 0);
-    if (this->matchKeyword("my")) return Token(TokenType::My, 0, 0);
-    if (this->matchKeyword("state")) return Token(TokenType::State, 0, 0);
-    if (this->matchKeyword("our")) return Token(TokenType::Our, 0, 0);
-    if (this->matchKeyword("break")) return Token(TokenType::Break, 0, 0);
-    if (this->matchKeyword("continue")) return Token(TokenType::Continue, 0, 0);
-    if (this->matchKeyword("given")) return Token(TokenType::Given, 0, 0);
-    if (this->matchKeyword("sub")) return Token(TokenType::Sub, 0, 0);
+    if (this->matchKeyword("use")) return Token(TokenType::Use, startPos, startPos.col + 2);
+    if (this->matchKeyword("if")) return Token(TokenType::If, startPos, startPos.col + 1);
+    if (this->matchKeyword("else")) return Token(TokenType::Else, startPos, startPos.col + 3);
+    if (this->matchKeyword("elseif")) return Token(TokenType::ElseIf, startPos, startPos.col + 5);
+    if (this->matchKeyword("unless")) return Token(TokenType::Unless, startPos, startPos.col + 5);
+    if (this->matchKeyword("while")) return Token(TokenType::While, startPos, startPos.col + 4);
+    if (this->matchKeyword("until")) return Token(TokenType::Until, startPos, startPos.col + 4);
+    if (this->matchKeyword("for")) return Token(TokenType::For, startPos, startPos.col + 2);
+    if (this->matchKeyword("foreach")) return Token(TokenType::Foreach, startPos, startPos.col + 6);
+    if (this->matchKeyword("when")) return Token(TokenType::When, startPos, startPos.col + 3);
+    if (this->matchKeyword("do")) return Token(TokenType::Do, startPos, startPos.col + 1);
+    if (this->matchKeyword("next")) return Token(TokenType::Next, startPos, startPos.col + 3);
+    if (this->matchKeyword("redo")) return Token(TokenType::Redo, startPos, startPos.col + 3);
+    if (this->matchKeyword("last")) return Token(TokenType::Last, startPos, startPos.col + 3);
+    if (this->matchKeyword("my")) return Token(TokenType::My, startPos, startPos.col + 1);
+    if (this->matchKeyword("state")) return Token(TokenType::State, startPos, startPos.col + 4);
+    if (this->matchKeyword("our")) return Token(TokenType::Our, startPos, startPos.col + 2);
+    if (this->matchKeyword("break")) return Token(TokenType::Break, startPos, startPos.col + 4);
+    if (this->matchKeyword("continue")) return Token(TokenType::Continue, startPos, startPos.col + 7);
+    if (this->matchKeyword("given")) return Token(TokenType::Given, startPos, startPos.col + 4);
+    if (this->matchKeyword("sub")) return Token(TokenType::Sub, startPos, startPos.col + 2);
 
     auto numeric = this->matchNumeric();
-    if (!numeric.empty()) return Token(TokenType::NumericLiteral, numeric, 0, 0);
+    if (!numeric.empty()) return Token(TokenType::NumericLiteral, startPos, numeric);
 
     auto pod = this->matchPod();
-    if (!pod.empty()) return Token(TokenType::Pod, pod, 0, 0);
+    if (!pod.empty()) {
+        // One of the few tokens that can span multiple lines
+        return Token(TokenType::Pod, startPos, FilePos(this->currentLine, this->currentCol - 1), pod);
+    }
 
     // POD takes priority
     if (peek == '=') {
         this->nextChar();
-        return Token(TokenType::Assignment, 0, 0);
+        return Token(TokenType::Assignment, startPos, startPos.col - 1);
     }
 
+
+    auto string = this->matchString();
+    if (!string.empty()) return Token(TokenType::String, startPos, string);
 
     auto name = this->matchName();
     if (!name.empty()) {
-        return Token(TokenType::Name, name, 0, 0);
+        return Token(TokenType::Name, startPos, name);
     }
 
-    auto string = this->matchString();
-    if (!string.empty()) return Token(TokenType::String, string, 0, 0);
-
     auto comment = this->matchComment();
-    if (!comment.empty()) return Token(TokenType::Comment, comment, 0, 0, 0, 0);
+    if (!comment.empty()) return Token(TokenType::Comment, startPos, comment);
 
     throw TokeniseException(std::string("Remaining code exists"));
 }

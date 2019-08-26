@@ -13,6 +13,24 @@
 #include "TokeniseException.h"
 #include <utility>
 #include <iostream>
+#include "Util.h"
+
+
+struct FilePos {
+    FilePos() {
+        this->line = 0;
+        this->col = 0;
+    }
+
+    FilePos(int line, int pos) {
+        this->line = line;
+        this->col = pos;
+    }
+
+    int line;
+    int col;
+};
+
 
 enum TokenType {
     String,
@@ -87,76 +105,39 @@ public:
     }
 
     // When data is identical to code
-    Token(const TokenType &type, const std::string &data, unsigned int line, unsigned int startCol) {
+    Token(const TokenType &type, FilePos start, const std::string &data = "") {
         this->type = type;
         this->data = data;
-        this->startLine = line;
-        this->startCol = startCol;
-
-        // Compute ending position from data
-        this->endLine = line;
-        this->endCol = startCol + data.size();
-    }
-
-    Token(const TokenType &type, unsigned int line, unsigned int startCol) {
-        this->type = type;
-        this->startLine = line;
-        this->startCol = startCol;
-        this->data = "";
-
-        // Compute ending position from data
-        this->endLine = line;
-        this->endCol = startCol + data.size();
+        this->startPos = start;
+        this->endPos = FilePos(start.line, start.col + (int) data.size() - 1);
     }
 
 
-    Token(const TokenType &type, const std::string &data, unsigned int line, unsigned int startCol,
-          unsigned int endCol) {
+    Token(const TokenType &type, FilePos start, int endCol, const std::string &data = "") {
         this->type = type;
         this->data = data;
-        this->startLine = line;
-        this->startCol = startCol;
-
-        // Compute ending position from data
-        this->endLine = line;
-        this->endCol = endCol;
+        this->startPos = start;
+        this->endPos = FilePos(start.line, endCol);
     }
 
-    Token(const TokenType &type, const std::string &data, unsigned int startLine, unsigned int startCol,
-          unsigned int endLine, unsigned int endCol) {
+    Token(const TokenType &type, FilePos start, FilePos end, const std::string &data = "") {
         this->type = type;
         this->data = data;
-        this->startLine = startLine;
-        this->startCol = startCol;
-
-        // Compute ending position from data
-        this->endLine = endLine;
-        this->endCol = endCol;
+        this->startPos = start;
+        this->endPos = end;
     }
 
     TokenType type;
-
-private:
+    // Position of token in file
+    FilePos startPos;
+    FilePos endPos;
     // Readable name used in tostring
     // Optional data used. e.g. $ident has 'ident' as it's data, but keyword my has no data
     std::string data;
 
-    // Position of token in file
-    unsigned int startLine;
-    unsigned int startCol;
-    unsigned int endLine;
-    unsigned int endCol;
-};
+private:
 
-struct FilePos {
-    FilePos(int line, int pos) {
-        this->line = line;
-        this->pos = pos;
-    }
-    int line;
-    int pos;
 };
-
 
 class Tokeniser {
 public:
@@ -164,8 +145,6 @@ public:
 
     Token nextToken();
 
-// Place where newlines start
-std::vector<int> lineStartPositions{0};
 private:
     char nextChar();
 
@@ -194,7 +173,7 @@ private:
 
     static bool isVariableBody(char c);
 
-    std::string getUntil(const std::function<bool(char)> &nextCharTest);
+    std::string getWhile(const std::function<bool(char)> &nextCharTest);
 
     // options should be sorted longest to shortest and in preference of match
     std::string matchString(const std::vector<std::string> &options);
@@ -210,10 +189,16 @@ private:
 
     std::string matchPod();
 
-    FilePos getLineCol(int pos);
+    int nextLine();
 
+    void advancePositionSameLine(int i);
+
+    int _position = -1;
+    int currentLine = 1;
+    int currentCol = 1;
     std::string program;
-    int position = -1;
+
+
 };
 
 #endif //PERLPARSER_TOKENISER_H
