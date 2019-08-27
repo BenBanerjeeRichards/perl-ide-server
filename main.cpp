@@ -45,7 +45,26 @@ void printTokenStandard(Token token) {
               << " " << tokenStr <<  std::endl;
 }
 
-int main() {
+int main(int argc, char** args) {
+    if (argc == 2) {
+        std::ifstream fileStream(args[1]);
+        if (!fileStream.is_open()) {
+            std::cerr << "Failed to open file " << args[1] <<  std::endl;
+            return 1;
+        }
+        std::string program((std::istreambuf_iterator<char>(fileStream)), (std::istreambuf_iterator<char>()));
+        Tokeniser tokeniser(program);
+        auto token = tokeniser.nextToken();
+
+        while (token.type != TokenType::EndOfInput) {
+            printTokenStandard(token);
+            token = tokeniser.nextToken();
+        }
+
+        return 0;
+    }
+
+
     std::ifstream fileStream("../perl/test.pl");
     if (!fileStream.is_open()) {
         std::cerr << "Failed to open file!" << std::endl;

@@ -101,7 +101,7 @@ bool Tokeniser::isAlphaNumeric(char c) {
 
 // Variable body i.e. variable name after any Sigil and then first char
 bool Tokeniser::isVariableBody(char c) {
-    return c >= '!' && c != ';' && c != ',';
+    return c >= '!' && c != ';' && c != ',' && c != '>' && c != '-' && c != '.';
 }
 
 std::string Tokeniser::matchString(const std::vector<std::string> &options) {
@@ -171,7 +171,7 @@ std::string Tokeniser::matchString() {
 std::string Tokeniser::matchNumeric() {
     std::string testString;
     int i = 0;
-    while (isAlphaNumeric(peekAhead(i + 1))) {
+    while (isAlphaNumeric(peekAhead(i + 1)) || peekAhead(i + 1) == '.' || peekAhead(i + 1) == '+' || peekAhead(i + 1) == '-') {
         testString += peekAhead(i + 1);
         i += 1;
     }
@@ -278,7 +278,7 @@ Token Tokeniser::nextToken() {
     // Thankfully we don't actually care what the do, just need to recognise them
     // TODO complete this list
     auto operators = std::vector<std::string>{
-            "->", "+=", "++", "+", "--", "-=", "-", "**=", "*=", "**", "*", "!=", "!~", "!", "-", "~", "\\", "==", "=~",
+            "->", "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
             "/=", "//=", "//", "/", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<", ">=",
             "lt", "gt", "le", "ge", "eq", "ne", "cmp", "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
             "~", "^=", "^.=", "^", "and", "or", "...", "..", "?:", ":", ".=", "not", "xor"
@@ -354,6 +354,13 @@ Token Tokeniser::nextToken() {
     auto numeric = this->matchNumeric();
     if (!numeric.empty()) return Token(TokenType::NumericLiteral, startPos, numeric);
 
+
+    // Numeric first
+    if (this->peek() == '-') {
+        this->nextChar();
+        return Token(TokenType::Operator, startPos, "-");
+    }
+
     auto pod = this->matchPod();
     if (!pod.empty()) {
         // One of the few tokens that can span multiple lines
@@ -361,22 +368,22 @@ Token Tokeniser::nextToken() {
     }
 
     // POD takes priority
-    if (peek == '=') {
+    if (this->peek() == '=') {
         this->nextChar();
-        return Token(TokenType::Assignment, startPos, startPos.col - 1);
+        return Token(TokenType::Assignment, startPos, startPos.col);
     }
 
 
     auto string = this->matchString();
     if (!string.empty()) return Token(TokenType::String, startPos, string);
 
+    auto comment = this->matchComment();
+    if (!comment.empty()) return Token(TokenType::Comment, startPos, comment);
+
     auto name = this->matchName();
     if (!name.empty()) {
         return Token(TokenType::Name, startPos, name);
     }
-
-    auto comment = this->matchComment();
-    if (!comment.empty()) return Token(TokenType::Comment, startPos, comment);
 
     throw TokeniseException(std::string("Remaining code exists"));
 }

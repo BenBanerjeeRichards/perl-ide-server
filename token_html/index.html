@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<style>
+
+    .line {
+        display: flex;
+    }
+
+
+    .perl {
+        flex: 0 0 50%;
+    }
+
+    .tokens {
+        flex: 1;
+    }
+
+    .c00{
+        background-color: #ffd1d7;
+    }
+
+    .c0 {
+        background-color: #ecf0ff;
+    }
+
+    .c2 {
+        background-color: #d3ffea;
+    }
+
+    .c3 {
+        background-color: #fffca8;
+    }
+
+    .c4 {
+        background-color: #dcc0ff;
+    }
+
+    .highlighted {
+        background-color: #555555 !important;
+        color: white !important;
+        font-weight: bold;
+    }
+</style>
+
+<script>
+    window.onload = function () {
+        var spans = Array.from(document.getElementsByTagName("span"));
+        spans.forEach(function (span) {
+            if (span.id[0] === 'p' && span.id.length === 2) {
+                console.log(span.id)
+                span.onclick = function () {
+                    spans.forEach(function (s) {
+                        if (s.classList.contains("highlighted")) s.classList.remove("highlighted")
+                    });
+
+                    span.classList.add("highlighted");
+                    document.getElementById("t" + span.id[1]).classList.add("highlighted");
+                }
+            }
+        });
+    }
+</script>
+
+
+<div id="container">
+    <span class="line">
+        <div class="perl">
+            <span class="c0" id="p1">my</span> <span class="c2" id="p2">$hello</span> <span class="c3" id="p3">=</span>
+                    <span class="c4" id="p4">"Hello"</span><span class="c4" id="p5">;</span> <br>
+        </div>
+        <div class="tokens">
+                    <span class="c0" id="t1">My</span> <span class="c2" id="t2">ScalarVariable($hello)</span> <span
+                class="c3"
+                id="t3">Assignment</span>
+        <span class="c4" id="t4">String(Hello)</span> <span class="c4" id="t5">Semicolon</span>
+        </div>
+    </span>
+
+    <span class="line">
+        <div class="perl">
+            <span class="c0" id="p6">if</span> <span class="c2" id="p7">$hello</span> <span class="c3" id="p8">{</span>
+        </div>
+        <div class="tokens">
+                                <span class="c0" id="t1">My</span> <span class="c2" id="t2">ScalarVariable($hello)</span> <span
+                class="c3"
+                id="t3">Assignment</span>
+        <span class="c4" id="t4">String(Hello)</span> <span class="c4" id="t5">Semicolon</span>
+
+        </div>
+    </span>
+
+    <span class="line">
+        <div class="perl">
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="c0" id="p9">$t</span> <span class="c2" id="p10">=</span> <span class="c3" id="p11">23</span>        </div>
+        <div class="tokens">
+                                <span class="c0" id="t1">My</span> <span class="c2" id="t2">ScalarVariable($hello)</span> <span
+                class="c3"
+                id="t3">Assignment</span>
+        <span class="c4" id="t4">String(Hello)</span> <span class="c4" id="t5">Semicolon</span>
+
+        </div>
+    </span>
+
+    <span class="line">
+        <div class="perl">
+            <span class="c0" id="p12">}</span>
+       </div>
+        <div class="tokens">
+                                <span class="c0" id="t1">My</span> <span class="c2" id="t2">ScalarVariable($hello)</span> <span
+                class="c3"
+                id="t3">Assignment</span>
+        <span class="c4" id="t4">String(Hello)</span> <span class="c4" id="t5">Semicolon</span>
+
+        </div>
+    </span>
+
+
+</div>
+</body>
+</html>
