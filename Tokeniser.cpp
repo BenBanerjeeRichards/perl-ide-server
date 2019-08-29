@@ -389,7 +389,7 @@ Token Tokeniser::nextToken() {
 }
 
 
-std::string tokenToString(const TokenType &t) {
+std::string tokenTypeToString(const TokenType &t) {
     if (t == String) return "String";
     if (t == ScalarVariable) return "ScalarVariable";
     if (t == ArrayVariable) return "ArrayVariable";
@@ -436,4 +436,13 @@ std::string tokenToString(const TokenType &t) {
     return "TokenType toString NOT IMPLEMENTED";
 }
 
+std::string tokenToString(const Token &token) {
+    std::string tokenStr = tokenTypeToString(token.type);
+    if (!token.data.empty()) {
+        auto d1 = replace(token.data, "\n", "\\n");
+        auto d2 = replace(d1, "\r", "\\r");
+        tokenStr += "(" + d2 + ")";
+    }
 
+    return tokenStr;
+}

@@ -78,14 +78,15 @@ enum TokenType {
     Comma
 };
 
-std::string tokenToString(const TokenType &t);
+std::string tokenTypeToString(const TokenType &t);
+
 
 class Token {
 
 public:
     std::string toString() {
         if (this->data.empty()) {
-            return tokenToString(this->type);
+            return tokenTypeToString(this->type);
         }
 
         // Don't print out newlines to console
@@ -101,7 +102,7 @@ public:
         }
 
 
-        return tokenToString(this->type) + "(" + dataToShow + ")";
+        return tokenTypeToString(this->type) + "(" + dataToShow + ")";
     }
 
     // When data is identical to code
@@ -138,6 +139,9 @@ public:
 private:
 
 };
+
+std::string tokenToString(const Token &token);
+
 
 class Tokeniser {
 public:

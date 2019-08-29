@@ -34,22 +34,27 @@ int searchMain() {
     return 0;
 }
 
-void printTokenStandard(Token token) {
-    std::string tokenStr = tokenToString(token.type);
+void printTokenStandard(const Token& token, bool printLocation = true) {
+    std::string tokenStr = tokenTypeToString(token.type);
     if (!token.data.empty()) {
         auto d1 = replace(token.data, "\n", "\\n");
         auto d2 = replace(d1, "\r", "\\r");
         tokenStr += "(" + d2 + ")";
     }
-    std::cout << token.startPos.line << ":" << token.startPos.col << " " << token.endPos.line << ":" << token.endPos.col
-              << " " << tokenStr <<  std::endl;
+
+    if (printLocation) {
+        std::cout << token.startPos.line << ":" << token.startPos.col << " " << token.endPos.line << ":"
+                  << token.endPos.col << " ";
+    }
+
+    std::cout << tokenStr << std::endl;
 }
 
-int main(int argc, char** args) {
+int main(int argc, char **args) {
     if (argc == 2) {
         std::ifstream fileStream(args[1]);
         if (!fileStream.is_open()) {
-            std::cerr << "Failed to open file " << args[1] <<  std::endl;
+            std::cerr << "Failed to open file " << args[1] << std::endl;
             return 1;
         }
         std::string program((std::istreambuf_iterator<char>(fileStream)), (std::istreambuf_iterator<char>()));
@@ -64,7 +69,6 @@ int main(int argc, char** args) {
         return 0;
     }
 
-
     std::ifstream fileStream("../perl/test.pl");
     if (!fileStream.is_open()) {
         std::cerr << "Failed to open file!" << std::endl;
@@ -75,11 +79,7 @@ int main(int argc, char** args) {
     auto token = tokeniser.nextToken();
 
     while (token.type != TokenType::EndOfInput) {
-        printTokenStandard(token);
-//        if (token.type != Whitespace) {
-//            std::cout << token.toString() << " ";
-//            if (token.type == Newline) std::cout << std::endl;
-//        }
+        printTokenStandard(token, false);
         token = tokeniser.nextToken();
     }
 
