@@ -7,7 +7,6 @@
 #include <vector>
 #include "Util.h"
 #include "Tokeniser.h"
-#include <sstream>
 #include <fstream>
 
 
@@ -33,8 +32,8 @@ int main(int argc, char *argv[]) {
         for (const auto &expectedToken : expectedTokens) {
             Token token = tokeniser.nextToken();
 
-            if (tokenToString(token) != expectedToken) {
-                std::cout << " [FAILED]: Incorrect token at line " << i + 1 << ". Got " << tokenToString(token)
+            if (token.toStr() != expectedToken) {
+                std::cout << " [FAILED]: Incorrect token at token number " << i + 1  << " around position " << token.startPos.toStr() <<  " Got " << token.toStr()
                           << " expected " << expectedToken << std::endl;
                 success = false;
                 break;

@@ -1,38 +1,7 @@
 #include <iostream>
 #include "Tokeniser.h"
 #include "search/Search.h"
-#include <sstream>
 
-int searchMain() {
-//    std::string s{"UnrealAudioDeviceXAudio2.cpp"};
-//
-//    for (auto i : getCamelIndexes(s)) {
-//        std::cout << s[i];
-//    }
-//
-//    std::cout << std::endl;
-
-    std::ifstream fileStream("../filenames.txt");
-    if (!fileStream.is_open()) {
-        std::cerr << "Failed to open file!" << std::endl;
-        return 1;
-    }
-
-    std::string filenamesFull((std::istreambuf_iterator<char>(fileStream)), (std::istreambuf_iterator<char>()));
-    std::stringstream filesStream(filenamesFull);
-    std::string segment;
-    std::vector<std::string> seglist;
-
-    while (std::getline(filesStream, segment, '\n')) {
-        std::replace(segment.begin(), segment.end(), '\r', ' ');
-        seglist.push_back(segment);
-    }
-// BlueprintCompilerCppBackend
-//    search(std::vector<std::string>{"BlueprintCompilerCppBackend"}, "BCCB",10);
-    search(seglist, "BCCB", 10);
-
-    return 0;
-}
 
 void printTokenStandard(const Token& token, bool printLocation = true) {
     std::string tokenStr = tokenTypeToString(token.type);
@@ -52,17 +21,11 @@ void printTokenStandard(const Token& token, bool printLocation = true) {
 
 int main(int argc, char **args) {
     if (argc == 2) {
-        std::ifstream fileStream(args[1]);
-        if (!fileStream.is_open()) {
-            std::cerr << "Failed to open file " << args[1] << std::endl;
-            return 1;
-        }
-        std::string program((std::istreambuf_iterator<char>(fileStream)), (std::istreambuf_iterator<char>()));
-        Tokeniser tokeniser(program);
+        Tokeniser tokeniser(readFile(args[1]));
         auto token = tokeniser.nextToken();
 
         while (token.type != TokenType::EndOfInput) {
-            printTokenStandard(token);
+            std::cout << token.toStr(true) << std::endl;
             token = tokeniser.nextToken();
         }
 
@@ -79,7 +42,7 @@ int main(int argc, char **args) {
     auto token = tokeniser.nextToken();
 
     while (token.type != TokenType::EndOfInput) {
-        printTokenStandard(token, false);
+        std::cout << token.toStr(true) << std::endl;
         token = tokeniser.nextToken();
     }
 

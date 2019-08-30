@@ -6,6 +6,28 @@
 
 static std::regex NUMERIC_REGEX(R"(^(\+|-)?(\d+\.?\d{0,}(e(\+|-)?\d+?)?|0x[\dabcdefABCDEF]+|0b[01]+|)$)");
 
+std::string Token::toStr(bool includeLocation) {
+    std::string tokenStr;
+
+    if (includeLocation) {
+        tokenStr += this->startPos.toStr() + " " + this->endPos.toStr() + " ";
+    }
+
+    tokenStr += tokenTypeToString(this->type);
+
+    if (!this->data.empty()) {
+        auto d1 = replace(this->data, "\n", "\\n");
+        auto d2 = replace(d1, "\r", "\\r");
+        tokenStr += "(" + d2 + ")";
+    }
+
+    return tokenStr;
+}
+
+std::string FilePos::toStr() {
+    return std::to_string(this->line) + ":" + std::to_string(this->col);
+}
+
 Tokeniser::Tokeniser(std::string perl) {
     this->program = std::move(perl);
 }
@@ -171,7 +193,8 @@ std::string Tokeniser::matchString() {
 std::string Tokeniser::matchNumeric() {
     std::string testString;
     int i = 0;
-    while (isAlphaNumeric(peekAhead(i + 1)) || peekAhead(i + 1) == '.' || peekAhead(i + 1) == '+' || peekAhead(i + 1) == '-') {
+    while (isAlphaNumeric(peekAhead(i + 1)) || peekAhead(i + 1) == '.' || peekAhead(i + 1) == '+' ||
+           peekAhead(i + 1) == '-') {
         testString += peekAhead(i + 1);
         i += 1;
     }
@@ -434,15 +457,4 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == Pod) return "Pod";
     if (t == Comma) return "Comma";
     return "TokenType toString NOT IMPLEMENTED";
-}
-
-std::string tokenToString(const Token &token) {
-    std::string tokenStr = tokenTypeToString(token.type);
-    if (!token.data.empty()) {
-        auto d1 = replace(token.data, "\n", "\\n");
-        auto d2 = replace(d1, "\r", "\\r");
-        tokenStr += "(" + d2 + ")";
-    }
-
-    return tokenStr;
 }

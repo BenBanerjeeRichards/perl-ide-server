@@ -27,6 +27,8 @@ struct FilePos {
         this->col = pos;
     }
 
+    std::string toStr();
+
     int line;
     int col;
 };
@@ -128,6 +130,9 @@ public:
         this->endPos = end;
     }
 
+    std::string toStr(bool includeLocation = false);
+
+
     TokenType type;
     // Position of token in file
     FilePos startPos;
@@ -136,12 +141,11 @@ public:
     // Optional data used. e.g. $ident has 'ident' as it's data, but keyword my has no data
     std::string data;
 
+
+
 private:
 
 };
-
-std::string tokenToString(const Token &token);
-
 
 class Tokeniser {
 public:
