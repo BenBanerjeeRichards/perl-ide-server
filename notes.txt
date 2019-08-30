@@ -1,0 +1,65 @@
+Parsing
+
+One way that parsing can be sped up is by only reparsing the part of the file that has changed. 
+The user is editing part of a file at a time so only that needs to be reparsed. 
+
+However, the positions of the existing tokens (that are not regenerated) must be updated. So if a 
+newline is inserted, then the lines of following tokens must be incremented by one. Columnns won't change
+as the part of the file where the column is changed is reparsed. 
+
+This should only be used for autocomplete. For refactoring, it is important to ensure we are working with 
+the correct positions for the entire file - in case of bugs with the above logic, a clean parse should
+be obtained of the file.
+
+So when editing part of a file, that scope block only should be recompiled (so section in brackets). We could
+add some special rules for global scope. But in general if the scope block is edited then only that block
+needs to be reparsed. Minimising parsing is important as it is very cpu intensive and will drain battery on 
+a laptop. Indeed if we're editing a single line only that line needs to be considered in the parse results
+using a very fast parse to determine context for autocomplete (e.g. if user accessing hash or something).
+
+Another important aspect is the parser, for autocomplete on the current file, almost always be parsing 
+incomplete files. Not only will there be errors where the user is editing, but also in other places.
+The parser must not fail in these situations
+
+* Phase 1: Basic tokenisation 
+	Convert file to basic tokens - simple and don't consider any token context.
+
+* Phase 2: Parsing
+	Using lookahead, use the tokens to to determine context and build a vague parse tree. The vague parse tree:
+		- Doesn't necessarily have to be 100% accurate but
+		- Should contain accurate positions of each scope, variable, constant, definition function and function call
+		- Can handle deviations from the expected syntax and recover from errors without messing up the rest of the parse tree
+		
+		When parsing one idea is to, at first, create a very basic tree that considers just variable scopes. It doesn't necessarily have to
+		know about funtions, ifelse, etc. Just create the blocks, each containing the tokens for that scope. 
+
+		Then we can then add more detail - parse variable definitions and scan for usages, detect functions and other control 
+		flow.
+		
+
+1. End of program
+	Create token for end of input
+	First thing tokenise checks is if we are at the end of input
+
+2. Also: What do we do if we reach the end of the Tokenise function with input remaining. 
+	This shouldn't happen even in an invalid program. Probably. 
+	But can we certainly say it is an exception - a tokenisation failure. 
+
+
+Data structure for variables - way to quickly get usages, definition, possible variables etc. Remember that it will need to work across
+multiple files (modules). 
+
+Project Structure:
+
+	Need to determine how to structure project
+		Probably use libraries that are then split across git repos
+
+	Parser library
+	PerlTools (program) 
+
+
+Other concerns:
+	- Windows support? I assume PA is using linux/mac as well so not a key concern, just consider any cross platform concerns (not that I imaging there being
+		many, just using lib/etc)
+
+
