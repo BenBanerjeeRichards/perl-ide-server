@@ -136,14 +136,19 @@ bool Tokeniser::isVariableBody(char c) {
     return c >= '!' && c != ';' && c != ',' && c != '>' && c != '-' && c != '.';
 }
 
-std::string Tokeniser::matchString(const std::vector<std::string> &options) {
+std::string Tokeniser::matchString(const std::vector<std::string> &options, bool requireTrailingNonAN) {
     for (const std::string &option : options) {
         bool match = true;  // Assume match until proven otherwise
         for (int i = 0; i < (int) option.length(); i++) {
             match = match && (this->peekAhead(i + 1) == option[i]);
         }
 
-        if (match) {
+        // If requireTrailingNonAN check next char is not alphanumeric
+        // This fixes issues with `sub length() {...}` being translated to NAME(SUB) OP(LE) NAME(GTH) ...
+        if (match && (!requireTrailingNonAN || !this->isAlphaNumeric(this->peekAhead((int)option.length() + 1)))) {
+            if (requireTrailingNonAN) {
+
+            }
             this->advancePositionSameLine(option.length());
             return option;
         }
@@ -394,15 +399,27 @@ Token Tokeniser::nextToken() {
     // TODO complete this list
     auto operators = std::vector<std::string>{
             "->", "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
-            "/=", "//=", "//", "/", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<", ">=",
-            "lt", "gt", "le", "ge", "eq", "ne", "cmp", "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
-            "~", "^=", "^.=", "^", "and", "or", "...", "..", "?:", ":", ".=", "not", "xor"
+            "/=", "//=", "=>", "//", "/", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<", ">=",
+            "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
+            "~", "^=", "^.=", "^", "...", "..", "?:", ":", ".=",
     };
+
+    // These operators must be followed by a non alphanumeric
+    auto wordOperators = std::vector<std::string>{
+            "lt", "gt", "le", "ge", "eq", "ne", "cmp", "and", "or", "not", "xor"
+    };
+
 
     std::string op = matchString(operators);
     if (!op.empty()) {
         return (Token(TokenType::Operator, startPos, op));
     }
+
+    std::string op2 = matchString(wordOperators, true);
+    if (!op2.empty()) {
+        return (Token(TokenType::Operator, startPos, op2));
+    }
+
 
     // Now consider the really easy single character tokens
     char peek = this->peek();

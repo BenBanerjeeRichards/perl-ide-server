@@ -188,7 +188,7 @@ private:
     std::string getWhile(const std::function<bool(char)> &nextCharTest);
 
     // options should be sorted longest to shortest and in preference of match
-    std::string matchString(const std::vector<std::string> &options);
+    std::string matchString(const std::vector<std::string> &options, bool requireTrailingNonAN = false);
 
     // Match some perl 'name' - could be a function name, function call, etc... We just don't know yet
     std::string matchName();
