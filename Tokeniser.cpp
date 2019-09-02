@@ -188,6 +188,7 @@ std::string Tokeniser::matchString() {
             this->nextChar();
         }
         this->nextChar();
+        contents = '"' + contents = '"';
     } else if (this->peek() == '\'') {
         this->nextChar();
         while (this->peek() != '\'' || (this->peek() == '\'' && this->peekAhead(0) == '\\')) {
@@ -195,6 +196,7 @@ std::string Tokeniser::matchString() {
             this->nextChar();
         }
         this->nextChar();
+        contents = '\'' + contents + '\'';
     }
 
     return contents;
@@ -378,23 +380,6 @@ Token Tokeniser::nextToken() {
         this->nextChar();
         return Token(TokenType::Newline, startPos, "\r\n");
     }
-
-    // Variables
-    //    char sigil = this->peek();
-//    if (sigil == '$' || sigil == '@' || sigil == '%') {
-//        this->nextChar();   // Consume Sigil
-//
-//        std::string variableRest = getWhile(isVariableBody);
-//        std::string fullName;
-//        fullName += sigil;
-//        fullName += variableRest;
-//
-//        if (sigil == '$')
-//            return Token(TokenType::ScalarVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
-//        if (sigil == '%')
-//            return Token(TokenType::HashVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
-//        return Token(TokenType::ArrayVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
-//    }
 
     auto var = this->matchVariable();
     if (!var.empty()) {

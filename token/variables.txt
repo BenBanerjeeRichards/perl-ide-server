@@ -120,7 +120,7 @@ Semicolon
 Newline(\n)
 ScalarVariable($:)
 Operator(:)
-String(::foo;\n$foo)
+String('::foo;\n$foo')
 Operator(:)
 Operator(:)
 Name(bar)

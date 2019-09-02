@@ -4,7 +4,7 @@ ScalarVariable($hello)
 Whitespace( )
 Assignment
 Whitespace( )
-String(Hello)
+String(")
 Semicolon
 Newline(\n)
 My
@@ -13,7 +13,7 @@ ScalarVariable($hello2)
 Whitespace( )
 Assignment
 Whitespace( )
-String(He\"llo)
+String(")
 Semicolon
 Newline(\n)
 My
@@ -22,7 +22,7 @@ ScalarVariable($hello3)
 Whitespace( )
 Assignment
 Whitespace( )
-String(Test)
+String('Test')
 Semicolon
 Newline(\n)
 My
@@ -31,7 +31,7 @@ ScalarVariable($hello4)
 Whitespace( )
 Assignment
 Whitespace( )
-String(Te\'st)
+String('Te\'st')
 Semicolon
 Newline(\n)
 Newline(\n)
@@ -164,7 +164,7 @@ Comment(# Print a message.)
 Newline(\n)
 Name(print)
 Whitespace( )
-String(Hello, World!\n)
+String(")
 Semicolon
 Newline(\n)
 Newline(\n)
@@ -183,7 +183,7 @@ Newline(\n)
 Whitespace(    )
 Name(print)
 Whitespace( )
-String(NO\n)
+String(")
 Newline(\n)
 RBracket
 Whitespace( )
@@ -194,7 +194,6 @@ Newline(\n)
 Whitespace(    )
 Name(print)
 Whitespace( )
-String(YES\n)
+String(")
 Newline(\n)
 RBracket
-EndOfInput

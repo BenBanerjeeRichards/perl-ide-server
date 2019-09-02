@@ -3,22 +3,6 @@
 #include "search/Search.h"
 
 
-void printTokenStandard(const Token& token, bool printLocation = true) {
-    std::string tokenStr = tokenTypeToString(token.type);
-    if (!token.data.empty()) {
-        auto d1 = replace(token.data, "\n", "\\n");
-        auto d2 = replace(d1, "\r", "\\r");
-        tokenStr += "(" + d2 + ")";
-    }
-
-    if (printLocation) {
-        std::cout << token.startPos.line << ":" << token.startPos.col << " " << token.endPos.line << ":"
-                  << token.endPos.col << " ";
-    }
-
-    std::cout << tokenStr << std::endl;
-}
-
 int main(int argc, char **args) {
     if (argc == 2) {
         Tokeniser tokeniser(readFile(args[1]));
