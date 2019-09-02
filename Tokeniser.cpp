@@ -67,6 +67,11 @@ char Tokeniser::peekAhead(int i) {
     return this->program[this->_position + i];
 }
 
+// TODO probably useless
+std::string Tokeniser::substring(int fromIdx, int length) {
+    return this->program.substr(fromIdx, length);
+}
+
 // Returns null for start of file
 char Tokeniser::prevChar(int i) {
     // So i = 0 gets the same char as peekAhead(0) would except handles start of files correctly
@@ -110,6 +115,11 @@ bool Tokeniser::isLowercase(char c) {
 
 bool Tokeniser::isUppercase(char c) {
     return c >= 'A' && c <= 'Z';
+}
+
+
+bool Tokeniser::isPunctuation(char c) {
+    return (c >= '!' && c <= '/') || (c >= ':' && c <= '@') || (c >= '[' && c <= '`') || (c >= '{' && c <= '~');
 }
 
 bool Tokeniser::isNumber(char c) {
@@ -254,6 +264,95 @@ std::string Tokeniser::matchPod() {
 }
 
 
+int Tokeniser::peekPackageTokens(int i) {
+    // ::' is ok but ':: is not
+    int start = i;
+    while (true) {
+        if (i - start > 10000) throw TokeniseException("BUG: peekPackageTokens in assumed infinite loop");
+        if (this->peekAhead(i) == ':' && this->peekAhead(i + 1) == ':') {
+            i += 2;
+        } else if (this->peekAhead(i) == '\'' && (this->peekAhead(i + 1) != ':' && this->peekAhead(i + 2) != ':')) {
+            i += 1;
+        } else {
+            return i - start;
+        }
+    }
+}
+
+// Too complicated to use regex (could do it but regex would be horrible to write and debug)
+std::string Tokeniser::matchVariable() {
+    int i = 1;
+    // Must start with sigil
+    if (peekAhead(i) != '$' && peekAhead(i) != '@' && peekAhead(i) != '%') return "";
+    i += 1;
+
+    // Consider a standard variable
+    // Main complication here is the package rules (:: and ')
+    int packageDelta = peekPackageTokens(i);
+    i += packageDelta;
+    if (isUppercase(this->peekAhead(i)) || isLowercase(this->peekAhead(i)) || this->peekAhead(i) == '_') {
+        // Valid starting
+        i += 1;
+        while (true) {
+            int start = i;
+            i += peekPackageTokens(i);
+            while (this->isAlphaNumeric(this->peekAhead(i)) || this->peekAhead(i) == '_') i += 1;
+
+            // If we don't progress any more, then the variable is finished
+            if (i == start) {
+                break;
+            }
+        }
+    } else {
+        // Now try the special variables
+        i -= packageDelta;
+
+        if (this->peekAhead(i) == '^') {
+            // Variable in the form $^A;
+            char second = this->peekAhead(i + 1);
+            if (this->isUppercase(second) || second == '[' || second == ']' || second == '^' || second == '_' ||
+                second == '?' || second == '\\') {
+                i += 2;
+                goto done;
+            }
+        }
+
+        if (this->isNumber(this->peekAhead(i))) {
+            // Numeric variable
+            i += 1;
+            while (this->isNumber(this->peekAhead(i))) i += 1;
+            goto done;
+        }
+
+        if (this->isPunctuation(this->peekAhead(i)) && this->peekAhead(i) != '{') {
+            // Single punctuation variable
+            i += 1;
+            goto done;
+        }
+
+        int beforeBracket = i;      // If we don't find a matching bracket then don't count this as a valid variabe
+        if (this->peekAhead(i) == '{' && this->peekAhead(i + 1) == '^') {
+            // The square bracket ones
+            i += 2;
+            if (this->peekAhead(i) == '_') i += 1;      // Optional underscore
+            while (this->isAlphaNumeric(this->peekAhead(i))) i += 1;
+            if (this->peekAhead(i) == '}') {
+                i += 1;
+                goto done;
+            } else {
+                i = beforeBracket;
+            }
+        }
+    }
+
+    done:
+    // If nothing after sigil matched, then don't match as a variable
+    if (i == 2) return "";
+    std::string var = this->substring(this->_position + 1, i - 1);
+    this->advancePositionSameLine(i - 1);
+    return var;
+}
+
 Token Tokeniser::nextToken() {
     // Position before anything is consumed
     auto startPos = FilePos(this->currentLine, this->currentCol);
@@ -280,21 +379,29 @@ Token Tokeniser::nextToken() {
         return Token(TokenType::Newline, startPos, "\r\n");
     }
 
-    char sigil = this->peek();
     // Variables
-    if (sigil == '$' || sigil == '@' || sigil == '%') {
-        this->nextChar();   // Consume Sigil
+    //    char sigil = this->peek();
+//    if (sigil == '$' || sigil == '@' || sigil == '%') {
+//        this->nextChar();   // Consume Sigil
+//
+//        std::string variableRest = getWhile(isVariableBody);
+//        std::string fullName;
+//        fullName += sigil;
+//        fullName += variableRest;
+//
+//        if (sigil == '$')
+//            return Token(TokenType::ScalarVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
+//        if (sigil == '%')
+//            return Token(TokenType::HashVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
+//        return Token(TokenType::ArrayVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
+//    }
 
-        std::string variableRest = getWhile(isVariableBody);
-        std::string fullName;
-        fullName += sigil;
-        fullName += variableRest;
-
-        if (sigil == '$')
-            return Token(TokenType::ScalarVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
-        if (sigil == '%')
-            return Token(TokenType::HashVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
-        return Token(TokenType::ArrayVariable, startPos, startPos.col + (int) fullName.size() - 1, fullName);
+    auto var = this->matchVariable();
+    if (!var.empty()) {
+        auto type = TokenType::HashVariable;
+        if (var[0] == '$') type = ScalarVariable;
+        if (var[0] == '@') type = ArrayVariable;
+        return Token(type, startPos, var);
     }
 
     // Perl has so many operators...

@@ -32,7 +32,7 @@ int main(int argc, char **args) {
         return 0;
     }
 
-    std::ifstream fileStream("../perl/test.pl");
+    std::ifstream fileStream("../perl/variables.pl");
     if (!fileStream.is_open()) {
         std::cerr << "Failed to open file!" << std::endl;
         return 1;
@@ -42,7 +42,7 @@ int main(int argc, char **args) {
     auto token = tokeniser.nextToken();
 
     while (token.type != TokenType::EndOfInput) {
-        std::cout << token.toStr(true) << std::endl;
+        std::cout << token.toStr(false) << std::endl;
         token = tokeniser.nextToken();
     }
 

@@ -162,6 +162,8 @@ private:
 
     bool isEof();
 
+    std::string substring(int fromIdx, int length);
+
     char prevChar(int i);
 
     // Whitespace such as tabs, empty spaces. Does NOT include new lines
@@ -176,6 +178,8 @@ private:
     static bool isNumber(char c);
 
     static bool isAlphaNumeric(char c);
+
+    static bool isPunctuation(char c);
 
     bool matchKeyword(const std::string &keyword);
 
@@ -196,6 +200,10 @@ private:
     std::string matchComment();
 
     std::string matchPod();
+
+    std::string matchVariable();
+
+    int peekPackageTokens(int i);
 
     int nextLine();
 
