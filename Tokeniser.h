@@ -183,7 +183,7 @@ private:
 
     bool matchKeyword(const std::string &keyword);
 
-    static bool isVariableBody(char c);
+    static bool isNameBody(char c);
 
     std::string getWhile(const std::function<bool(char)> &nextCharTest);
 

@@ -132,8 +132,9 @@ bool Tokeniser::isAlphaNumeric(char c) {
 }
 
 // Variable body i.e. variable name after any Sigil and then first char
-bool Tokeniser::isVariableBody(char c) {
-    return c >= '!' && c != ';' && c != ',' && c != '>' && c != '-' && c != '.';
+bool Tokeniser::isNameBody(char c) {
+    return c >= '!' && c != ';' && c != ',' && c != '>' && c != '-' && c != '.' && c != '{' && c != '}' && c != '(' &&
+           c != ')' && c != '[' && c != ']';
 }
 
 std::string Tokeniser::matchString(const std::vector<std::string> &options, bool requireTrailingNonAN) {
@@ -145,7 +146,7 @@ std::string Tokeniser::matchString(const std::vector<std::string> &options, bool
 
         // If requireTrailingNonAN check next char is not alphanumeric
         // This fixes issues with `sub length() {...}` being translated to NAME(SUB) OP(LE) NAME(GTH) ...
-        if (match && (!requireTrailingNonAN || !this->isAlphaNumeric(this->peekAhead((int)option.length() + 1)))) {
+        if (match && (!requireTrailingNonAN || !this->isAlphaNumeric(this->peekAhead((int) option.length() + 1)))) {
             if (requireTrailingNonAN) {
 
             }
@@ -176,7 +177,7 @@ bool Tokeniser::matchKeyword(const std::string &keyword) {
 
 std::string Tokeniser::matchName() {
     std::string acc;
-    while (this->isVariableBody(this->peek())) {
+    while (this->isNameBody(this->peek())) {
         acc += this->peek();
         this->nextChar();
     }
@@ -419,7 +420,6 @@ Token Tokeniser::nextToken() {
     if (!op2.empty()) {
         return (Token(TokenType::Operator, startPos, op2));
     }
-
 
     // Now consider the really easy single character tokens
     char peek = this->peek();
