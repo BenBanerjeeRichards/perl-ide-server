@@ -17,8 +17,8 @@ void printFileTokens(const std::string& file, bool includeLocation) {
     auto parseTree = parse(tokens);
     printParseTree(parseTree);
     auto variables = findVariableDeclarations(parseTree);
-    for (const auto& var : variables) {
-        std::cout << var.name << std::endl;
+    for (auto& var : variables) {
+        std::cout << var.name << " "<< var.declaration.toStr() <<  std::endl;
     }
     std::cout << "DONE" << std::endl;
 }

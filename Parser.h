@@ -25,7 +25,7 @@ struct Node {
 struct TokensNode : Node {
     std::vector<Token> tokens;
 
-    TokensNode(std::vector<Token> tokens) {
+    explicit TokensNode(std::vector<Token> tokens) {
         this->tokens = tokens;
     }
 
@@ -40,8 +40,16 @@ struct TokensNode : Node {
 };
 
 struct BlockNode : Node {
+
+    explicit BlockNode(FilePos start) {
+        this->start = start;
+    }
+
+    FilePos start;
+    FilePos end;
+
     std::string toStr() override {
-        return "BlockNode";
+        return "BlockNode " + start.toStr() + " - " + end.toStr();
     }
 };
 

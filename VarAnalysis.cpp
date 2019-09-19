@@ -21,6 +21,8 @@ std::vector<ScopedVariable> findVariableDeclarations(const std::shared_ptr<Node>
         }
 
         if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
+            std::shared_ptr<BlockNode> parentBlockNode = std::dynamic_pointer_cast<BlockNode>(tree);
+
             for (int i = 0; i < (int)tokensNode->tokens.size() - 1; i++) {
                 if (tokensNode->tokens[i].type == My) {
                     auto nextToken = tokensNode->tokens[i + 1];
@@ -31,7 +33,7 @@ std::vector<ScopedVariable> findVariableDeclarations(const std::shared_ptr<Node>
 
                     if (nextToken.type == ScalarVariable || nextToken.type == HashVariable || nextToken.type == ArrayVariable) {
                         // We've got a definition!
-                        variables.emplace_back(ScopedVariable(nextToken.data, nextToken.startPos, FilePos(0, 0)));
+                        variables.emplace_back(ScopedVariable(nextToken.data, nextToken.startPos, parentBlockNode->end));
                     }
                 }
             }
