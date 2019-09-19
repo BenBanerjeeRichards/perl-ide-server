@@ -4,7 +4,7 @@
 
 #include "Parser.h"
 
-void doParse(std::shared_ptr<Node> node, const std::vector<Token> &tokens, int &tokenIdx) {
+void doParse(const std::shared_ptr<Node>& node, const std::vector<Token> &tokens, int &tokenIdx) {
     std::vector<Token> tokensAcc;
     while (tokenIdx < tokens.size()) {
         Token token = tokens[tokenIdx];
@@ -15,14 +15,12 @@ void doParse(std::shared_ptr<Node> node, const std::vector<Token> &tokens, int &
             node->children.emplace_back(std::make_shared<TokensNode>(tokensAcc));
             tokensAcc.clear();
 
-            std::cout << "Node starting from " << token.startPos.toStr() << std::endl;
             // Now create child
             auto child = std::make_shared<BlockNode>();
 
             node->children.emplace_back(child);
             doParse(child, tokens, tokenIdx);
         } else if (token.type == RBracket) {
-            std::cout << "Node ending at " << token.startPos.toStr() << std::endl;
             node->children.emplace_back(std::make_shared<TokensNode>(tokensAcc));
             tokensAcc.clear();
             return;

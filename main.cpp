@@ -1,6 +1,7 @@
 #include <iostream>
 #include "Tokeniser.h"
 #include "Parser.h"
+#include "VarAnalysis.h"
 
 void printFileTokens(const std::string& file, bool includeLocation) {
     std::vector<Token> tokens;
@@ -15,7 +16,11 @@ void printFileTokens(const std::string& file, bool includeLocation) {
 
     auto parseTree = parse(tokens);
     printParseTree(parseTree);
-    std::cout << "Done" << std::endl;
+    auto variables = findVariableDeclarations(parseTree);
+    for (const auto& var : variables) {
+        std::cout << var.name << std::endl;
+    }
+    std::cout << "DONE" << std::endl;
 }
 
 int main(int argc, char **args) {

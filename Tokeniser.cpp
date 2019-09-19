@@ -24,8 +24,8 @@ std::string Token::toStr(bool includeLocation) {
     return tokenStr;
 }
 
-std::string FilePos::toStr() {
-    return std::to_string(this->line) + ":" + std::to_string(this->col);
+bool Token::isWhitespaceNewlineOrComment() {
+    return type == Whitespace || type == Newline || type == Comment;
 }
 
 Tokeniser::Tokeniser(std::string perl) {

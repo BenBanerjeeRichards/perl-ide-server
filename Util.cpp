@@ -10,6 +10,18 @@
 #include "Util.h"
 #include "IOException.h"
 
+bool insideRange(FilePos start, FilePos end, FilePos pos) {
+    // Note end is inclusive
+    // TODO improve performance here
+    bool correctLine = pos.line >= start.line && pos.line <= end.line;
+    if (!correctLine) return false;
+
+    if (pos.line == start.line) return pos.col >= start.col;
+    if (pos.line == end.line)  return pos.col <= end.col;
+
+    return true;
+}
+
 std::string replace(std::string str, const std::string &what, const std::string &with) {
     std::string baseString = str;
     while (baseString.find(what) != std::string::npos) {

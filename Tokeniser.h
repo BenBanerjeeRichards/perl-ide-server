@@ -13,25 +13,9 @@
 #include "TokeniseException.h"
 #include <utility>
 #include <iostream>
+#include "FilePos.h"
 #include "Util.h"
 
-
-struct FilePos {
-    FilePos() {
-        this->line = 0;
-        this->col = 0;
-    }
-
-    FilePos(int line, int pos) {
-        this->line = line;
-        this->col = pos;
-    }
-
-    std::string toStr();
-
-    int line;
-    int col;
-};
 
 
 enum TokenType {
@@ -132,6 +116,7 @@ public:
 
     std::string toStr(bool includeLocation = false);
 
+    bool isWhitespaceNewlineOrComment();
 
     TokenType type;
     // Position of token in file
