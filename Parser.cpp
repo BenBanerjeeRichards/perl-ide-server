@@ -53,6 +53,7 @@ void printParseTree(std::shared_ptr<Node> root) {
 
 std::shared_ptr<Node> parse(std::vector<Token> tokens) {
     auto node = std::make_shared<BlockNode>(FilePos(0, 0));
+    node->end = tokens[tokens.size() - 1].endPos;
     int tokenIdx = 0;
     doParse(node, tokens, tokenIdx);
     return node;

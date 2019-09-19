@@ -2,6 +2,7 @@
 #include "Tokeniser.h"
 #include "Parser.h"
 #include "VarAnalysis.h"
+#include "Autocomplete.h"
 
 void printFileTokens(const std::string& file, bool includeLocation) {
     std::vector<Token> tokens;
@@ -27,6 +28,11 @@ int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
 
     if (argc == 2) file = args[1];
-    printFileTokens(file, argc == 2);
-    return 0;
+//    printFileTokens(file, argc == 2);
+
+    if (argc == 4) {
+        auto pos = FilePos(std::atoi(args[2]), std::atoi(args[3]));
+        for (auto c : autocomplete(file, pos)) std::cout << c << std::endl;
+    }
+
 }
