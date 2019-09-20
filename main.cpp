@@ -41,7 +41,7 @@ int main(int argc, char **args) {
 
         while (token.type != TokenType::EndOfInput) {
             tokens.emplace_back(token);
-            std::cout << token.toStr(false) << std::endl;
+//            std::cout << token.toStr(false) << std::endl;
             token = tokeniser.nextToken();
         }
 

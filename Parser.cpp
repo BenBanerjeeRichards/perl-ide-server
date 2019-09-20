@@ -27,6 +27,9 @@ void doParse(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &t
             return;
         }
     }
+
+    // Add remaining tokens
+    node->children.emplace_back(std::make_shared<TokensNode>(tokensAcc));
 }
 
 Token firstNonWhitespaceToken(const std::vector<Token> &tokens) {
@@ -48,6 +51,18 @@ void doPrintParseTree(std::shared_ptr<Node> parent, int level) {
 
 void printParseTree(std::shared_ptr<Node> root) {
     doPrintParseTree(root, 0);
+}
+
+void addPackageSpan(std::vector<PackageSpan>& packageSpans, PackageSpan packageSpan) {
+    if (!packageSpans.empty()) {
+        if (packageSpans[packageSpans.size() - 1].packageName == packageSpan.packageName) {
+            // Same package name, just update end pos
+            packageSpans[packageSpans.size() - 1].end = packageSpan.end;
+            return;
+        }
+    }
+
+    packageSpans.emplace_back(packageSpan);
 }
 
 std::vector<PackageSpan>
@@ -86,7 +101,7 @@ doParsePackages(const std::shared_ptr<BlockNode> &parent, std::stack<std::string
                         packageStack.push(nextToken.data);
 
                         auto packageStart = tokensNode->tokens[i].startPos;
-                        packageSpans.emplace_back(PackageSpan(currentPackageStart, packageStart, prevPackageName));
+                        addPackageSpan(packageSpans, PackageSpan(currentPackageStart, packageStart, prevPackageName));
                         currentPackageStart = packageStart;
                     }
                 }
@@ -98,11 +113,9 @@ doParsePackages(const std::shared_ptr<BlockNode> &parent, std::stack<std::string
     if (packageStack.empty()) {
         std::cerr << "Package analysis failed - package stack empty at end of BlockScope" << std::endl;
     } else {
-        // Last package in the file
-        if (packageStack.size() == 1) {
-            packageSpans.emplace_back(PackageSpan(currentPackageStart, parent->end, packageStack.top()));
-        }
+        addPackageSpan(packageSpans, PackageSpan(currentPackageStart, parent->end, packageStack.top()));
         packageStack.pop();
+        currentPackageStart = parent->end;
     }
 
     return packageSpans;
