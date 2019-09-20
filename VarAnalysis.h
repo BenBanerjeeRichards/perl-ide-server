@@ -31,6 +31,6 @@ private:
     FilePos scopeEnd;
 };
 
-std::vector<ScopedVariable> findVariableDeclarations(const std::shared_ptr<Node> &tree);
+std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::shared_ptr<Node> &tree);
 
 #endif //PERLPARSER_VARANALYSIS_H

@@ -4,7 +4,7 @@
 
 #include "Autocomplete.h"
 
-std::vector<std::string> autocomplete(std::string filePath, FilePos location) {
+std::vector<std::string> autocomplete(const std::string& filePath, FilePos location) {
     std::vector<Token> tokens;
     Tokeniser tokeniser(readFile(filePath));
     auto token = tokeniser.nextToken();
@@ -21,8 +21,8 @@ std::vector<std::string> autocomplete(std::string filePath, FilePos location) {
     completion.reserve(variables.size());
 
     for (auto &var: variables) {
-        if (var.isAccessibleAt(location)) {
-            completion.emplace_back(var.name);
+        if (var->isAccessibleAt(location)) {
+            completion.emplace_back(var->name);
         }
     }
 

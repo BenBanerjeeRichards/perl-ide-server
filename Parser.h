@@ -6,14 +6,14 @@
 #define PERLPARSER_PARSER_H
 
 #include <utility>
-
+#include <stack>
 #include "Tokeniser.h"
 
 // TODO should be able to use unique_ptr instead of shared_ptr
-Token firstNonWhitespaceToken(const std::vector<Token>& tokens);
+Token firstNonWhitespaceToken(const std::vector<Token> &tokens);
 
 struct Node {
-    Node() {  }
+    Node() {}
 
     std::vector<std::shared_ptr<Node>> children;
 
@@ -32,7 +32,8 @@ struct TokensNode : Node {
     std::string toStr() override {
 
         if (tokens.size() > 1) {
-            return "TokensNode " + firstNonWhitespaceToken(tokens).toStr(true) + " - " + tokens[tokens.size() -1].startPos.toStr() + " " + tokens[tokens.size() -1].endPos.toStr();
+            return "TokensNode " + firstNonWhitespaceToken(tokens).toStr(true) + " - " +
+                   tokens[tokens.size() - 1].startPos.toStr() + " " + tokens[tokens.size() - 1].endPos.toStr();
         }
 
         return "TokensNode";
@@ -53,8 +54,23 @@ struct BlockNode : Node {
     }
 };
 
+struct PackageSpan {
 
-std::shared_ptr<Node> parse(std::vector<Token> tokens);
+    PackageSpan(FilePos start, FilePos end, const std::string &name) {
+        this->start = start;
+        this->end = end;
+        this->packageName = name;
+    }
+
+    FilePos start;
+    FilePos end;
+    std::string packageName;
+};
+
+
+std::shared_ptr<BlockNode> parse(std::vector<Token> tokens);
+
+std::vector<PackageSpan> parsePackages(std::shared_ptr<BlockNode> parent);
 
 void printParseTree(std::shared_ptr<Node> root);
 

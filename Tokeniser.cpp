@@ -338,7 +338,7 @@ std::string Tokeniser::matchVariable() {
             goto done;
         }
 
-        int beforeBracket = i;      // If we don't find a matching bracket then don't count this as a valid variabe
+        int beforeBracket = i;      // If we don't find a matching bracket then don't count this as a valid variable
         if (this->peekAhead(i) == '{' && this->peekAhead(i + 1) == '^') {
             // The square bracket ones
             i += 2;
@@ -482,6 +482,7 @@ Token Tokeniser::nextToken() {
     if (this->matchKeyword("continue")) return Token(TokenType::Continue, startPos, startPos.col + 7);
     if (this->matchKeyword("given")) return Token(TokenType::Given, startPos, startPos.col + 4);
     if (this->matchKeyword("sub")) return Token(TokenType::Sub, startPos, startPos.col + 2);
+    if (this->matchKeyword("package")) return Token(TokenType::Package, startPos, startPos.col + 6);
 
     auto numeric = this->matchNumeric();
     if (!numeric.empty()) return Token(TokenType::NumericLiteral, startPos, numeric);
@@ -565,5 +566,6 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == NumericLiteral) return "NumericLiteral";
     if (t == Pod) return "Pod";
     if (t == Comma) return "Comma";
+    if (t == Package) return "Package";
     return "TokenType toString NOT IMPLEMENTED";
 }

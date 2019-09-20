@@ -47,6 +47,7 @@ enum TokenType {
     Foreach,
     When,
     Do,
+    Package,
     Next,
     Redo,
     Last,

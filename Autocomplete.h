@@ -7,6 +7,6 @@
 
 #include "VarAnalysis.h"
 
-std::vector<std::string> autocomplete(std::string filePath, FilePos);
+std::vector<std::string> autocomplete(const std::string& filePath, FilePos);
 
 #endif //PERLPARSER_AUTOCOMPLETE_H
