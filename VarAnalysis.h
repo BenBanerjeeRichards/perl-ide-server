@@ -15,6 +15,8 @@ struct Variable {
     virtual bool isAccessibleAt(const FilePos &pos) {
         return false;
     }
+
+    virtual std::string toStr() { return ""; }
 };
 
 class ScopedVariable : public Variable {
@@ -27,10 +29,33 @@ public:
 
     bool isAccessibleAt(const FilePos &pos) override;
 
+    std::string toStr() override {
+        return "[" + this->declaration.toStr() + "] " + name;
+    }
+
 private:
     FilePos scopeEnd;
 };
 
-std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::shared_ptr<Node> &tree);
+
+class OurVariable : public ScopedVariable {
+public:
+    OurVariable(const std::string &name, FilePos declaration, FilePos scopeEnd, const std::string &package)
+            : ScopedVariable(name, declaration, scopeEnd) {
+        this->package = package;
+    }
+
+    std::string package;
+
+    std::string toStr() override {
+        return "[" + this->declaration.toStr() + "] " + package + "::" + name;
+    }
+
+};
+
+std::vector<std::unique_ptr<Variable>>
+findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::vector<PackageSpan> &packages);
+
+std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
 
 #endif //PERLPARSER_VARANALYSIS_H

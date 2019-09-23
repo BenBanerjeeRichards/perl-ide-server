@@ -47,14 +47,17 @@ int main(int argc, char **args) {
 
         auto parseTree = parse(tokens);
         printParseTree(parseTree);
-        auto variables = findVariableDeclarations(parseTree);
-        for (auto &var : variables) {
-            std::cout << var->name << " " << var->declaration.toStr() << std::endl;
-        }
 
         std::cout << std::endl << "Packages" << std::endl;
-        for (auto package : parsePackages(parseTree)) {
+        auto packages = parsePackages(parseTree);
+        for (auto package : packages) {
             std::cout << package.packageName << " " << package.start.toStr() << "-" << package.end.toStr() << std::endl;
+        }
+
+        std::cout << std::endl << "Variables" << std::endl;
+        auto variables = findVariableDeclarations(parseTree, packages);
+        for (auto &var : variables) {
+            std::cout << var->toStr() << std::endl;
         }
     }
 

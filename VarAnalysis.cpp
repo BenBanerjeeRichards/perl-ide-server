@@ -9,14 +9,14 @@ bool ScopedVariable::isAccessibleAt(const FilePos &pos) {
 }
 
 
-std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::shared_ptr<Node> &tree) {
+std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::vector<PackageSpan>& packages) {
     // Only supports my for now
     std::vector<std::unique_ptr<Variable>> variables;
 
     for (const auto &child : tree->children) {
         // TODO replace with visitor pattern
         if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
-            std::vector<std::unique_ptr<Variable>> recurseVars = findVariableDeclarations(child);
+            std::vector<std::unique_ptr<Variable>> recurseVars = findVariableDeclarations(child, packages);
             for (auto&& var : recurseVars) {
                 variables.emplace_back(std::move(var));
             }
@@ -26,7 +26,9 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
             std::shared_ptr<BlockNode> parentBlockNode = std::dynamic_pointer_cast<BlockNode>(tree);
 
             for (int i = 0; i < (int)tokensNode->tokens.size() - 1; i++) {
-                if (tokensNode->tokens[i].type == My) {
+                if (tokensNode->tokens[i].type == My || tokensNode->tokens[i].type == Our) {
+                    bool isOur = tokensNode->tokens[i].type == Our;
+
                     auto nextToken = tokensNode->tokens[i + 1];
                     while (i < tokensNode->tokens.size() && nextToken.isWhitespaceNewlineOrComment()) {
                         i++;
@@ -35,7 +37,13 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
 
                     if (nextToken.type == ScalarVariable || nextToken.type == HashVariable || nextToken.type == ArrayVariable) {
                         // We've got a definition!
-                        variables.emplace_back(std::make_unique<ScopedVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end));
+                        if (isOur) {
+                            auto package = findPackageAtPos(packages, nextToken.startPos);
+                            variables.emplace_back(std::make_unique<OurVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end, package));
+                        }
+                        else {
+                            variables.emplace_back(std::make_unique<ScopedVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end));
+                        }
                     }
                 }
             }
@@ -43,4 +51,14 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
     }
 
     return variables;
+}
+
+std::string findPackageAtPos(const std::vector<PackageSpan>& packages, FilePos pos) {
+    // TODO replace with binary search
+    for (const auto& package : packages){
+        if (insideRange(package.start, package.end, pos)) return package.packageName;
+    }
+
+    std::cerr << "Failed to find package span at pos " << pos.toStr() << std::endl;
+    return "main";
 }

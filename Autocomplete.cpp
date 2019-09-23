@@ -15,7 +15,8 @@ std::vector<std::string> autocomplete(const std::string& filePath, FilePos locat
     }
 
     auto parseTree = parse(tokens);
-    auto variables = findVariableDeclarations(parseTree);
+    auto packages = parsePackages(parseTree);
+    auto variables = findVariableDeclarations(parseTree, packages);
 
     std::vector<std::string> completion;
     completion.reserve(variables.size());
