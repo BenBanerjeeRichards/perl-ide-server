@@ -37,6 +37,25 @@ private:
     FilePos scopeEnd;
 };
 
+class GlobalVariable : public Variable {
+public:
+    GlobalVariable(const std::string &name, FilePos declaration, const std::string& package) {
+        this->name = name;
+        this->declaration = declaration;
+        this->package = package;
+    }
+
+    bool isAccessibleAt(const FilePos &pos) override;
+
+    std::string toStr() override {
+        return "[" + this->declaration.toStr() + "] " + name + " (GLOBAL)";
+    }
+
+    std::string package;
+
+private:
+    FilePos scopeEnd;
+};
 
 class OurVariable : public ScopedVariable {
 public:
