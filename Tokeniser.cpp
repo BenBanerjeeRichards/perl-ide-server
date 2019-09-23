@@ -484,6 +484,7 @@ Token Tokeniser::nextToken() {
     if (this->matchKeyword("given")) return Token(TokenType::Given, startPos, startPos.col + 4);
     if (this->matchKeyword("sub")) return Token(TokenType::Sub, startPos, startPos.col + 2);
     if (this->matchKeyword("package")) return Token(TokenType::Package, startPos, startPos.col + 6);
+    if (this->matchKeyword("state")) return Token(TokenType::Package, startPos, startPos.col + 4);
 
     auto numeric = this->matchNumeric();
     if (!numeric.empty()) return Token(TokenType::NumericLiteral, startPos, numeric);

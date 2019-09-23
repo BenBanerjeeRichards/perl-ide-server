@@ -27,7 +27,7 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
 
             for (int i = 0; i < (int)tokensNode->tokens.size() - 1; i++) {
                 auto variableType = tokensNode->tokens[i].type;
-                if (variableType == My || variableType == Our || variableType == Local) {
+                if (variableType == My || variableType == Our || variableType == Local || variableType == State) {
 
                     auto nextToken = tokensNode->tokens[i + 1];
                     while (i < tokensNode->tokens.size() && nextToken.isWhitespaceNewlineOrComment()) {
@@ -41,7 +41,7 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
                             auto package = findPackageAtPos(packages, nextToken.startPos);
                             variables.emplace_back(std::make_unique<OurVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end, package));
                         }
-                        else if (variableType == My){
+                        else if (variableType == My || variableType == State){
                             variables.emplace_back(std::make_unique<ScopedVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end));
                         } else if (variableType == Local) {
                             variables.emplace_back(std::make_unique<LocalVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end));

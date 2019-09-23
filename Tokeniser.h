@@ -63,7 +63,7 @@ enum TokenType {
     NumericLiteral,
     Pod,
     Comma,
-    Local
+    Local,
 };
 
 std::string tokenTypeToString(const TokenType &t);
