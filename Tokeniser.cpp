@@ -476,6 +476,7 @@ Token Tokeniser::nextToken() {
     if (this->matchKeyword("redo")) return Token(TokenType::Redo, startPos, startPos.col + 3);
     if (this->matchKeyword("last")) return Token(TokenType::Last, startPos, startPos.col + 3);
     if (this->matchKeyword("my")) return Token(TokenType::My, startPos, startPos.col + 1);
+    if (this->matchKeyword("local")) return Token(TokenType::Local, startPos, startPos.col + 4);
     if (this->matchKeyword("state")) return Token(TokenType::State, startPos, startPos.col + 4);
     if (this->matchKeyword("our")) return Token(TokenType::Our, startPos, startPos.col + 2);
     if (this->matchKeyword("break")) return Token(TokenType::Break, startPos, startPos.col + 4);
@@ -567,5 +568,6 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == Pod) return "Pod";
     if (t == Comma) return "Comma";
     if (t == Package) return "Package";
+    if (t == Local) return "Local";
     return "TokenType toString NOT IMPLEMENTED";
 }

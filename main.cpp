@@ -15,12 +15,6 @@ void printFileTokens(const std::string &file, bool includeLocation) {
         token = tokeniser.nextToken();
     }
 
-//    auto parseTree = parse(tokens);
-//    printParseTree(parseTree);
-//    auto variables = findVariableDeclarations(parseTree);
-//    for (auto& var : variables) {
-//        std::cout << var->name << " "<< var->declaration.toStr() <<  std::endl;
-//    }
 }
 
 int main(int argc, char **args) {

@@ -50,8 +50,23 @@ public:
     std::string toStr() override {
         return "[" + this->declaration.toStr() + "] " + package + "::" + name;
     }
-
 };
+
+// Local variables ARE NOT SCOPED
+// But we can't determine places where they are used
+// As it depends on the call stack
+// So instead we treat them as scoped variables and ban renames on them when possible
+class LocalVariable : public ScopedVariable {
+public:
+    LocalVariable(const std::string &name, FilePos declaration, FilePos scopeEnd)
+            : ScopedVariable(name, declaration, scopeEnd) {
+    }
+
+    std::string toStr() override {
+        return "[" + this->declaration.toStr() + "] " + name + " (LOCAL)";
+    }
+};
+
 
 std::vector<std::unique_ptr<Variable>>
 findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::vector<PackageSpan> &packages);

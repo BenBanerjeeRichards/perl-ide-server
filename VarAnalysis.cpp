@@ -26,8 +26,8 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
             std::shared_ptr<BlockNode> parentBlockNode = std::dynamic_pointer_cast<BlockNode>(tree);
 
             for (int i = 0; i < (int)tokensNode->tokens.size() - 1; i++) {
-                if (tokensNode->tokens[i].type == My || tokensNode->tokens[i].type == Our) {
-                    bool isOur = tokensNode->tokens[i].type == Our;
+                auto variableType = tokensNode->tokens[i].type;
+                if (variableType == My || variableType == Our || variableType == Local) {
 
                     auto nextToken = tokensNode->tokens[i + 1];
                     while (i < tokensNode->tokens.size() && nextToken.isWhitespaceNewlineOrComment()) {
@@ -37,12 +37,14 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
 
                     if (nextToken.type == ScalarVariable || nextToken.type == HashVariable || nextToken.type == ArrayVariable) {
                         // We've got a definition!
-                        if (isOur) {
+                        if (variableType == Our) {
                             auto package = findPackageAtPos(packages, nextToken.startPos);
                             variables.emplace_back(std::make_unique<OurVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end, package));
                         }
-                        else {
+                        else if (variableType == My){
                             variables.emplace_back(std::make_unique<ScopedVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end));
+                        } else if (variableType == Local) {
+                            variables.emplace_back(std::make_unique<LocalVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end));
                         }
                     }
                 }
