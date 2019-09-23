@@ -1,8 +1,4 @@
 //
-// Created by Ben Banerjee-Richards on 2019-08-26.
-//
-
-//
 // Created by Ben Banerjee-Richards on 2019-08-25.
 //
 

@@ -4,6 +4,18 @@
 
 #include "Parser.h"
 
+// Returns -1 if there is no next token
+int nextTokenIdx(const std::vector<Token>& tokens, int currentIdx) {
+    while (currentIdx < tokens.size() - 1) {
+        currentIdx += 1;
+
+        auto nextType = tokens[currentIdx].type;
+        if (nextType != Whitespace && nextType != Newline) return currentIdx;
+    }
+
+    return -1;
+}
+
 void doParse(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &tokens, int &tokenIdx) {
     std::vector<Token> tokensAcc;
     while (tokenIdx < tokens.size()) {
@@ -53,7 +65,7 @@ void printParseTree(std::shared_ptr<Node> root) {
     doPrintParseTree(root, 0);
 }
 
-void addPackageSpan(std::vector<PackageSpan>& packageSpans, PackageSpan packageSpan) {
+void addPackageSpan(std::vector<PackageSpan> &packageSpans, PackageSpan packageSpan) {
     if (!packageSpans.empty()) {
         if (packageSpans[packageSpans.size() - 1].packageName == packageSpan.packageName) {
             // Same package name, just update end pos
@@ -70,10 +82,14 @@ doParsePackages(const std::shared_ptr<BlockNode> &parent, std::stack<std::string
                 FilePos &currentPackageStart) {
     std::vector<PackageSpan> packageSpans;
 
-    for (const auto &child : parent->children) {
+    bool isBlockPackage = false;
+
+    for (int childIdx = 0; childIdx < (int) parent->children.size(); childIdx++) {
+        std::shared_ptr<Node> child = parent->children[childIdx];
         if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
             // Going into new scope, push current package onto stack
-            packageStack.push(packageStack.top());
+            if (!isBlockPackage) packageStack.push(packageStack.top());
+            isBlockPackage = false;
             auto morePackages = doParsePackages(blockNode, packageStack, currentPackageStart);
             for (auto &morePackage : morePackages) packageSpans.emplace_back(std::move(morePackage));
         }
@@ -89,6 +105,17 @@ doParsePackages(const std::shared_ptr<BlockNode> &parent, std::stack<std::string
 
                     if (nextToken.type == Name) {
                         // Found a new package definition
+
+                        // Check for a package block (i.e. package NAME {...}
+                        // This applies only to the next scope
+                        int nextTok = nextTokenIdx(tokensNode->tokens, i);
+                        if (nextTok > -1 && tokensNode->tokens[nextTok].type == LBracket && childIdx <= parent->children.size() - 2) {
+                            if (std::dynamic_pointer_cast<BlockNode>(parent->children[childIdx + 1]) != nullptr) {
+                                // Indeed we have the block syntax
+                                isBlockPackage = true;
+                            }
+                        }
+
                         if (packageStack.empty()) {
                             // Package analysis failed
                             // FIXME Put a proper handling here
@@ -97,7 +124,7 @@ doParsePackages(const std::shared_ptr<BlockNode> &parent, std::stack<std::string
                         }
 
                         std::string prevPackageName = packageStack.top();
-                        packageStack.pop();
+                        if (!isBlockPackage) packageStack.pop();
                         packageStack.push(nextToken.data);
 
                         auto packageStart = tokensNode->tokens[i].startPos;
@@ -144,4 +171,3 @@ std::shared_ptr<BlockNode> parse(std::vector<Token> tokens) {
     doParse(node, tokens, tokenIdx);
     return node;
 }
-
