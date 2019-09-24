@@ -25,7 +25,9 @@ int main(int argc, char **args) {
 
     if (argc == 4) {
         auto pos = FilePos(std::atoi(args[2]), std::atoi(args[3]));
-        for (auto c : autocomplete(file, pos)) std::cout << c << std::endl;
+        for (const auto& c : autocomplete(file, pos)) {
+            std::cout << c.name << std::endl << c.detail << std::endl;
+        }
     } else if (argc > 1 && strncmp(args[1], "test", 4) == 0) {
         printFileTokens(args[2], true);
     } else {

@@ -11,6 +11,7 @@ bool ScopedVariable::isAccessibleAt(const FilePos &pos) {
 
 bool GlobalVariable::isAccessibleAt(const FilePos &pos) {
     // Globals available everywhere in current file
+    // Even before declaration for now (in future we need to consider packages in other files)
     return true;
 }
 

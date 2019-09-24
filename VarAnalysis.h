@@ -17,6 +17,8 @@ struct Variable {
     }
 
     virtual std::string toStr() { return ""; }
+
+    virtual std::string getDetail() {return "";}
 };
 
 class ScopedVariable : public Variable {
@@ -32,6 +34,7 @@ public:
     std::string toStr() override {
         return "[" + this->declaration.toStr() + "] " + name;
     }
+
 
 private:
     FilePos scopeEnd;
@@ -51,6 +54,10 @@ public:
         return "[" + this->declaration.toStr() + "] " + name + " (GLOBAL)";
     }
 
+    std::string getDetail() override {
+        return this->package;
+    }
+
     std::string package;
 
 private:
@@ -65,6 +72,10 @@ public:
     }
 
     std::string package;
+
+    std::string getDetail() override {
+        return this->package;
+    }
 
     std::string toStr() override {
         return "[" + this->declaration.toStr() + "] " + package + "::" + name;
