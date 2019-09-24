@@ -51,8 +51,7 @@ int main(int argc, char **args) {
         }
 
         std::cout << std::endl << "Variables" << std::endl;
-        auto symbolTree = std::make_shared<SymbolNode>(parseTree->start, parseTree->end);
-        findVariableDeclarations(parseTree, symbolTree, packages);
+        auto symbolTree = buildVariableSymbolTree(parseTree, packages);
         printSymbolTree(symbolTree);
 
         std::cout << std::endl << "Variables at position" << std::endl;

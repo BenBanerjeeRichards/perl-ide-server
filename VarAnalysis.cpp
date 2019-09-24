@@ -16,7 +16,7 @@ bool GlobalVariable::isAccessibleAt(const FilePos &pos) {
 }
 
 
-void doFindVariableDeclarations(const std::shared_ptr<Node> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
+void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
                                 const std::vector<PackageSpan> &packages, std::vector<std::string> &variables) {
 
     for (const auto &child : tree->children) {
@@ -24,7 +24,7 @@ void doFindVariableDeclarations(const std::shared_ptr<Node> &tree, const std::sh
             // Create new child for symbol tree
             auto symbolChild = std::make_shared<SymbolNode>(blockNode->start, blockNode->end);
             symbolNode->children.emplace_back(symbolChild);
-            doFindVariableDeclarations(child, symbolChild, packages, variables);
+            doFindVariableDeclarations(blockNode, symbolChild, packages, variables);
         }
 
         if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
@@ -108,10 +108,12 @@ void doFindVariableDeclarations(const std::shared_ptr<Node> &tree, const std::sh
     }
 }
 
-void findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
-                              const std::vector<PackageSpan> &packages) {
+std::shared_ptr<SymbolNode>
+buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, const std::vector<PackageSpan> &packages) {
     std::vector<std::string> variables;
+    auto symbolNode = std::make_shared<SymbolNode>(tree->start, tree->end);
     doFindVariableDeclarations(tree, symbolNode, packages, variables);
+    return symbolNode;
 }
 
 
@@ -146,11 +148,11 @@ void printSymbolTree(const std::shared_ptr<SymbolNode> &node) {
 }
 
 void doGetSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const FilePos &pos, SymbolMap &symbolMap) {
-    for (const auto& variable : symbolTree->variables) {
+    for (const auto &variable : symbolTree->variables) {
         symbolMap[variable->name] = variable;
     }
 
-    for (const auto& child : symbolTree->children) {
+    for (const auto &child : symbolTree->children) {
         if (insideRange(child->startPos, child->endPos, pos)) {
             doGetSymbolMap(child, pos, symbolMap);
         }

@@ -111,8 +111,8 @@ public:
 };
 
 
-void findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
-                              const std::vector<PackageSpan> &packages);
+std::shared_ptr<SymbolNode>
+buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, const std::vector<PackageSpan> &packages);
 
 
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
