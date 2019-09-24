@@ -16,23 +16,22 @@ bool GlobalVariable::isAccessibleAt(const FilePos &pos) {
 }
 
 
-std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::vector<PackageSpan>& packages) {
-    // Only supports my for now
-    std::vector<std::unique_ptr<Variable>> variables;
+
+void doFindVariableDeclarations(const std::shared_ptr<Node> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
+                         const std::vector<PackageSpan> &packages, std::vector<std::string>& variables) {
 
     for (const auto &child : tree->children) {
-        // TODO replace with visitor pattern
         if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
-            std::vector<std::unique_ptr<Variable>> recurseVars = findVariableDeclarations(child, packages);
-            for (auto&& var : recurseVars) {
-                variables.emplace_back(std::move(var));
-            }
+            // Create new child for symbol tree
+            auto symbolChild = std::make_shared<SymbolNode>(blockNode->start, blockNode->end);
+            symbolNode->children.emplace_back(symbolChild);
+            doFindVariableDeclarations(child, symbolChild, packages, variables);
         }
 
         if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
             std::shared_ptr<BlockNode> parentBlockNode = std::dynamic_pointer_cast<BlockNode>(tree);
 
-            for (int i = 0; i < (int)tokensNode->tokens.size() - 1; i++) {
+            for (int i = 0; i < (int) tokensNode->tokens.size() - 1; i++) {
                 auto tokenType = tokensNode->tokens[i].type;
                 if (tokenType == My || tokenType == Our || tokenType == Local || tokenType == State) {
 
@@ -42,16 +41,25 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
                         nextToken = tokensNode->tokens[i];
                     }
 
-                    if (nextToken.type == ScalarVariable || nextToken.type == HashVariable || nextToken.type == ArrayVariable) {
+                    if (nextToken.type == ScalarVariable || nextToken.type == HashVariable ||
+                        nextToken.type == ArrayVariable) {
                         // We've got a definition!
                         if (tokenType == Our) {
                             auto package = findPackageAtPos(packages, nextToken.startPos);
-                            variables.emplace_back(std::make_unique<OurVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end, package));
-                        }
-                        else if (tokenType == My || tokenType == State){
-                            variables.emplace_back(std::make_unique<ScopedVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end));
+                            symbolNode->variables.emplace_back(
+                                    std::make_shared<OurVariable>(nextToken.data, nextToken.startPos,
+                                                                  parentBlockNode->end, package));
+                            variables.emplace_back(nextToken.data);
+                        } else if (tokenType == My || tokenType == State) {
+                            symbolNode->variables.emplace_back(
+                                    std::make_shared<ScopedVariable>(nextToken.data, nextToken.startPos,
+                                                                     parentBlockNode->end));
+                            variables.emplace_back(nextToken.data);
                         } else if (tokenType == Local) {
-                            variables.emplace_back(std::make_unique<LocalVariable>(nextToken.data, nextToken.startPos, parentBlockNode->end));
+                            symbolNode->variables.emplace_back(
+                                    std::make_shared<LocalVariable>(nextToken.data, nextToken.startPos,
+                                                                    parentBlockNode->end));
+                            variables.emplace_back(nextToken.data);
                         }
 
                         // Finally, if combined assignment then skip past Assignment token to prevent confusion with
@@ -74,12 +82,13 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
                         prevToken = tokensNode->tokens[i];
                     }
 
-                    if (prevToken.type == ScalarVariable || prevToken.type == HashVariable || prevToken.type == ArrayVariable) {
+                    if (prevToken.type == ScalarVariable || prevToken.type == HashVariable ||
+                        prevToken.type == ArrayVariable) {
                         // We have something in form $x = ... with no our/local/my/state...
                         // Implies this is a global variable definition IF variable not previously declared
                         bool isDeclared = false;
-                        for (const std::unique_ptr<Variable>& var : variables) {
-                            if (var->name == prevToken.data) {
+                        for (const std::string &var : variables) {
+                            if (var == prevToken.data) {
                                 isDeclared = true;
                                 break;
                             }
@@ -87,7 +96,9 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
 
                         if (!isDeclared) {
                             auto package = findPackageAtPos(packages, prevToken.startPos);
-                            variables.emplace_back(std::make_unique<GlobalVariable>(prevToken.data, prevToken.startPos, package));
+                            symbolNode->variables.emplace_back(
+                                    std::make_shared<GlobalVariable>(prevToken.data, prevToken.startPos, package));
+                            variables.emplace_back(prevToken.data);
                         }
                     }
 
@@ -96,16 +107,42 @@ std::vector<std::unique_ptr<Variable>> findVariableDeclarations(const std::share
             }
         }
     }
-
-    return variables;
+}
+void findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
+                              const std::vector<PackageSpan> &packages) {
+    std::vector<std::string> variables;
+    doFindVariableDeclarations(tree, symbolNode, packages, variables);
 }
 
-std::string findPackageAtPos(const std::vector<PackageSpan>& packages, FilePos pos) {
+
+
+std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos) {
     // TODO replace with binary search
-    for (const auto& package : packages){
+    for (const auto &package : packages) {
         if (insideRange(package.start, package.end, pos)) return package.packageName;
     }
 
     std::cerr << "Failed to find package span at pos " << pos.toStr() << std::endl;
     return "main";
 }
+
+SymbolNode::SymbolNode(const FilePos &startPos, const FilePos &endPos) : startPos(startPos), endPos(endPos) {}
+
+void doPrintSymbolTree(const std::shared_ptr<SymbolNode>& node, int level) {
+    for (const auto& variable : node->variables) {
+        for (int i = 0; i < level; i++) std::cout << " ";
+        std::cout << variable->toStr() << std::endl;
+    }
+
+    for (const auto& child : node->children) {
+        for (int i = 0; i < level; i++) std::cout << " ";
+        std::cout << "SymbolNode " << node->startPos.toStr() << " - " << node->endPos.toStr() << std::endl;
+        doPrintSymbolTree(child, level + 2);
+    }
+}
+
+void printSymbolTree(const std::shared_ptr<SymbolNode>& node) {
+    std::cout << "SymbolNode" << std::endl;
+    doPrintSymbolTree(node, 2);
+}
+

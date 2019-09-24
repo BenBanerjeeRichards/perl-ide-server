@@ -51,10 +51,10 @@ int main(int argc, char **args) {
         }
 
         std::cout << std::endl << "Variables" << std::endl;
-        auto variables = findVariableDeclarations(parseTree, packages);
-        for (auto &var : variables) {
-            std::cout << var->toStr() << std::endl;
-        }
+        auto symbolTree = std::make_shared<SymbolNode>(parseTree->start, parseTree->end);
+        findVariableDeclarations(parseTree, symbolTree, packages);
+        printSymbolTree(symbolTree);
+        std::cout << "Done" << std::endl;
     }
 
 }

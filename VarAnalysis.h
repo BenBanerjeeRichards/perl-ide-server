@@ -18,7 +18,7 @@ struct Variable {
 
     virtual std::string toStr() { return ""; }
 
-    virtual std::string getDetail() {return "";}
+    virtual std::string getDetail() { return ""; }
 };
 
 class ScopedVariable : public Variable {
@@ -42,7 +42,7 @@ private:
 
 class GlobalVariable : public Variable {
 public:
-    GlobalVariable(const std::string &name, FilePos declaration, const std::string& package) {
+    GlobalVariable(const std::string &name, FilePos declaration, const std::string &package) {
         this->name = name;
         this->declaration = declaration;
         this->package = package;
@@ -97,10 +97,26 @@ public:
     }
 };
 
+class SymbolNode {
+public:
+    SymbolNode(const FilePos &startPos, const FilePos &endPos);
 
-std::vector<std::unique_ptr<Variable>>
-findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::vector<PackageSpan> &packages);
+    std::vector<std::shared_ptr<Variable>> variables;
+
+    // References to scoping start and end positions
+    FilePos startPos;
+    FilePos endPos;
+
+    std::vector<std::shared_ptr<SymbolNode>> children;
+};
+
+
+void findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
+                              const std::vector<PackageSpan> &packages);
+
 
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
+
+void printSymbolTree(const std::shared_ptr<SymbolNode> &node);
 
 #endif //PERLPARSER_VARANALYSIS_H
