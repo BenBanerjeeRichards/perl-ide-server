@@ -54,6 +54,14 @@ int main(int argc, char **args) {
         auto symbolTree = std::make_shared<SymbolNode>(parseTree->start, parseTree->end);
         findVariableDeclarations(parseTree, symbolTree, packages);
         printSymbolTree(symbolTree);
+
+        std::cout << std::endl << "Variables at position" << std::endl;
+        auto pos = FilePos(30, 1);
+        auto map = getSymbolMap(symbolTree, pos);
+        for (const auto& varItem : map) {
+            std::cout << varItem.second->toStr() << std::endl;
+        }
+
         std::cout << "Done" << std::endl;
     }
 

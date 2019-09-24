@@ -119,4 +119,8 @@ std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos p
 
 void printSymbolTree(const std::shared_ptr<SymbolNode> &node);
 
+typedef std::unordered_map<std::string, std::shared_ptr<Variable>> SymbolMap;
+
+SymbolMap getSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const FilePos &pos);
+
 #endif //PERLPARSER_VARANALYSIS_H

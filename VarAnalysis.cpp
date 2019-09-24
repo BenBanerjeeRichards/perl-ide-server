@@ -16,9 +16,8 @@ bool GlobalVariable::isAccessibleAt(const FilePos &pos) {
 }
 
 
-
 void doFindVariableDeclarations(const std::shared_ptr<Node> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
-                         const std::vector<PackageSpan> &packages, std::vector<std::string>& variables) {
+                                const std::vector<PackageSpan> &packages, std::vector<std::string> &variables) {
 
     for (const auto &child : tree->children) {
         if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
@@ -108,12 +107,12 @@ void doFindVariableDeclarations(const std::shared_ptr<Node> &tree, const std::sh
         }
     }
 }
+
 void findVariableDeclarations(const std::shared_ptr<Node> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
                               const std::vector<PackageSpan> &packages) {
     std::vector<std::string> variables;
     doFindVariableDeclarations(tree, symbolNode, packages, variables);
 }
-
 
 
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos) {
@@ -128,21 +127,38 @@ std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos p
 
 SymbolNode::SymbolNode(const FilePos &startPos, const FilePos &endPos) : startPos(startPos), endPos(endPos) {}
 
-void doPrintSymbolTree(const std::shared_ptr<SymbolNode>& node, int level) {
-    for (const auto& variable : node->variables) {
+void doPrintSymbolTree(const std::shared_ptr<SymbolNode> &node, int level) {
+    for (const auto &variable : node->variables) {
         for (int i = 0; i < level; i++) std::cout << " ";
         std::cout << variable->toStr() << std::endl;
     }
 
-    for (const auto& child : node->children) {
+    for (const auto &child : node->children) {
         for (int i = 0; i < level; i++) std::cout << " ";
-        std::cout << "SymbolNode " << node->startPos.toStr() << " - " << node->endPos.toStr() << std::endl;
+        std::cout << "SymbolNode " << child->startPos.toStr() << " - " << child->endPos.toStr() << std::endl;
         doPrintSymbolTree(child, level + 2);
     }
 }
 
-void printSymbolTree(const std::shared_ptr<SymbolNode>& node) {
+void printSymbolTree(const std::shared_ptr<SymbolNode> &node) {
     std::cout << "SymbolNode" << std::endl;
     doPrintSymbolTree(node, 2);
 }
 
+void doGetSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const FilePos &pos, SymbolMap &symbolMap) {
+    for (const auto& variable : symbolTree->variables) {
+        symbolMap[variable->name] = variable;
+    }
+
+    for (const auto& child : symbolTree->children) {
+        if (insideRange(child->startPos, child->endPos, pos)) {
+            doGetSymbolMap(child, pos, symbolMap);
+        }
+    }
+}
+
+SymbolMap getSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const FilePos &pos) {
+    SymbolMap symbolMap;
+    doGetSymbolMap(symbolTree, pos, symbolMap);
+    return symbolMap;
+}
