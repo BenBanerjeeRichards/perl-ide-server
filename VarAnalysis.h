@@ -101,7 +101,12 @@ class SymbolNode {
 public:
     SymbolNode(const FilePos &startPos, const FilePos &endPos);
 
+    // Variables declared in this scope
     std::vector<std::shared_ptr<Variable>> variables;
+
+    // 'use feature ...'
+    // These are lexically scoped and can also be turned off using 'no feature ...' (also lexically scoped)
+    std::vector<std::string> features;
 
     // References to scoping start and end positions
     FilePos startPos;

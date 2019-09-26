@@ -16,6 +16,76 @@ bool GlobalVariable::isAccessibleAt(const FilePos &pos) {
 }
 
 
+std::shared_ptr<Variable>
+handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::vector<PackageSpan> &packages, int &i,
+                     FilePos parentEnd) {
+    auto tokenType = tokensNode->tokens[i].type;
+    auto nextToken = tokensNode->tokens[i + 1];
+    while (i < tokensNode->tokens.size() && nextToken.isWhitespaceNewlineOrComment()) {
+        i++;
+        nextToken = tokensNode->tokens[i];
+    }
+
+    if (nextToken.type == ScalarVariable || nextToken.type == HashVariable ||
+        nextToken.type == ArrayVariable) {
+        // We've got a definition!
+        if (tokenType == Our) {
+            auto package = findPackageAtPos(packages, nextToken.startPos);
+            return std::make_shared<OurVariable>(nextToken.data, nextToken.startPos, parentEnd, package);
+        } else if (tokenType == My || tokenType == State) {
+            return std::make_shared<ScopedVariable>(nextToken.data, nextToken.startPos, parentEnd);
+        } else if (tokenType == Local) {
+            return std::make_shared<LocalVariable>(nextToken.data, nextToken.startPos, parentEnd);
+        }
+
+        // Finally, if combined assignment then skip past Assignment token to prevent confusion with
+        // package variables below
+        nextToken = tokensNode->tokens[i + 1];
+        while (i < tokensNode->tokens.size() && nextToken.isWhitespaceNewlineOrComment()) {
+            i++;
+            nextToken = tokensNode->tokens[i];
+        }
+
+        if (nextToken.type == Assignment) i++;
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<GlobalVariable> handleGlobalVariables(const std::shared_ptr<TokensNode> &tokensNode, const std::vector<std::string> &variables,
+                           const std::vector<PackageSpan> &packages, int &i) {
+    std::shared_ptr<GlobalVariable> global = nullptr;
+
+    int prevI = i;
+    auto prevToken = tokensNode->tokens[i - 1];
+    while (i > 0 && prevToken.isWhitespaceNewlineOrComment()) {
+        i--;
+        prevToken = tokensNode->tokens[i];
+    }
+
+    if (prevToken.type == ScalarVariable || prevToken.type == HashVariable ||
+        prevToken.type == ArrayVariable) {
+        // We have something in form $x = ... with no our/local/my/state...
+        // Implies this is a global variable definition IF variable not previously declared
+        bool isDeclared = false;
+        for (const std::string &var : variables) {
+            if (var == prevToken.data) {
+                isDeclared = true;
+                break;
+            }
+        }
+
+        if (!isDeclared) {
+            auto package = findPackageAtPos(packages, prevToken.startPos);
+            global =  std::make_shared<GlobalVariable>(prevToken.data, prevToken.startPos, package);
+        }
+    }
+
+    i = prevI + 1;
+
+    return global;
+}
+
 void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
                                 const std::vector<PackageSpan> &packages, std::vector<std::string> &variables) {
 
@@ -28,80 +98,20 @@ void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const st
         }
 
         if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
-            std::shared_ptr<BlockNode> parentBlockNode = std::dynamic_pointer_cast<BlockNode>(tree);
-
             for (int i = 0; i < (int) tokensNode->tokens.size() - 1; i++) {
                 auto tokenType = tokensNode->tokens[i].type;
                 if (tokenType == My || tokenType == Our || tokenType == Local || tokenType == State) {
-
-                    auto nextToken = tokensNode->tokens[i + 1];
-                    while (i < tokensNode->tokens.size() && nextToken.isWhitespaceNewlineOrComment()) {
-                        i++;
-                        nextToken = tokensNode->tokens[i];
+                    if (auto variable = handleVariableTokens(tokensNode, packages, i, tree->end)) {
+                        symbolNode->variables.emplace_back(variable);
+                        variables.emplace_back(variable->name);
                     }
 
-                    if (nextToken.type == ScalarVariable || nextToken.type == HashVariable ||
-                        nextToken.type == ArrayVariable) {
-                        // We've got a definition!
-                        if (tokenType == Our) {
-                            auto package = findPackageAtPos(packages, nextToken.startPos);
-                            symbolNode->variables.emplace_back(
-                                    std::make_shared<OurVariable>(nextToken.data, nextToken.startPos,
-                                                                  parentBlockNode->end, package));
-                            variables.emplace_back(nextToken.data);
-                        } else if (tokenType == My || tokenType == State) {
-                            symbolNode->variables.emplace_back(
-                                    std::make_shared<ScopedVariable>(nextToken.data, nextToken.startPos,
-                                                                     parentBlockNode->end));
-                            variables.emplace_back(nextToken.data);
-                        } else if (tokenType == Local) {
-                            symbolNode->variables.emplace_back(
-                                    std::make_shared<LocalVariable>(nextToken.data, nextToken.startPos,
-                                                                    parentBlockNode->end));
-                            variables.emplace_back(nextToken.data);
-                        }
-
-                        // Finally, if combined assignment then skip past Assignment token to prevent confusion with
-                        // package variables below
-                        nextToken = tokensNode->tokens[i + 1];
-                        while (i < tokensNode->tokens.size() && nextToken.isWhitespaceNewlineOrComment()) {
-                            i++;
-                            nextToken = tokensNode->tokens[i];
-                        }
-
-                        if (nextToken.type == Assignment) i++;
-                    }
                 } else if (tokenType == Assignment && i > 0) {
                     // Could be a global (package) variable
-                    // Go back to previous token
-                    int prevI = i;
-                    auto prevToken = tokensNode->tokens[i - 1];
-                    while (i > 0 && prevToken.isWhitespaceNewlineOrComment()) {
-                        i--;
-                        prevToken = tokensNode->tokens[i];
+                    if (auto global = handleGlobalVariables(tokensNode, variables, packages, i)) {
+                        symbolNode->variables.emplace_back(global);
+                        variables.emplace_back(global->name);
                     }
-
-                    if (prevToken.type == ScalarVariable || prevToken.type == HashVariable ||
-                        prevToken.type == ArrayVariable) {
-                        // We have something in form $x = ... with no our/local/my/state...
-                        // Implies this is a global variable definition IF variable not previously declared
-                        bool isDeclared = false;
-                        for (const std::string &var : variables) {
-                            if (var == prevToken.data) {
-                                isDeclared = true;
-                                break;
-                            }
-                        }
-
-                        if (!isDeclared) {
-                            auto package = findPackageAtPos(packages, prevToken.startPos);
-                            symbolNode->variables.emplace_back(
-                                    std::make_shared<GlobalVariable>(prevToken.data, prevToken.startPos, package));
-                            variables.emplace_back(prevToken.data);
-                        }
-                    }
-
-                    i = prevI + 1;
                 }
             }
         }
