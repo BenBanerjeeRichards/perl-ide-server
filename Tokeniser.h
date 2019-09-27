@@ -129,7 +129,6 @@ public:
     std::string data;
 
 
-
 private:
 
 };
@@ -203,5 +202,23 @@ private:
 
 
 };
+
+// TODO make this an actual iterator
+class TokenIterator {
+public:
+    TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens);
+
+    TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens, int offset);
+
+    Token next();
+
+    int getIndex();
+
+private:
+    const std::vector<Token> &tokens;
+    std::vector<TokenType> ignoreTokens;
+    int i;
+};
+
 
 #endif //PERLPARSER_TOKENISER_H

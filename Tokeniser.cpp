@@ -572,3 +572,35 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == Local) return "Local";
     return "TokenType toString NOT IMPLEMENTED";
 }
+
+Token TokenIterator::next() {
+    while (i < tokens.size()) {
+        bool shouldIgnore = false;
+        for (auto ignore: ignoreTokens) {
+            if (tokens[i].type == ignore) {
+                // Try next token
+                i++;
+                shouldIgnore = true;
+                break;
+            }
+        }
+
+        if (shouldIgnore) continue;
+        auto token = tokens[i];
+        i++;
+        return token;
+    }
+
+    return Token(TokenType::EndOfInput, FilePos(0, 0));
+}
+
+int TokenIterator::getIndex() { return i; }
+
+TokenIterator::TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens, int offset) : tokens(tokens) {
+    this->ignoreTokens = ignoreTokens;
+    this->i = offset;
+}
+
+TokenIterator::TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens) : tokens(tokens) {
+    this->ignoreTokens = ignoreTokens;
+}

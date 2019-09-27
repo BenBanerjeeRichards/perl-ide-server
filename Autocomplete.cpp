@@ -13,11 +13,11 @@ std::vector<AutocompleteItem> autocomplete(const std::string& filePath, FilePos 
         tokens.emplace_back(token);
         token = tokeniser.nextToken();
     }
-
+    FileSymbols fileSymbols;
     auto parseTree = parse(tokens);
-    auto packages = parsePackages(parseTree);
-    auto symbolTree = buildVariableSymbolTree(parseTree, packages);
-    auto symbolTable = getSymbolMap(symbolTree, location);
+    fileSymbols.packages = parsePackages(parseTree);
+     buildVariableSymbolTree(parseTree, fileSymbols);
+    auto symbolTable = getSymbolMap(fileSymbols.symbolTree, location);
     std::vector<AutocompleteItem> completion;
 
     completion.reserve(symbolTable.size());

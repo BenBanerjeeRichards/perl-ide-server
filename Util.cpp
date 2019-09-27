@@ -3,6 +3,7 @@
 //
 
 #include <fstream>
+#include <sstream>
 #include "Util.h"
 #include "IOException.h"
 
@@ -13,7 +14,7 @@ bool insideRange(FilePos start, FilePos end, FilePos pos) {
     if (!correctLine) return false;
 
     if (pos.line == start.line) return pos.col >= start.col;
-    if (pos.line == end.line)  return pos.col <= end.col;
+    if (pos.line == end.line) return pos.col <= end.col;
 
     return true;
 }
@@ -28,7 +29,7 @@ std::string replace(std::string str, const std::string &what, const std::string 
 }
 
 // Based on https://stackoverflow.com/a/22489298
-int numOccurrences(const std::string &str, const std::string& sub) {
+int numOccurrences(const std::string &str, const std::string &sub) {
     int occurrences = 0;
     std::string::size_type pos = 0;
     while ((pos = str.find(sub, pos)) != std::string::npos) {
@@ -38,12 +39,12 @@ int numOccurrences(const std::string &str, const std::string& sub) {
     return occurrences;
 }
 
-std::vector<std::string> globglob(const std::string& pattern) {
+std::vector<std::string> globglob(const std::string &pattern) {
     glob_t glob_result;
     std::vector<std::string> result;
     std::vector<char> chars(pattern.c_str(), pattern.c_str() + pattern.size() + 1u);
     glob(&chars[0], GLOB_TILDE, nullptr, &glob_result);
-    for (unsigned int i = 0; i < (int)glob_result.gl_pathc; ++i) {
+    for (unsigned int i = 0; i < (int) glob_result.gl_pathc; ++i) {
         result.emplace_back(glob_result.gl_pathv[i]);
     }
 
@@ -51,25 +52,23 @@ std::vector<std::string> globglob(const std::string& pattern) {
 }
 
 // https://stackoverflow.com/questions/8520560/get-a-file-name-from-a-path
-std::string fileName(const std::string& path) {
+std::string fileName(const std::string &path) {
     std::string filename = path;
     const size_t last_slash_idx = filename.find_last_of("\\/");
-    if (std::string::npos != last_slash_idx)
-    {
+    if (std::string::npos != last_slash_idx) {
         filename.erase(0, last_slash_idx + 1);
     }
 
     // Remove extension if present.
     const size_t period_idx = filename.rfind('.');
-    if (std::string::npos != period_idx)
-    {
+    if (std::string::npos != period_idx) {
         filename.erase(period_idx);
     }
 
     return filename;
 }
 
-std::string readFile(const std::string& path) {
+std::string readFile(const std::string &path) {
     std::ifstream fileStream(path);
     if (!fileStream.is_open()) {
         throw IOException("Failed to open file " + path);
@@ -77,4 +76,11 @@ std::string readFile(const std::string& path) {
 
     std::string contents((std::istreambuf_iterator<char>(fileStream)), (std::istreambuf_iterator<char>()));
     return contents;
+}
+
+// https://stackoverflow.com/a/18427254
+std::string join(const std::vector<std::string> &vec, const char *delim) {
+    std::stringstream res;
+    copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(res, delim));
+    return res.str();
 }

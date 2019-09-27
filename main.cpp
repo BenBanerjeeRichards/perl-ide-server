@@ -45,13 +45,14 @@ int main(int argc, char **args) {
         printParseTree(parseTree);
 
         std::cout << std::endl << "Packages" << std::endl;
-        auto packages = parsePackages(parseTree);
-        for (auto package : packages) {
+        FileSymbols fileSymbols;
+        fileSymbols.packages = parsePackages(parseTree);
+        for (auto package : fileSymbols.packages) {
             std::cout << package.packageName << " " << package.start.toStr() << "-" << package.end.toStr() << std::endl;
         }
 
         std::cout << std::endl << "Variables" << std::endl;
-        auto symbolTree = buildVariableSymbolTree(parseTree, packages);
+        auto symbolTree = buildVariableSymbolTree(parseTree, fileSymbols);
         printSymbolTree(symbolTree);
 
         std::cout << std::endl << "Variables at position" << std::endl;

@@ -100,6 +100,7 @@ public:
 class SymbolNode {
 public:
     SymbolNode(const FilePos &startPos, const FilePos &endPos);
+    SymbolNode(const FilePos &startPos, const FilePos &endPos, std::vector<std::string> parentFeatures);
 
     // Variables declared in this scope
     std::vector<std::shared_ptr<Variable>> variables;
@@ -115,9 +116,35 @@ public:
     std::vector<std::shared_ptr<SymbolNode>> children;
 };
 
+struct Subroutine {
+    // Start and end of sub name to facilitate renaming
+    FilePos nameStart;
+    FilePos nameEnd;
 
-std::shared_ptr<SymbolNode>
-buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, const std::vector<PackageSpan> &packages);
+    // Subroutine name, empty if anonymous
+    std::string name;
+
+    // Signature, only specified if provided with 'use feature signatures'
+    // TODO flesh this out to allow for default assignments (important for detecting if enough args have been provided)
+    std::vector<std::shared_ptr<Variable>> signature;
+
+    // Prototype, if specified with 'use feature prototypes'
+    // TODO more processing on this for type checking
+    std::string prototype;
+
+    // Attributes
+    std::vector<std::string> attributes;
+
+};
+
+struct FileSymbols {
+    std::shared_ptr<SymbolNode> symbolTree;
+    std::vector<PackageSpan> packages;
+
+};
+
+
+std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols);
 
 
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
