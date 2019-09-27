@@ -117,6 +117,7 @@ public:
 };
 
 struct Subroutine {
+    FilePos pos;
     // Start and end of sub name to facilitate renaming
     FilePos nameStart;
     FilePos nameEnd;
@@ -135,11 +136,18 @@ struct Subroutine {
     // Attributes
     std::vector<std::string> attributes;
 
+    std::string toStr() {
+        auto nameStr = name.empty() ? "<ANOM>" : name;
+        return pos.toStr() + " " + nameStr + "()";
+    }
+
+
 };
 
 struct FileSymbols {
     std::shared_ptr<SymbolNode> symbolTree;
     std::vector<PackageSpan> packages;
+    std::vector<Subroutine> subroutines;
 
 };
 
@@ -150,6 +158,8 @@ std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockN
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
 
 void printSymbolTree(const std::shared_ptr<SymbolNode> &node);
+
+void printFileSymbols(FileSymbols& fileSymbols);
 
 typedef std::unordered_map<std::string, std::shared_ptr<Variable>> SymbolMap;
 

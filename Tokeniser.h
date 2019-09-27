@@ -16,7 +16,7 @@
 #include "FilePos.h"
 #include "Util.h"
 #include <unordered_map>
-
+#include <optional>
 
 enum TokenType {
     String,

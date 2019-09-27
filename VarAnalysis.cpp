@@ -98,6 +98,50 @@ std::string handleUseFeature(const std::shared_ptr<TokensNode> &tokensNode, int 
     return featureNameToken.data;
 }
 
+std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNode, int& i) {
+    Subroutine subroutine;
+    auto tokenIter = TokenIterator(tokensNode->tokens, std::vector<TokenType>{Whitespace, Comment, Newline}, i);
+    auto subToken = tokenIter.next();
+    if (subToken.type != Sub) return std::optional<Subroutine>();
+
+    subroutine.pos = subToken.startPos;
+
+    auto nextTok = tokenIter.next();
+    if (nextTok.type == Name) {
+        // If this is not the case then function is unnamed
+        subroutine.name = nextTok.data;
+        subroutine.nameStart = nextTok.startPos;
+        subroutine.nameEnd = nextTok.endPos;
+        nextTok = tokenIter.next();
+    }
+
+    if (nextTok.type == LBracket) {
+        return std::optional<Subroutine>(subroutine);  // Done!
+    }
+
+    if (nextTok.type == LParen) {
+        // We have a signature or prototype
+        // TODO parse this properly
+        // It's tricky to parse this due to things like sub f($x, $b = (3, 4)) so need to be careful about which lparen
+        // we use
+        int numParens = 1;      // Done when this reaches 0
+        while (numParens > 0) {
+            auto tok = tokenIter.next();
+            if (tok.type == LParen) numParens++;
+            if (tok.type == RParen) numParens--;
+            if (tok.type == EndOfInput) {
+                numParens = 0;
+                std::cerr << "UNmatrched brackets" << std::endl;
+            }
+        }
+
+        // TODO attributes
+    }
+
+    return std::optional<Subroutine>(subroutine);  // Done!
+
+}
+
 void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
                                 FileSymbols &fileSymbols, std::vector<std::string> &variables) {
 
@@ -124,7 +168,11 @@ void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const st
                         variables.emplace_back(global->name);
                     }
                 } else if (tokenType == Sub) {
-                    // TODO subs
+                    auto sub = handleSub(tokensNode, i);
+                    if (sub.has_value()) {
+                        fileSymbols.subroutines.emplace_back(sub.value());
+                        i++;
+                    }
                 } else if (tokenType == Use) {
                     auto featureName = handleUseFeature(tokensNode, i);
                     if (!featureName.empty()) symbolNode->features.emplace_back(featureName);
@@ -178,6 +226,22 @@ void printSymbolTree(const std::shared_ptr<SymbolNode> &node) {
     std::cout << "SymbolNode" << " Features: [" << join(node->features, ",") << "]" << std::endl;
     doPrintSymbolTree(node, 2);
 }
+
+void printFileSymbols(FileSymbols& fileSymbols) {
+    std::cout << std::endl << "Packages" << std::endl;
+    for (auto package : fileSymbols.packages) {
+        std::cout << package.packageName << " " << package.start.toStr() << "-" << package.end.toStr() << std::endl;
+    }
+
+    std::cout << std::endl << "Variables" << std::endl;
+    printSymbolTree(fileSymbols.symbolTree);
+
+    std::cout << std::endl << "Subroutines" << std::endl;
+    for (auto function : fileSymbols.subroutines) {
+        std::cout << function.toStr() << std::endl;
+    }
+}
+
 
 void doGetSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const FilePos &pos, SymbolMap &symbolMap) {
     for (const auto &variable : symbolTree->variables) {
