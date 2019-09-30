@@ -66,55 +66,25 @@ enum TokenType {
     Local,
 };
 
+struct KeywordConfig {
+    KeywordConfig(const std::string &code, TokenType type);
+
+    std::string code;
+    TokenType type;
+};
+
 std::string tokenTypeToString(const TokenType &t);
 
 
 class Token {
 
 public:
-    std::string toString() {
-        if (this->data.empty()) {
-            return tokenTypeToString(this->type);
-        }
-
-        // Don't print out newlines to console
-        std::string dataToShow = this->data;
-
-        // TODO move this into until function
-        while (dataToShow.find("\n") != std::string::npos) {
-            dataToShow.replace(dataToShow.find("\n"), 1, "\\n");
-        }
-
-        while (dataToShow.find("\t") != std::string::npos) {
-            dataToShow.replace(dataToShow.find("\t"), 1, "\\t");
-        }
-
-
-        return tokenTypeToString(this->type) + "(" + dataToShow + ")";
-    }
-
     // When data is identical to code
-    Token(const TokenType &type, FilePos start, const std::string &data = "") {
-        this->type = type;
-        this->data = data;
-        this->startPos = start;
-        this->endPos = FilePos(start.line, start.col + (int) data.size() - 1);
-    }
+    Token(const TokenType &type, FilePos start, const std::string &data = "");
 
+    Token(const TokenType &type, FilePos start, int endCol, const std::string &data = "");
 
-    Token(const TokenType &type, FilePos start, int endCol, const std::string &data = "") {
-        this->type = type;
-        this->data = data;
-        this->startPos = start;
-        this->endPos = FilePos(start.line, endCol);
-    }
-
-    Token(const TokenType &type, FilePos start, FilePos end, const std::string &data = "") {
-        this->type = type;
-        this->data = data;
-        this->startPos = start;
-        this->endPos = end;
-    }
+    Token(const TokenType &type, FilePos start, FilePos end, const std::string &data = "");
 
     std::string toStr(bool includeLocation = false);
 
@@ -138,6 +108,10 @@ public:
     explicit Tokeniser(std::string programStream);
 
     Token nextToken();
+
+    std::vector<Token> tokenise();
+
+    std::string tokenToStrWithCode(Token token, bool includeLocation=false);
 
 private:
     char nextChar();
@@ -195,11 +169,17 @@ private:
 
     void advancePositionSameLine(int i);
 
+    std::vector<Token> secondPass(const std::vector<Token> &tokens);
+
+    std::optional<Token> tryMatchKeywords(FilePos startPos);
+
+    std::optional<Token> doMatchKeyword(FilePos startPos, const std::string &keywordCode, TokenType keywordType);
+
     int _position = -1;
     int currentLine = 1;
     int currentCol = 1;
     std::string program;
-
+    std::vector<KeywordConfig> keywordConfigs;
 
 };
 
@@ -219,6 +199,5 @@ private:
     std::vector<TokenType> ignoreTokens;
     int i;
 };
-
 
 #endif //PERLPARSER_TOKENISER_H

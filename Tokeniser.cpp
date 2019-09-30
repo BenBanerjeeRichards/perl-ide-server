@@ -28,8 +28,57 @@ bool Token::isWhitespaceNewlineOrComment() {
     return type == Whitespace || type == Newline || type == Comment;
 }
 
+Token::Token(const TokenType &type, FilePos start, int endCol, const std::string &data) {
+    this->type = type;
+    this->data = data;
+    this->startPos = start;
+    this->endPos = FilePos(start.line, endCol, startPos.position + (endCol - start.col));
+}
+
+Token::Token(const TokenType &type, FilePos start, FilePos end, const std::string &data) {
+    this->type = type;
+    this->data = data;
+    this->startPos = start;
+
+    if (end.position == -1) end.position = startPos.position + data.size() - 1;
+    this->endPos = end;
+}
+
+Token::Token(const TokenType &type, FilePos start, const std::string &data) {
+    this->type = type;
+    this->data = data;
+    this->startPos = start;
+    this->endPos = FilePos(start.line, start.col + (int) data.size() - 1, startPos.position + data.size() - 1);
+}
+
 Tokeniser::Tokeniser(std::string perl) {
     this->program = std::move(perl);
+
+    this->keywordConfigs = std::vector<KeywordConfig>{KeywordConfig("use", TokenType::Use),
+                                                      KeywordConfig("if", TokenType::If),
+                                                      KeywordConfig("else", TokenType::Else),
+                                                      KeywordConfig("elseif", TokenType::ElseIf),
+                                                      KeywordConfig("unless", TokenType::Until),
+                                                      KeywordConfig("while", TokenType::While),
+                                                      KeywordConfig("until", TokenType::Until),
+                                                      KeywordConfig("for", TokenType::For),
+                                                      KeywordConfig("foreach", TokenType::Foreach),
+                                                      KeywordConfig("when", TokenType::When),
+                                                      KeywordConfig("do", TokenType::Do),
+                                                      KeywordConfig("next", TokenType::Next),
+                                                      KeywordConfig("redo", TokenType::Redo),
+                                                      KeywordConfig("last", TokenType::Last),
+                                                      KeywordConfig("my", TokenType::My),
+                                                      KeywordConfig("local", TokenType::Local),
+                                                      KeywordConfig("state", TokenType::State),
+                                                      KeywordConfig("our", TokenType::Our),
+                                                      KeywordConfig("break", TokenType::Break),
+                                                      KeywordConfig("continue", TokenType::Continue),
+                                                      KeywordConfig("given", TokenType::Given),
+                                                      KeywordConfig("sub", TokenType::Sub),
+                                                      KeywordConfig("package", TokenType::Package),
+                                                      KeywordConfig("state", TokenType::State),
+                                                      KeywordConfig("use", TokenType::Use),};
 }
 
 int Tokeniser::nextLine() {
@@ -361,9 +410,26 @@ std::string Tokeniser::matchVariable() {
     return var;
 }
 
+std::optional<Token> Tokeniser::doMatchKeyword(FilePos startPos, const std::string& keywordCode, TokenType keywordType) {
+    if (this->matchKeyword(keywordCode)) {
+        return std::optional<Token>(Token(keywordType, startPos, startPos.col + (int)keywordCode.size() - 1));
+    }
+
+    return std::optional<Token>();
+}
+
+std::optional<Token> Tokeniser::tryMatchKeywords(FilePos startPos) {
+    for (const auto& config: keywordConfigs) {
+        auto attempt = doMatchKeyword(startPos, config.code, config.type);
+        if (attempt.has_value()) return attempt;
+    }
+
+    return std::optional<Token>();
+}
+
 Token Tokeniser::nextToken() {
     // Position before anything is consumed
-    auto startPos = FilePos(this->currentLine, this->currentCol);
+    auto startPos = FilePos(this->currentLine, this->currentCol, this->_position + 1);
 
     if (this->peek() == EOF) {
         return Token(TokenType::EndOfInput, startPos);
@@ -460,31 +526,10 @@ Token Tokeniser::nextToken() {
         this->nextChar();
         return Token(TokenType::Dot, startPos, startPos.col + 1);
     }
-    // Control flow keyword
-    if (this->matchKeyword("use")) return Token(TokenType::Use, startPos, startPos.col + 2);
-    if (this->matchKeyword("if")) return Token(TokenType::If, startPos, startPos.col + 1);
-    if (this->matchKeyword("else")) return Token(TokenType::Else, startPos, startPos.col + 3);
-    if (this->matchKeyword("elseif")) return Token(TokenType::ElseIf, startPos, startPos.col + 5);
-    if (this->matchKeyword("unless")) return Token(TokenType::Unless, startPos, startPos.col + 5);
-    if (this->matchKeyword("while")) return Token(TokenType::While, startPos, startPos.col + 4);
-    if (this->matchKeyword("until")) return Token(TokenType::Until, startPos, startPos.col + 4);
-    if (this->matchKeyword("for")) return Token(TokenType::For, startPos, startPos.col + 2);
-    if (this->matchKeyword("foreach")) return Token(TokenType::Foreach, startPos, startPos.col + 6);
-    if (this->matchKeyword("when")) return Token(TokenType::When, startPos, startPos.col + 3);
-    if (this->matchKeyword("do")) return Token(TokenType::Do, startPos, startPos.col + 1);
-    if (this->matchKeyword("next")) return Token(TokenType::Next, startPos, startPos.col + 3);
-    if (this->matchKeyword("redo")) return Token(TokenType::Redo, startPos, startPos.col + 3);
-    if (this->matchKeyword("last")) return Token(TokenType::Last, startPos, startPos.col + 3);
-    if (this->matchKeyword("my")) return Token(TokenType::My, startPos, startPos.col + 1);
-    if (this->matchKeyword("local")) return Token(TokenType::Local, startPos, startPos.col + 4);
-    if (this->matchKeyword("state")) return Token(TokenType::State, startPos, startPos.col + 4);
-    if (this->matchKeyword("our")) return Token(TokenType::Our, startPos, startPos.col + 2);
-    if (this->matchKeyword("break")) return Token(TokenType::Break, startPos, startPos.col + 4);
-    if (this->matchKeyword("continue")) return Token(TokenType::Continue, startPos, startPos.col + 7);
-    if (this->matchKeyword("given")) return Token(TokenType::Given, startPos, startPos.col + 4);
-    if (this->matchKeyword("sub")) return Token(TokenType::Sub, startPos, startPos.col + 2);
-    if (this->matchKeyword("package")) return Token(TokenType::Package, startPos, startPos.col + 6);
-    if (this->matchKeyword("state")) return Token(TokenType::Package, startPos, startPos.col + 4);
+
+    // Program keywords
+    auto tryKeyword = tryMatchKeywords(startPos);
+    if (tryKeyword.has_value()) return tryKeyword.value();
 
     auto numeric = this->matchNumeric();
     if (!numeric.empty()) return Token(TokenType::NumericLiteral, startPos, numeric);
@@ -523,6 +568,84 @@ Token Tokeniser::nextToken() {
     throw TokeniseException(std::string("Remaining code exists"));
 }
 
+// Second pass to fix any tokenisation errors with a little bit of context
+// Note this is fixing errors, not doing any parsing
+std::vector<Token> Tokeniser::secondPass(const std::vector<Token>& tokens) {
+    for (int i = 0; i < (int)tokens.size() - 1; i++) {
+        if (tokens[i].type != Sub) continue;
+
+        // If function has a prototype/signature then needs to be fixed
+        auto nextToken = tokens[i + 1];
+        while (nextToken.isWhitespaceNewlineOrComment() && i < tokens.size() - 1)  {
+            i++;
+            nextToken = tokens[i];
+        }
+
+        if (nextToken.type == Name) {
+            // Named token, continue past this
+            nextToken = tokens[i + 1];
+            while (nextToken.isWhitespaceNewlineOrComment() && i < tokens.size() - 1)  {
+                i++;
+                nextToken = tokens[i];
+            }
+        }
+
+        // No prototype/signature/attributes
+        if (nextToken.type == LBracket) continue;
+        if (nextToken.type == LParen) {
+            FilePos start = nextToken.startPos;
+            while (i < tokens.size() - 1 && nextToken.type != RParen) {
+                nextToken = tokens[++i];
+            }
+            FilePos end = nextToken.endPos;
+        }
+
+
+
+    }
+}
+
+std::vector<Token> Tokeniser::tokenise() {
+    std::vector<Token> tokens;
+    auto token = nextToken();
+
+    while (token.type != TokenType::EndOfInput) {
+        tokens.emplace_back(token);
+        token = this->nextToken();
+    }
+
+    return tokens;
+}
+
+std::string Tokeniser::tokenToStrWithCode(Token token, bool includeLocation) {
+    std::string code;
+    bool success = false;
+
+    if (token.startPos.position == -1) {
+        code =  "startPos position not set";
+    }
+    else if (token.endPos.position == -1) {
+        code = "endPos position not set";
+    }
+    else if (token.endPos.position < token.startPos.position) {
+        code =  "token.endPos.position < token.startPos.position: Invalid positions";
+    }
+    else if (token.endPos.position >= this->program.size()) {
+        code =  "End position pos exceeds program size";
+    } else {
+        success = true;
+        code = this->program.substr(token.startPos.position, (token.endPos.position - token.startPos.position) + 1);
+    }
+
+    if (!success) {
+        throw "ERROR";
+    }
+
+    auto d1 = replace(code, "\n", "\\n");
+    code = replace(d1, "\r", "\\r");
+
+    return token.toStr(includeLocation) + " :: ~" + code+ "~";
+}
 
 std::string tokenTypeToString(const TokenType &t) {
     if (t == String) return "String";
@@ -604,3 +727,5 @@ TokenIterator::TokenIterator(const std::vector<Token> &tokens, std::vector<Token
 TokenIterator::TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens) : tokens(tokens) {
     this->ignoreTokens = ignoreTokens;
 }
+
+KeywordConfig::KeywordConfig(const std::string &code, TokenType type) : code(code), type(type) {}

@@ -37,6 +37,7 @@ int main(int argc, char **args) {
 
         while (token.type != TokenType::EndOfInput) {
             tokens.emplace_back(token);
+            std::cout << tokeniser.tokenToStrWithCode(token, true) << std::endl;
 //            std::cout << token.toStr(false) << std::endl;
             token = tokeniser.nextToken();
         }
