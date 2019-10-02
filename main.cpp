@@ -5,16 +5,12 @@
 #include "Autocomplete.h"
 
 void printFileTokens(const std::string &file, bool includeLocation) {
-    std::vector<Token> tokens;
     Tokeniser tokeniser(readFile(file));
-    auto token = tokeniser.nextToken();
+    auto tokens = tokeniser.tokenise();
 
-    while (token.type != TokenType::EndOfInput) {
-        tokens.emplace_back(token);
+    for (auto token : tokens) {
         std::cout << token.toStr(includeLocation) << std::endl;
-        token = tokeniser.nextToken();
     }
-
 }
 
 int main(int argc, char **args) {
@@ -31,15 +27,11 @@ int main(int argc, char **args) {
     } else if (argc > 1 && strncmp(args[1], "test", 4) == 0) {
         printFileTokens(args[2], true);
     } else {
-        std::vector<Token> tokens;
         Tokeniser tokeniser(readFile(file));
-        auto token = tokeniser.nextToken();
+        auto tokens = tokeniser.tokenise();
 
-        while (token.type != TokenType::EndOfInput) {
-            tokens.emplace_back(token);
+        for (auto token : tokens) {
             std::cout << tokeniser.tokenToStrWithCode(token, true) << std::endl;
-//            std::cout << token.toStr(false) << std::endl;
-            token = tokeniser.nextToken();
         }
 
         auto parseTree = parse(tokens);

@@ -10,7 +10,7 @@ int nextTokenIdx(const std::vector<Token>& tokens, int currentIdx) {
         currentIdx += 1;
 
         auto nextType = tokens[currentIdx].type;
-        if (nextType != Whitespace && nextType != Newline) return currentIdx;
+        if (nextType != TokenType::Whitespace && nextType != TokenType::Newline) return currentIdx;
     }
 
     return -1;
@@ -23,7 +23,7 @@ void doParse(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &t
         tokensAcc.emplace_back(token);
         tokenIdx += 1;
 
-        if (token.type == LBracket) {
+        if (token.type == TokenType::LBracket) {
             node->children.emplace_back(std::make_shared<TokensNode>(tokensAcc));
             tokensAcc.clear();
 
@@ -32,7 +32,7 @@ void doParse(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &t
 
             node->children.emplace_back(child);
             doParse(child, tokens, tokenIdx);
-        } else if (token.type == RBracket) {
+        } else if (token.type == TokenType::RBracket) {
             node->children.emplace_back(std::make_shared<TokensNode>(tokensAcc));
             node->end = token.endPos;
             tokensAcc.clear();
@@ -46,7 +46,7 @@ void doParse(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &t
 
 Token firstNonWhitespaceToken(const std::vector<Token> &tokens) {
     for (auto token : tokens) {
-        if (token.type != Whitespace && token.type != Newline) return token;
+        if (token.type != TokenType::Whitespace && token.type != TokenType::Newline) return token;
     }
 
     return tokens[0];   // Nothing found
@@ -96,20 +96,20 @@ doParsePackages(const std::shared_ptr<BlockNode> &parent, std::stack<std::string
 
         if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
             for (int i = 0; i < (int) tokensNode->tokens.size() - 1; i++) {
-                if (tokensNode->tokens[i].type == Package) {
+                if (tokensNode->tokens[i].type == TokenType::Package) {
                     auto nextToken = tokensNode->tokens[i + 1];
                     while (i < tokensNode->tokens.size() && nextToken.isWhitespaceNewlineOrComment()) {
                         i++;
                         nextToken = tokensNode->tokens[i];
                     }
 
-                    if (nextToken.type == Name) {
+                    if (nextToken.type == TokenType::Name) {
                         // Found a new package definition
 
                         // Check for a package block (i.e. package NAME {...}
                         // This applies only to the next scope
                         int nextTok = nextTokenIdx(tokensNode->tokens, i);
-                        if (nextTok > -1 && tokensNode->tokens[nextTok].type == LBracket && childIdx <= parent->children.size() - 2) {
+                        if (nextTok > -1 && tokensNode->tokens[nextTok].type == TokenType::LBracket && childIdx <= parent->children.size() - 2) {
                             if (std::dynamic_pointer_cast<BlockNode>(parent->children[childIdx + 1]) != nullptr) {
                                 // Indeed we have the block syntax
                                 isBlockPackage = true;

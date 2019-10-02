@@ -26,15 +26,15 @@ handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::v
         nextToken = tokensNode->tokens[i];
     }
 
-    if (nextToken.type == ScalarVariable || nextToken.type == HashVariable ||
-        nextToken.type == ArrayVariable) {
+    if (nextToken.type == TokenType::ScalarVariable || nextToken.type == TokenType::HashVariable ||
+        nextToken.type == TokenType::ArrayVariable) {
         // We've got a definition!
-        if (tokenType == Our) {
+        if (tokenType == TokenType::Our) {
             auto package = findPackageAtPos(packages, nextToken.startPos);
             return std::make_shared<OurVariable>(nextToken.data, nextToken.startPos, parentEnd, package);
-        } else if (tokenType == My || tokenType == State) {
+        } else if (tokenType == TokenType::My || tokenType == TokenType::State) {
             return std::make_shared<ScopedVariable>(nextToken.data, nextToken.startPos, parentEnd);
-        } else if (tokenType == Local) {
+        } else if (tokenType == TokenType::Local) {
             return std::make_shared<LocalVariable>(nextToken.data, nextToken.startPos, parentEnd);
         }
 
@@ -46,7 +46,7 @@ handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::v
             nextToken = tokensNode->tokens[i];
         }
 
-        if (nextToken.type == Assignment) i++;
+        if (nextToken.type == TokenType::Assignment) i++;
     }
 
     return nullptr;
@@ -64,8 +64,8 @@ handleGlobalVariables(const std::shared_ptr<TokensNode> &tokensNode, const std::
         prevToken = tokensNode->tokens[i];
     }
 
-    if (prevToken.type == ScalarVariable || prevToken.type == HashVariable ||
-        prevToken.type == ArrayVariable) {
+    if (prevToken.type == TokenType::ScalarVariable || prevToken.type == TokenType::HashVariable ||
+        prevToken.type == TokenType::ArrayVariable) {
         // We have something in form $x = ... with no our/local/my/state...
         // Implies this is a global variable definition IF variable not previously declared
         bool isDeclared = false;
@@ -88,26 +88,26 @@ handleGlobalVariables(const std::shared_ptr<TokensNode> &tokensNode, const std::
 }
 
 std::string handleUseFeature(const std::shared_ptr<TokensNode> &tokensNode, int i) {
-    auto tokenIter = TokenIterator(tokensNode->tokens, std::vector<TokenType>{Whitespace, Comment, Newline}, i);
-    if (tokenIter.next().type != Use) return "";
+    auto tokenIter = TokenIterator(tokensNode->tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment, TokenType::Newline}, i);
+    if (tokenIter.next().type != TokenType::Use) return "";
     auto featureKeywordToken = tokenIter.next();
-    if (featureKeywordToken.type != Name || featureKeywordToken.data != "feature") return "";
+    if (featureKeywordToken.type != TokenType::Name || featureKeywordToken.data != "feature") return "";
     auto featureNameToken = tokenIter.next();
     // TODO support quoted strings (requires tokeniser support)
-    if (featureKeywordToken.type != Name) return "";
+    if (featureKeywordToken.type != TokenType::Name) return "";
     return featureNameToken.data;
 }
 
 std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNode, int& i) {
     Subroutine subroutine;
-    auto tokenIter = TokenIterator(tokensNode->tokens, std::vector<TokenType>{Whitespace, Comment, Newline}, i);
+    auto tokenIter = TokenIterator(tokensNode->tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment, TokenType::Newline}, i);
     auto subToken = tokenIter.next();
-    if (subToken.type != Sub) return std::optional<Subroutine>();
+    if (subToken.type != TokenType::Sub) return std::optional<Subroutine>();
 
     subroutine.pos = subToken.startPos;
 
     auto nextTok = tokenIter.next();
-    if (nextTok.type == Name) {
+    if (nextTok.type == TokenType::Name) {
         // If this is not the case then function is unnamed
         subroutine.name = nextTok.data;
         subroutine.nameStart = nextTok.startPos;
@@ -115,11 +115,11 @@ std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNod
         nextTok = tokenIter.next();
     }
 
-    if (nextTok.type == LBracket) {
+    if (nextTok.type == TokenType::LBracket) {
         return std::optional<Subroutine>(subroutine);  // Done!
     }
 
-    if (nextTok.type == LParen) {
+    if (nextTok.type == TokenType::LParen) {
         // We have a signature or prototype
         // TODO parse this properly
         // It's tricky to parse this due to things like sub f($x, $b = (3, 4)) so need to be careful about which lparen
@@ -127,9 +127,9 @@ std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNod
         int numParens = 1;      // Done when this reaches 0
         while (numParens > 0) {
             auto tok = tokenIter.next();
-            if (tok.type == LParen) numParens++;
-            if (tok.type == RParen) numParens--;
-            if (tok.type == EndOfInput) {
+            if (tok.type == TokenType::LParen) numParens++;
+            if (tok.type == TokenType::RParen) numParens--;
+            if (tok.type == TokenType::EndOfInput) {
                 numParens = 0;
                 std::cerr << "UNmatrched brackets" << std::endl;
             }
@@ -156,24 +156,24 @@ void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const st
         if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
             for (int i = 0; i < (int) tokensNode->tokens.size() - 1; i++) {
                 auto tokenType = tokensNode->tokens[i].type;
-                if (tokenType == My || tokenType == Our || tokenType == Local || tokenType == State) {
+                if (tokenType == TokenType::My || tokenType == TokenType::Our || tokenType == TokenType::Local || tokenType == TokenType::State) {
                     if (auto variable = handleVariableTokens(tokensNode, fileSymbols.packages, i, tree->end)) {
                         symbolNode->variables.emplace_back(variable);
                         variables.emplace_back(variable->name);
                     }
-                } else if (tokenType == Assignment && i > 0) {
+                } else if (tokenType == TokenType::Assignment && i > 0) {
                     // Could be a global (package) variable
                     if (auto global = handleGlobalVariables(tokensNode, variables, fileSymbols.packages, i)) {
                         symbolNode->variables.emplace_back(global);
                         variables.emplace_back(global->name);
                     }
-                } else if (tokenType == Sub) {
+                } else if (tokenType == TokenType::Sub) {
                     auto sub = handleSub(tokensNode, i);
                     if (sub.has_value()) {
                         fileSymbols.subroutines.emplace_back(sub.value());
                         i++;
                     }
-                } else if (tokenType == Use) {
+                } else if (tokenType == TokenType::Use) {
                     auto featureName = handleUseFeature(tokensNode, i);
                     if (!featureName.empty()) symbolNode->features.emplace_back(featureName);
                     i += 1;

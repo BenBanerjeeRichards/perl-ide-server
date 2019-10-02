@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <optional>
 
-enum TokenType {
+enum class TokenType {
     String,
     ScalarVariable,
     ArrayVariable,
@@ -64,6 +64,12 @@ enum TokenType {
     Pod,
     Comma,
     Local,
+    Prototype,
+    Signature,
+    SubName,
+    Attribute,
+    AttributeArgs,
+    AttributeColon
 };
 
 struct KeywordConfig {
@@ -111,7 +117,7 @@ public:
 
     std::vector<Token> tokenise();
 
-    std::string tokenToStrWithCode(Token token, bool includeLocation=false);
+    std::string tokenToStrWithCode(Token token, bool includeLocation = false);
 
 private:
     char nextChar();
@@ -163,17 +169,32 @@ private:
 
     std::string matchVariable();
 
+    std::string matchWhitespace();
+
     int peekPackageTokens(int i);
 
     int nextLine();
 
     void advancePositionSameLine(int i);
 
-    std::vector<Token> secondPass(const std::vector<Token> &tokens);
+    void secondPass(std::vector<Token> &tokens);
 
     std::optional<Token> tryMatchKeywords(FilePos startPos);
 
     std::optional<Token> doMatchKeyword(FilePos startPos, const std::string &keywordCode, TokenType keywordType);
+
+    FilePos currentPos();
+
+    std::vector<Token> matchAttribute();
+
+    std::vector<Token> matchAttributes();
+
+    std::string matchPrototype();
+
+    std::string matchSignature();
+    std::vector<Token> matchSignatureTokens();
+
+    bool isPrototype();
 
     int _position = -1;
     int currentLine = 1;
