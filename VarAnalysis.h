@@ -125,23 +125,14 @@ struct Subroutine {
     // Subroutine name, empty if anonymous
     std::string name;
 
-    // Signature, only specified if provided with 'use feature signatures'
-    // TODO flesh this out to allow for default assignments (important for detecting if enough args have been provided)
-    std::vector<std::shared_ptr<Variable>> signature;
-
-    // Prototype, if specified with 'use feature prototypes'
-    // TODO more processing on this for type checking
+    // TODO more processing on prototype/signatures to understand them
+    std::string signature;
     std::string prototype;
 
     // Attributes
     std::vector<std::string> attributes;
 
-    std::string toStr() {
-        auto nameStr = name.empty() ? "<ANOM>" : name;
-        return pos.toStr() + " " + nameStr + "()";
-    }
-
-
+    std::string toStr();
 };
 
 struct FileSymbols {

@@ -79,6 +79,14 @@ struct KeywordConfig {
     TokenType type;
 };
 
+struct QuotedStringLiteral {
+    QuotedStringLiteral(FilePos start, FilePos end, std::string literal);
+
+    std::string contents;
+    FilePos literalStart;
+    FilePos literalEnd;
+};
+
 std::string tokenTypeToString(const TokenType &t);
 
 
@@ -159,6 +167,12 @@ private:
     // Match some perl 'name' - could be a function name, function call, etc... We just don't know yet
     std::string matchName();
 
+    std::string matchStringLiteral(char ident);
+
+    std::string matchBrackededStringLiteral(char bracket);
+
+    QuotedStringLiteral matchQuoteLiteral();
+
     std::string matchString();
 
     std::string matchNumeric();
@@ -192,7 +206,9 @@ private:
     std::string matchPrototype();
 
     std::string matchSignature();
+
     std::vector<Token> matchSignatureTokens();
+
 
     bool isPrototype();
 

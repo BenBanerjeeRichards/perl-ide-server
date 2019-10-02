@@ -234,28 +234,75 @@ std::string Tokeniser::matchName() {
     return acc;
 }
 
+
 std::string Tokeniser::matchString() {
     std::string contents;
-    if (this->peek() == '"') {
+    auto doubleStr = matchStringLiteral('"');
+    if (!doubleStr.empty()) return doubleStr;
+    return matchStringLiteral('\'');
+    return contents;
+}
+
+std::string Tokeniser::matchStringLiteral(char ident) {
+    std::string contents;
+    if (this->peek() == ident) {
         this->nextChar();
-        while (this->peek() != '"' || (this->peek() == '"' && this->peekAhead(0) == '\\')) {
+        while (this->peek() != ident || (this->peek() == ident && this->peekAhead(0) == '\\')) {
             contents += this->peek();
             this->nextChar();
         }
         this->nextChar();
-        contents = '"' + contents = '"';
-    } else if (this->peek() == '\'') {
-        this->nextChar();
-        while (this->peek() != '\'' || (this->peek() == '\'' && this->peekAhead(0) == '\\')) {
-            contents += this->peek();
-            this->nextChar();
-        }
-        this->nextChar();
-        contents = '\'' + contents + '\'';
+        contents = ident + contents + ident;
     }
 
     return contents;
 }
+
+std::string Tokeniser::matchBrackededStringLiteral(char bracket) {
+    std::string contents;
+    char endBracket;
+    if (bracket == '(') endBracket = ')';
+    else if (bracket == '[') endBracket = ']';
+    else if (bracket == '{') endBracket = '}';
+    else if (bracket == '<') endBracket = '>';
+    else return contents;
+
+    if (peek() != bracket) return contents;
+    nextChar();
+    int bracketCount = 1;
+    while (bracketCount > 0 && peek() != EOF) {
+        contents += peek();
+        if (peek() == bracket && peekAhead(0) != '\\') {
+            bracketCount++;
+        } else if (peek() == endBracket && peekAhead(0) != '\\') {
+            bracketCount--;
+        }
+
+        nextChar();
+    }
+
+    return contents.substr(0, contents.size() - 1);
+}
+
+QuotedStringLiteral Tokeniser::matchQuoteLiteral() {
+    if (peek() == 'q' && peekAhead(2) == 'q') {
+        nextChar();
+        nextChar();
+        matchWhitespace();
+        auto quoteChar = peek();
+        if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
+            auto start = currentPos();
+            auto literal = matchBrackededStringLiteral(quoteChar);
+            auto end = start;
+            end.col += literal.size();
+            end.position += literal.size();
+            return QuotedStringLiteral(start, end, literal);
+        }
+    }
+
+    return QuotedStringLiteral(FilePos(), FilePos(), "");
+}
+
 
 std::string Tokeniser::matchNumeric() {
     std::string testString;
@@ -562,6 +609,12 @@ Token Tokeniser::nextToken() {
     auto string = this->matchString();
     if (!string.empty()) return Token(TokenType::String, startPos, string);
 
+    // String literals / quote literals / transliterations / ...
+    auto literal = matchQuoteLiteral();
+    if (!literal.contents.empty()) {
+        return Token(TokenType::String, literal.literalStart, literal.literalEnd, literal.contents);
+    }
+
     auto comment = this->matchComment();
     if (!comment.empty()) return Token(TokenType::Comment, startPos, comment);
 
@@ -778,7 +831,7 @@ void Tokeniser::secondPass(std::vector<Token> &tokens) {
             }
         }
 
-        for (auto& token: newSubTokens) {
+        for (auto &token: newSubTokens) {
             token.startPos.position += finalTokenPos.position;
             token.endPos.position += finalTokenPos.position;
         }
@@ -944,3 +997,9 @@ TokenIterator::TokenIterator(const std::vector<Token> &tokens, std::vector<Token
 }
 
 KeywordConfig::KeywordConfig(const std::string &code, TokenType type) : code(code), type(type) {}
+
+QuotedStringLiteral::QuotedStringLiteral(FilePos start, FilePos end, std::string literal) {
+    this->literalStart = start;
+    this->literalEnd = end;
+    this->contents = literal;
+}

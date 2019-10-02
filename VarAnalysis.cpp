@@ -115,30 +115,13 @@ std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNod
         nextTok = tokenIter.next();
     }
 
-    if (nextTok.type == TokenType::LBracket) {
-        return std::optional<Subroutine>(subroutine);  // Done!
+    while (nextTok.type != TokenType::LBracket && nextTok.type != TokenType::EndOfInput) {
+        if (nextTok.type == TokenType::Signature) subroutine.signature = nextTok.data;
+        if (nextTok.type == TokenType::Prototype) subroutine.prototype = nextTok.data;
+        nextTok = tokenIter.next();
     }
 
-    if (nextTok.type == TokenType::LParen) {
-        // We have a signature or prototype
-        // TODO parse this properly
-        // It's tricky to parse this due to things like sub f($x, $b = (3, 4)) so need to be careful about which lparen
-        // we use
-        int numParens = 1;      // Done when this reaches 0
-        while (numParens > 0) {
-            auto tok = tokenIter.next();
-            if (tok.type == TokenType::LParen) numParens++;
-            if (tok.type == TokenType::RParen) numParens--;
-            if (tok.type == TokenType::EndOfInput) {
-                numParens = 0;
-                std::cerr << "UNmatrched brackets" << std::endl;
-            }
-        }
-
-        // TODO attributes
-    }
-
-    return std::optional<Subroutine>(subroutine);  // Done!
+    return std::optional<Subroutine>(subroutine);
 
 }
 
@@ -259,4 +242,20 @@ SymbolMap getSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const File
     SymbolMap symbolMap;
     doGetSymbolMap(symbolTree, pos, symbolMap);
     return symbolMap;
+}
+
+std::string Subroutine::toStr() {
+    std::string str;
+    auto nameStr = name.empty() ? "<ANOM>" : name;
+    str = pos.toStr() + " " + nameStr + "()";
+
+    if (!signature.empty()) {
+        str += " signature=" + signature;
+    }
+
+    if (!prototype.empty()) {
+        str += " prototype=" + prototype;
+    }
+
+    return str;
 }
