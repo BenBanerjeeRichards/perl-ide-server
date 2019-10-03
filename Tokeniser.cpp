@@ -243,16 +243,19 @@ std::string Tokeniser::matchString() {
     return contents;
 }
 
-std::string Tokeniser::matchStringLiteral(char ident) {
+std::string Tokeniser::matchStringLiteral(char ident, bool includeIdent) {
     std::string contents;
-    if (this->peek() == ident) {
-        this->nextChar();
+    if (this->peek() == ident || !includeIdent) {
+        if (includeIdent) this->nextChar();
         while (this->peek() != ident || (this->peek() == ident && this->peekAhead(0) == '\\')) {
             contents += this->peek();
             this->nextChar();
         }
-        this->nextChar();
-        contents = ident + contents + ident;
+
+        if (includeIdent) {
+            this->nextChar();
+            contents = ident + contents + ident;
+        }
     }
 
     return contents;
@@ -285,26 +288,44 @@ std::string Tokeniser::matchBracketedStringLiteral(char bracket) {
 
 std::vector<Token> Tokeniser::matchQuoteLiteral() {
     std::vector<Token> tokens;
+    auto start = currentPos();
 
-    if (peek() == 'q' && peekAhead(2) == 'q') {
-        auto start = currentPos();
+    auto p1 = peek();
+    auto p2 = peekAhead(2);
+    std::string quoteChars;
+
+    if ((p1 == 'q' && p2 == 'q') || (p1 == 'q' && p2 == 'x') || (p1 == 'q' && p2 == 'w') || (p1 == 'q' && p2 == 'r')) {
+        quoteChars = std::string(1, p1) + p2;
         nextChar();
         nextChar();
-        auto whitespace = matchWhitespace();
-
-        auto quoteChar = peek();
+    } else if (p1 == 'q' || p2 == 'm') {
+        quoteChars = std::string(1, p1);
         nextChar();
-        tokens.emplace_back(Token(TokenType::StringStart, start, "qq" + whitespace + quoteChar));
+    } else {
+        return tokens;
+    }
 
-        if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
-            start = currentPos();
-            auto literal = matchBracketedStringLiteral(quoteChar);
-            tokens.emplace_back(Token(TokenType::String, start, literal));
-            start = currentPos();
-            auto endChar = peek();
-            nextChar();
-            tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
-        }
+    auto whitespace = matchWhitespace();
+    auto quoteChar = peek();
+    nextChar();
+    tokens.emplace_back(Token(TokenType::StringStart, start, quoteChars + whitespace + quoteChar));
+
+    if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
+        start = currentPos();
+        auto literal = matchBracketedStringLiteral(quoteChar);
+        tokens.emplace_back(Token(TokenType::String, start, literal));
+        start = currentPos();
+        auto endChar = peek();
+        nextChar();
+        tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
+    } else {
+        start = currentPos();
+        auto literal = matchStringLiteral(quoteChar, false);
+        tokens.emplace_back(Token(TokenType::String, start, literal));
+        start = currentPos();
+        auto endChar = peek();
+        nextChar();
+        tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
     }
 
     return tokens;
