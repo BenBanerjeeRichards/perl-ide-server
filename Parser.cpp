@@ -91,7 +91,17 @@ doParsePackages(const std::shared_ptr<BlockNode> &parent, std::stack<std::string
             if (!isBlockPackage) packageStack.push(packageStack.top());
             isBlockPackage = false;
             auto morePackages = doParsePackages(blockNode, packageStack, currentPackageStart);
-            for (auto &morePackage : morePackages) packageSpans.emplace_back(std::move(morePackage));
+            if (!morePackages.empty()) {
+                int start = 0;
+                if (!packageSpans.empty() && packageSpans[packageSpans.size() - 1].packageName == morePackages[0].packageName) {
+                    // Combine two packages together
+                    start = 1;
+                    packageSpans[packageSpans.size() - 1].end = morePackages[0].end;
+                }
+                for (int i = start; i < (int)morePackages.size(); i++) {
+                    packageSpans.emplace_back(std::move(morePackages[i]));
+                }
+            }
         }
 
         if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {

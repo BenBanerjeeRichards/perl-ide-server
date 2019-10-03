@@ -48,7 +48,12 @@ Token::Token(const TokenType &type, FilePos start, const std::string &data) {
     this->type = type;
     this->data = data;
     this->startPos = start;
-    this->endPos = FilePos(start.line, start.col + (int) data.size() - 1, startPos.position + data.size() - 1);
+
+    if (data.size() > 0) {
+        this->endPos = FilePos(start.line, start.col + (int) data.size() - 1, startPos.position + data.size() - 1);
+    } else {
+        this->endPos = FilePos(start.line, start.col, start.position);
+    }
 }
 
 Tokeniser::Tokeniser(std::string perl) {
@@ -239,8 +244,10 @@ std::string Tokeniser::matchString() {
     std::string contents;
     auto doubleStr = matchStringLiteral('"');
     if (!doubleStr.empty()) return doubleStr;
-    return matchStringLiteral('\'');
-    return contents;
+    auto singleStr = matchStringLiteral('\'');
+    if (!singleStr.empty()) return singleStr;
+    auto regexStr = matchStringLiteral('/');
+    return regexStr;
 }
 
 std::string Tokeniser::matchStringLiteral(char ident, bool includeIdent) {
@@ -555,7 +562,7 @@ std::vector<Token> Tokeniser::tokenise() {
         // TODO complete this list
         auto operators = std::vector<std::string>{
                 "->", "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
-                "/=", "//=", "=>", "//", "/", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
+                "/=", "//=", "=>", "//", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
                 ">=",
                 "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
                 "~", "^=", "^.=", "^", "...", "..", "?:", ":", ".=",
@@ -675,6 +682,14 @@ std::vector<Token> Tokeniser::tokenise() {
             tokens.insert(tokens.end(), quoteTokens.begin(), quoteTokens.end());
             continue;
         }
+
+        // Numeric first
+        if (this->peek() == '/') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
+            continue;
+        }
+
 
         auto comment = this->matchComment();
         if (!comment.empty()) {
