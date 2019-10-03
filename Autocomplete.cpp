@@ -5,14 +5,9 @@
 #include "Autocomplete.h"
 
 std::vector<AutocompleteItem> autocomplete(const std::string& filePath, FilePos location) {
-    std::vector<Token> tokens;
     Tokeniser tokeniser(readFile(filePath));
-    auto token = tokeniser.nextToken();
+    std::vector<Token> tokens = tokeniser.tokenise();
 
-    while (token.type != TokenType::EndOfInput) {
-        tokens.emplace_back(token);
-        token = tokeniser.nextToken();
-    }
     FileSymbols fileSymbols;
     auto parseTree = parse(tokens);
     fileSymbols.packages = parsePackages(parseTree);

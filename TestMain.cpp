@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
         int i = 0;
         bool success = true;
         for (const auto &expectedToken : expectedTokens) {
-            Token token = tokeniser.nextToken();
+            Token token = tokeniser.tokenise();
 
             if (token.toStr() != expectedToken) {
                 std::cout << " [FAILED]: Incorrect token at token number " << i + 1  << " around position " << token.startPos.toStr() <<  " Got " << token.toStr()
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
-            if (token.type == EndOfInput && i < expectedToken.length() - 1) {
+            if (token.type == TokenType::EndOfInput && i < expectedToken.length() - 1) {
                 std::cout << " [FAILED]: Tokeniser reached EndOfInput before expected at position " << i << std::endl;
                 success = false;
                 break;

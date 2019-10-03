@@ -20,6 +20,8 @@
 
 enum class TokenType {
     String,
+    StringStart,
+    StringEnd,
     ScalarVariable,
     ArrayVariable,
     HashVariable,
@@ -121,8 +123,6 @@ class Tokeniser {
 public:
     explicit Tokeniser(std::string programStream);
 
-    Token nextToken();
-
     std::vector<Token> tokenise();
 
     std::string tokenToStrWithCode(Token token, bool includeLocation = false);
@@ -169,9 +169,9 @@ private:
 
     std::string matchStringLiteral(char ident);
 
-    std::string matchBrackededStringLiteral(char bracket);
+    std::string matchBracketedStringLiteral(char bracket);
 
-    QuotedStringLiteral matchQuoteLiteral();
+    std::vector<Token> matchQuoteLiteral();
 
     std::string matchString();
 

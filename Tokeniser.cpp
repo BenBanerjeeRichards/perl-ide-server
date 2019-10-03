@@ -258,7 +258,7 @@ std::string Tokeniser::matchStringLiteral(char ident) {
     return contents;
 }
 
-std::string Tokeniser::matchBrackededStringLiteral(char bracket) {
+std::string Tokeniser::matchBracketedStringLiteral(char bracket) {
     std::string contents;
     char endBracket;
     if (bracket == '(') endBracket = ')';
@@ -267,40 +267,47 @@ std::string Tokeniser::matchBrackededStringLiteral(char bracket) {
     else if (bracket == '<') endBracket = '>';
     else return contents;
 
-    if (peek() != bracket) return contents;
-    nextChar();
     int bracketCount = 1;
     while (bracketCount > 0 && peek() != EOF) {
-        contents += peek();
         if (peek() == bracket && peekAhead(0) != '\\') {
             bracketCount++;
         } else if (peek() == endBracket && peekAhead(0) != '\\') {
             bracketCount--;
         }
 
+        if (bracketCount == 0) return contents;
+        contents += peek();
         nextChar();
     }
 
-    return contents.substr(0, contents.size() - 1);
+    return contents;
 }
 
-QuotedStringLiteral Tokeniser::matchQuoteLiteral() {
+std::vector<Token> Tokeniser::matchQuoteLiteral() {
+    std::vector<Token> tokens;
+
     if (peek() == 'q' && peekAhead(2) == 'q') {
+        auto start = currentPos();
         nextChar();
         nextChar();
-        matchWhitespace();
+        auto whitespace = matchWhitespace();
+
         auto quoteChar = peek();
+        nextChar();
+        tokens.emplace_back(Token(TokenType::StringStart, start, "qq" + whitespace + quoteChar));
+
         if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
-            auto start = currentPos();
-            auto literal = matchBrackededStringLiteral(quoteChar);
-            auto end = start;
-            end.col += literal.size();
-            end.position += literal.size();
-            return QuotedStringLiteral(start, end, literal);
+            start = currentPos();
+            auto literal = matchBracketedStringLiteral(quoteChar);
+            tokens.emplace_back(Token(TokenType::String, start, literal));
+            start = currentPos();
+            auto endChar = peek();
+            nextChar();
+            tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
         }
     }
 
-    return QuotedStringLiteral(FilePos(), FilePos(), "");
+    return tokens;
 }
 
 
@@ -479,151 +486,190 @@ std::string Tokeniser::matchWhitespace() {
     return this->getWhile(this->isWhitespace);
 }
 
-Token Tokeniser::nextToken() {
-    // Position before anything is consumed
-    auto startPos = currentPos();
 
-    if (this->peek() == EOF) {
-        return Token(TokenType::EndOfInput, startPos);
+std::vector<Token> Tokeniser::tokenise() {
+    std::vector<Token> tokens;
+
+    while (true) {
+        // Position before anything is consumed
+        auto startPos = currentPos();
+
+        if (this->peek() == EOF) {
+            tokens.emplace_back(Token(TokenType::EndOfInput, startPos, startPos));
+            return tokens;
+        }
+
+        // Devour any whitespace
+        std::string whitespace = matchWhitespace();
+        if (whitespace.length() > 0) {
+            tokens.emplace_back(Token(TokenType::Whitespace, startPos, whitespace));
+            continue;
+        }
+
+        // Now for newlines
+        if (this->peek() == '\n') {
+            // Linux/mac newline
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Newline, startPos, "\n"));
+            continue;
+        } else if (this->peek() == '\r' && this->peekAhead(2) == '\n') {
+            // windows
+            this->nextChar();
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Newline, startPos, "\r\n"));
+            continue;
+        }
+
+        auto var = this->matchVariable();
+        if (!var.empty()) {
+            auto type = TokenType::HashVariable;
+            if (var[0] == '$') type = TokenType::ScalarVariable;
+            if (var[0] == '@') type = TokenType::ArrayVariable;
+            tokens.emplace_back(Token(type, startPos, var));
+            continue;
+        }
+
+        // Perl has so many operators...
+        // Thankfully we don't actually care what the do, just need to recognise them
+        // TODO complete this list
+        auto operators = std::vector<std::string>{
+                "->", "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
+                "/=", "//=", "=>", "//", "/", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
+                ">=",
+                "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
+                "~", "^=", "^.=", "^", "...", "..", "?:", ":", ".=",
+        };
+
+        // These operators must be followed by a non alphanumeric
+        auto wordOperators = std::vector<std::string>{
+                "lt", "gt", "le", "ge", "eq", "ne", "cmp", "and", "or", "not", "xor"
+        };
+
+
+        std::string op = matchString(operators);
+        if (!op.empty()) {
+            tokens.emplace_back(Token(TokenType::Operator, startPos, op));
+            continue;
+        }
+
+        std::string op2 = matchString(wordOperators, true);
+        if (!op2.empty()) {
+            tokens.emplace_back(Token(TokenType::Operator, startPos, op2));
+            continue;
+        }
+
+        // Now consider the really easy single character tokens
+        char peek = this->peek();
+
+        if (peek == ';') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Semicolon, startPos, startPos.col));
+            continue;
+        }
+        if (peek == ',') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Comma, startPos, startPos.col));
+            continue;
+        }
+        if (peek == '{') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
+            continue;
+        }
+        if (peek == '}') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::RBracket, startPos, startPos.col));
+            continue;
+        }
+        if (peek == '(') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::LParen, startPos, startPos.col));
+            continue;
+        }
+        if (peek == ')') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::RParen, startPos, startPos.col));
+            continue;
+        }
+        if (peek == '[') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::LSquareBracket, startPos, startPos.col));
+            continue;
+        }
+        if (peek == ']') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::RSquareBracket, startPos, startPos.col));
+            continue;
+        }
+        if (peek == '.') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Dot, startPos, startPos.col + 1));
+            continue;
+        }
+
+        // Program keywords
+        auto tryKeyword = tryMatchKeywords(startPos);
+        if (tryKeyword.has_value()) {
+            tokens.emplace_back(tryKeyword.value());
+            continue;
+        }
+
+        auto numeric = this->matchNumeric();
+        if (!numeric.empty()) {
+            tokens.emplace_back(Token(TokenType::NumericLiteral, startPos, numeric));
+            continue;
+        }
+
+        // Numeric first
+        if (this->peek() == '-') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Operator, startPos, "-"));
+            continue;
+        }
+
+        auto pod = this->matchPod();
+        if (!pod.empty()) {
+            // One of the few tokens that can span multiple lines
+            tokens.emplace_back(Token(TokenType::Pod, startPos, FilePos(this->currentLine, this->currentCol - 1), pod));
+            continue;
+        }
+
+        // POD takes priority
+        if (this->peek() == '=') {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Assignment, startPos, startPos.col));
+            continue;
+        }
+
+
+        auto string = this->matchString();
+        if (!string.empty()) {
+            tokens.emplace_back(Token(TokenType::String, startPos, string));
+            continue;
+        }
+
+        // String literals / quote literals / transliterations / ...
+        auto quoteTokens = matchQuoteLiteral();
+        if (!quoteTokens.empty()) {
+            tokens.insert(tokens.end(), quoteTokens.begin(), quoteTokens.end());
+            continue;
+        }
+
+        auto comment = this->matchComment();
+        if (!comment.empty()) {
+            tokens.emplace_back(Token(TokenType::Comment, startPos, comment));
+            continue;
+        }
+
+        auto name = this->matchName();
+        if (!name.empty()) {
+            tokens.emplace_back(Token(TokenType::Name, startPos, name));
+            continue;
+        }
+
+        throw TokeniseException(std::string("Remaining code exists"));
     }
 
-    // Devour any whitespace
-    std::string whitespace = matchWhitespace();
-    if (whitespace.length() > 0) {
-        return Token(TokenType::Whitespace, startPos, whitespace);
-    }
-
-    // Now for newlines
-    if (this->peek() == '\n') {
-        // Linux/mac newline
-        this->nextChar();
-        return Token(TokenType::Newline, startPos, "\n");
-    } else if (this->peek() == '\r' && this->peekAhead(2) == '\n') {
-        // windows
-        this->nextChar();
-        this->nextChar();
-        return Token(TokenType::Newline, startPos, "\r\n");
-    }
-
-    auto var = this->matchVariable();
-    if (!var.empty()) {
-        auto type = TokenType::HashVariable;
-        if (var[0] == '$') type = TokenType::ScalarVariable;
-        if (var[0] == '@') type = TokenType::ArrayVariable;
-        return Token(type, startPos, var);
-    }
-
-    // Perl has so many operators...
-    // Thankfully we don't actually care what the do, just need to recognise them
-    // TODO complete this list
-    auto operators = std::vector<std::string>{
-            "->", "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
-            "/=", "//=", "=>", "//", "/", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<", ">=",
-            "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
-            "~", "^=", "^.=", "^", "...", "..", "?:", ":", ".=",
-    };
-
-    // These operators must be followed by a non alphanumeric
-    auto wordOperators = std::vector<std::string>{
-            "lt", "gt", "le", "ge", "eq", "ne", "cmp", "and", "or", "not", "xor"
-    };
-
-
-    std::string op = matchString(operators);
-    if (!op.empty()) {
-        return (Token(TokenType::Operator, startPos, op));
-    }
-
-    std::string op2 = matchString(wordOperators, true);
-    if (!op2.empty()) {
-        return (Token(TokenType::Operator, startPos, op2));
-    }
-
-    // Now consider the really easy single character tokens
-    char peek = this->peek();
-
-    if (peek == ';') {
-        this->nextChar();
-        return Token(TokenType::Semicolon, startPos, startPos.col);
-    }
-    if (peek == ',') {
-        this->nextChar();
-        return Token(TokenType::Comma, startPos, startPos.col);
-    }
-    if (peek == '{') {
-        this->nextChar();
-        return Token(TokenType::LBracket, startPos, startPos.col);
-    }
-    if (peek == '}') {
-        this->nextChar();
-        return Token(TokenType::RBracket, startPos, startPos.col);
-    }
-    if (peek == '(') {
-        this->nextChar();
-        return Token(TokenType::LParen, startPos, startPos.col);
-    }
-    if (peek == ')') {
-        this->nextChar();
-        return Token(TokenType::RParen, startPos, startPos.col);
-    }
-    if (peek == '[') {
-        this->nextChar();
-        return Token(TokenType::LSquareBracket, startPos, startPos.col);
-    }
-    if (peek == ']') {
-        this->nextChar();
-        return Token(TokenType::RSquareBracket, startPos, startPos.col);
-    }
-    if (peek == '.') {
-        this->nextChar();
-        return Token(TokenType::Dot, startPos, startPos.col + 1);
-    }
-
-    // Program keywords
-    auto tryKeyword = tryMatchKeywords(startPos);
-    if (tryKeyword.has_value()) return tryKeyword.value();
-
-    auto numeric = this->matchNumeric();
-    if (!numeric.empty()) return Token(TokenType::NumericLiteral, startPos, numeric);
-
-
-    // Numeric first
-    if (this->peek() == '-') {
-        this->nextChar();
-        return Token(TokenType::Operator, startPos, "-");
-    }
-
-    auto pod = this->matchPod();
-    if (!pod.empty()) {
-        // One of the few tokens that can span multiple lines
-        return Token(TokenType::Pod, startPos, FilePos(this->currentLine, this->currentCol - 1), pod);
-    }
-
-    // POD takes priority
-    if (this->peek() == '=') {
-        this->nextChar();
-        return Token(TokenType::Assignment, startPos, startPos.col);
-    }
-
-
-    auto string = this->matchString();
-    if (!string.empty()) return Token(TokenType::String, startPos, string);
-
-    // String literals / quote literals / transliterations / ...
-    auto literal = matchQuoteLiteral();
-    if (!literal.contents.empty()) {
-        return Token(TokenType::String, literal.literalStart, literal.literalEnd, literal.contents);
-    }
-
-    auto comment = this->matchComment();
-    if (!comment.empty()) return Token(TokenType::Comment, startPos, comment);
-
-    auto name = this->matchName();
-    if (!name.empty()) {
-        return Token(TokenType::Name, startPos, name);
-    }
-
-    throw TokeniseException(std::string("Remaining code exists"));
 }
 
 std::vector<Token> Tokeniser::matchAttribute() {
@@ -844,22 +890,11 @@ void Tokeniser::secondPass(std::vector<Token> &tokens) {
     }
 }
 
-std::vector<Token> Tokeniser::tokenise() {
-    std::vector<Token> tokens;
-    auto token = nextToken();
-
-    while (token.type != TokenType::EndOfInput) {
-        tokens.emplace_back(token);
-        token = this->nextToken();
-    }
-
-    secondPass(tokens);
-    return tokens;
-}
-
 std::string Tokeniser::tokenToStrWithCode(Token token, bool includeLocation) {
     std::string code;
     bool success = false;
+
+    if (token.type == TokenType::EndOfInput) return "";
 
     if (token.startPos.position == -1) {
         code = "startPos position not set";
@@ -960,6 +995,8 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::Attribute) return "Attribute";
     if (t == TokenType::AttributeArgs) return "AttributeArgs";
     if (t == TokenType::AttributeColon) return "AttributeColon";
+    if (t == TokenType::StringStart) return "StringStart";
+    if (t == TokenType::StringEnd) return "StringEnd";
     return "TokenType toString NOT IMPLEMENTED";
 }
 
