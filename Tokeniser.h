@@ -218,6 +218,7 @@ private:
     std::string program;
     std::vector<KeywordConfig> keywordConfigs;
 
+    std::vector<Token> matchLiteralBody(const std::string& quoteChars, FilePos start, char matchedQuoteChar = EOF);
 };
 
 // TODO make this an actual iterator

@@ -293,49 +293,100 @@ std::string Tokeniser::matchBracketedStringLiteral(char bracket) {
     return contents;
 }
 
-std::vector<Token> Tokeniser::matchQuoteLiteral() {
+std::vector<Token> Tokeniser::matchLiteralBody(const std::string &quoteChars, FilePos start, char matchedQuoteChar) {
     std::vector<Token> tokens;
+    char quoteChar;
+    if (matchedQuoteChar == EOF) {
+        auto whitespace = matchWhitespace();
+        quoteChar = peek();
+        nextChar();
+        tokens.emplace_back(Token(TokenType::StringStart, start, quoteChars + whitespace + quoteChar));
+    } else {
+        quoteChar = matchedQuoteChar;
+    }
+
+    start = currentPos();
+    std::string literal = (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[')
+                          ? matchBracketedStringLiteral(quoteChar) : matchStringLiteral(quoteChar, false);
+    tokens.emplace_back(Token(TokenType::String, start, literal));
+    start = currentPos();
+    auto endChar = peek();
+    nextChar();
+    tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
+    return tokens;
+}
+
+std::vector<Token> Tokeniser::matchQuoteLiteral() {
     auto start = currentPos();
 
     auto p1 = peek();
     auto p2 = peekAhead(2);
     std::string quoteChars;
 
+    bool isMultipleLiteral = false;
+    int offset = 1;
+
     if ((p1 == 'q' && p2 == 'q') || (p1 == 'q' && p2 == 'x') || (p1 == 'q' && p2 == 'w') || (p1 == 'q' && p2 == 'r')) {
         quoteChars = std::string(1, p1) + p2;
-        nextChar();
-        nextChar();
+        offset += 2;
     } else if (p1 == 'q' || p2 == 'm') {
         quoteChars = std::string(1, p1);
-        nextChar();
+        offset++;
+    } else if (p1 == 's' || p1 == 'y') {
+        isMultipleLiteral = true;
+        offset++;
+        quoteChars = std::string(1, p1);
+    } else if (p1 == 't' && p2 == 'r') {
+        quoteChars = "tr";
+        isMultipleLiteral = true;
+        offset += 2;
     } else {
-        return tokens;
+        return std::vector<Token>();
     }
 
-    auto whitespace = matchWhitespace();
-    auto quoteChar = peek();
+    std::vector<Token> tokens;
+    std::string whitespace;
+    while (isWhitespace(peekAhead(offset))) {
+        whitespace += peekAhead(offset);
+        offset++;
+    }
+
+    auto quoteChar = peekAhead(offset);
+
+    if (isAlphaNumeric(quoteChar)) {
+        if (whitespace.empty()) {
+            // Must have whitespace for alphanumeric quote char
+            return std::vector<Token>();
+        }
+    }
+
+    for (int i = 0; i < offset - 1; i++) this->nextChar();
+
     nextChar();
     tokens.emplace_back(Token(TokenType::StringStart, start, quoteChars + whitespace + quoteChar));
 
-    if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
+    start = currentPos();
+    std::string literal = (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[')
+                          ? matchBracketedStringLiteral(quoteChar) : matchStringLiteral(quoteChar, false);
+    tokens.emplace_back(Token(TokenType::String, start, literal));
+    start = currentPos();
+    auto endChar = peek();
+    nextChar();
+    tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
+
+    if (isMultipleLiteral) {
         start = currentPos();
-        auto literal = matchBracketedStringLiteral(quoteChar);
+        literal = (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[')
+                  ? matchBracketedStringLiteral(quoteChar) : matchStringLiteral(quoteChar, false);
         tokens.emplace_back(Token(TokenType::String, start, literal));
         start = currentPos();
-        auto endChar = peek();
-        nextChar();
-        tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
-    } else {
-        start = currentPos();
-        auto literal = matchStringLiteral(quoteChar, false);
-        tokens.emplace_back(Token(TokenType::String, start, literal));
-        start = currentPos();
-        auto endChar = peek();
+        endChar = peek();
         nextChar();
         tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
     }
 
     return tokens;
+
 }
 
 
