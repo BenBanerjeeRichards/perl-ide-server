@@ -31,7 +31,7 @@ std::shared_ptr<Variable> makeVariable(TokenType type, std::string name, FilePos
 }
 
 std::vector<std::shared_ptr<Variable>>
-handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::vector<PackageSpan> &packages, int i,
+handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::vector<PackageSpan> &packages, int &i,
                      FilePos parentEnd) {
     std::vector<std::shared_ptr<Variable>> variables;
     TokenIterator tokensIter(tokensNode->tokens,
@@ -71,6 +71,7 @@ handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::v
 
     }
 
+    i = tokensIter.getIndex();
     return variables;
 }
 
@@ -175,7 +176,7 @@ void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const st
                 } else if (tokenType == TokenType::Assignment && i > 0) {
                     // Could be a global (package) variable
                     if (auto global = handleGlobalVariables(tokensNode, variables, fileSymbols.packages, i)) {
-                        symbolNode->variables.emplace_back(global);
+                        fileSymbols.globals.emplace_back(global);
                         variables.emplace_back(global->name);
                     }
                 } else if (tokenType == TokenType::Sub) {
@@ -267,9 +268,16 @@ void doGetSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const FilePos
     }
 }
 
-SymbolMap getSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const FilePos &pos) {
+SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos) {
     SymbolMap symbolMap;
-    doGetSymbolMap(symbolTree, pos, symbolMap);
+    doGetSymbolMap(fileSymbols.symbolTree, pos, symbolMap);
+
+    // Now add globals
+    for (const auto& var: fileSymbols.globals) {
+        // Note that scoped variables to take presedence over globals
+        if (!symbolMap.count(var->name)) symbolMap[var->name] = var;
+    }
+
     return symbolMap;
 }
 

@@ -12,7 +12,7 @@ std::vector<AutocompleteItem> autocomplete(const std::string& filePath, FilePos 
     auto parseTree = parse(tokens);
     fileSymbols.packages = parsePackages(parseTree);
      buildVariableSymbolTree(parseTree, fileSymbols);
-    auto symbolTable = getSymbolMap(fileSymbols.symbolTree, location);
+    auto symbolTable = getSymbolMap(fileSymbols, location);
     std::vector<AutocompleteItem> completion;
 
     completion.reserve(symbolTable.size());

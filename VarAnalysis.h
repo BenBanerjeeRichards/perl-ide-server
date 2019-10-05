@@ -140,6 +140,8 @@ struct FileSymbols {
     std::vector<PackageSpan> packages;
     std::vector<Subroutine> subroutines;
 
+    // This is a temp measure until packages are fully implemented
+    std::vector<std::shared_ptr<Variable>> globals;
 };
 
 
@@ -154,6 +156,6 @@ void printFileSymbols(FileSymbols& fileSymbols);
 
 typedef std::unordered_map<std::string, std::shared_ptr<Variable>> SymbolMap;
 
-SymbolMap getSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const FilePos &pos);
+SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos);
 
 #endif //PERLPARSER_VARANALYSIS_H
