@@ -91,15 +91,7 @@ handleGlobalVariables(const std::shared_ptr<TokensNode> &tokensNode, const std::
         prevToken.type == TokenType::ArrayVariable) {
         // We have something in form $x = ... with no our/local/my/state...
         // Implies this is a global variable definition IF variable not previously declared
-        bool isDeclared = false;
-        for (const std::string &var : variables) {
-            if (var == prevToken.data) {
-                isDeclared = true;
-                break;
-            }
-        }
-
-        if (!isDeclared) {
+        if (std::find(variables.begin(), variables.end(), prevToken.data) == variables.end()) {
             auto package = findPackageAtPos(packages, prevToken.startPos);
             global = std::make_shared<GlobalVariable>(prevToken.data, prevToken.startPos, package);
         }
@@ -151,14 +143,15 @@ std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNod
 }
 
 void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
-                                FileSymbols &fileSymbols, std::vector<std::string> &variables) {
+                                FileSymbols &fileSymbols, std::vector<std::string> &variables,
+                                std::unordered_map<std::string, std::vector<FilePos>>& variableUsages) {
 
     for (const auto &child : tree->children) {
         if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
             // Create new child for symbol tree
             auto symbolChild = std::make_shared<SymbolNode>(blockNode->start, blockNode->end, symbolNode->features);
             symbolNode->children.emplace_back(symbolChild);
-            doFindVariableDeclarations(blockNode, symbolChild, fileSymbols, variables);
+            doFindVariableDeclarations(blockNode, symbolChild, fileSymbols, variables, variableUsages);
         }
 
         if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
@@ -170,9 +163,22 @@ void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const st
                     for (auto &variable : newVariables) {
                         symbolNode->variables.emplace_back(variable);
                         variables.emplace_back(variable->name);
+
+                        // Also add declarations to the usage lists
+                        if (variableUsages.count(variable->name) == 0) {
+                            variableUsages[variable->name] = std::vector<FilePos>();
+                        }
+                        variableUsages[variable->name].emplace_back(variable->declaration);
                     }
 
                     i++;
+                } else if (tokenType == TokenType::ScalarVariable || tokenType == TokenType::ArrayVariable || tokenType == TokenType::HashVariable) {
+                    auto varName = tokensNode->tokens[i].data;
+                    if (variableUsages.count(varName) == 0) {
+                        variableUsages[varName] = std::vector<FilePos>();
+                    }
+                    variableUsages[varName].emplace_back(tokensNode->tokens[i].startPos);
+
                 } else if (tokenType == TokenType::Assignment && i > 0) {
                     // Could be a global (package) variable
                     if (auto global = handleGlobalVariables(tokensNode, variables, fileSymbols.packages, i)) {
@@ -195,11 +201,33 @@ void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const st
     }
 }
 
+std::shared_ptr<Variable> findDeclaration(const FileSymbols& fileSymbols, const std::string& variableName, FilePos pos) {
+    auto map = getSymbolMap(fileSymbols, pos);
+    if (map.count(variableName) > 0) return map[variableName];
+    return nullptr;
+}
+
 std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols) {
     std::vector<std::string> variables;
     auto symbolNode = std::make_shared<SymbolNode>(tree->start, tree->end);
-    doFindVariableDeclarations(tree, symbolNode, fileSymbols, variables);
+    std::unordered_map<std::string, std::vector<FilePos>> variableUsages;
+    doFindVariableDeclarations(tree, symbolNode, fileSymbols, variables, variableUsages);
     fileSymbols.symbolTree = symbolNode;
+
+    // Now process variable usages
+    for (auto it = variableUsages.begin(); it != variableUsages.end(); it++) {
+        for (auto pos: variableUsages[it->first]) {
+            auto declaration = findDeclaration(fileSymbols, it->first, pos);
+            if (declaration != nullptr) {
+                if (fileSymbols.variableUsages.count(declaration) == 0) {
+                    fileSymbols.variableUsages[declaration] = std::vector<FilePos>();
+                }
+
+                fileSymbols.variableUsages[declaration].emplace_back(pos);
+            }
+        }
+    }
+
     return symbolNode;
 }
 
@@ -273,7 +301,7 @@ SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos) {
     doGetSymbolMap(fileSymbols.symbolTree, pos, symbolMap);
 
     // Now add globals
-    for (const auto& var: fileSymbols.globals) {
+    for (const auto &var: fileSymbols.globals) {
         // Note that scoped variables to take presedence over globals
         if (!symbolMap.count(var->name)) symbolMap[var->name] = var;
     }

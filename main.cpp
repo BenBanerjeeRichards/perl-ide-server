@@ -66,6 +66,17 @@ int main(int argc, char **args) {
             std::cout << varItem.second->toStr() << std::endl;
         }
 
+        std::cout << std::endl << "Variable usages" << std::endl;
+        for (auto it = fileSymbols.variableUsages.begin(); it != fileSymbols.variableUsages.end(); it++) {
+            std::cout << it->first->toStr() << ": ";
+            for (auto varPos: fileSymbols.variableUsages[it->first]) {
+                std::cout << varPos.toStr() << " ";
+            }
+
+            std::cout << std::endl;
+        }
+
+
         std::cout << "Done" << std::endl << std::endl;
 
         std::cout << "Tokenisation: " << tokeniseTime << "ms" << std::endl;

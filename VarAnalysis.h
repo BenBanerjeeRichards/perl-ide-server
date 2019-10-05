@@ -7,6 +7,7 @@
 
 #include "Parser.h"
 #include "Util.h"
+#include <algorithm>
 
 struct Variable {
     std::string name;
@@ -78,7 +79,7 @@ public:
     }
 
     std::string toStr() override {
-        return "[" + this->declaration.toStr() + "] " + package + "::" + name;
+        return "our [" + this->declaration.toStr() + "] " + package + "::" + name;
     }
 };
 
@@ -135,6 +136,11 @@ struct Subroutine {
     std::string toStr();
 };
 
+struct VariableUsage {
+    FilePos pos;
+    std::shared_ptr<Variable> variable;
+};
+
 struct FileSymbols {
     std::shared_ptr<SymbolNode> symbolTree;
     std::vector<PackageSpan> packages;
@@ -142,6 +148,10 @@ struct FileSymbols {
 
     // This is a temp measure until packages are fully implemented
     std::vector<std::shared_ptr<Variable>> globals;
+
+    // Usages of each variable
+    // Includes definition
+    std::unordered_map<std::shared_ptr<Variable>, std::vector<FilePos>> variableUsages;
 };
 
 
