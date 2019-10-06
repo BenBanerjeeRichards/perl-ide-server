@@ -149,13 +149,21 @@ struct FileSymbols {
     // This is a temp measure until packages are fully implemented
     std::vector<std::shared_ptr<Variable>> globals;
 
+    // Locations of all variables in the file (both declarations and usages)
+    // NOTE: Usages not declared
+    std::unordered_map<std::string, std::vector<FilePos>> variables;
+
+
     // Usages of each variable
-    // Includes definition
+    // Includes definition.
+    // NOTE: May not be filled out - only needed for files being edited. Expensive to compute.
     std::unordered_map<std::shared_ptr<Variable>, std::vector<FilePos>> variableUsages;
 };
 
 
 std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols);
+
+std::shared_ptr<Variable> sym2(const FileSymbols &fileSymbols,std::string name, const FilePos &pos);
 
 
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);

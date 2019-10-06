@@ -144,7 +144,7 @@ std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNod
 
 void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
                                 FileSymbols &fileSymbols, std::vector<std::string> &variables,
-                                std::unordered_map<std::string, std::vector<FilePos>>& variableUsages) {
+                                std::unordered_map<std::string, std::vector<FilePos>> &variableUsages) {
 
     for (const auto &child : tree->children) {
         if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
@@ -172,7 +172,8 @@ void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const st
                     }
 
                     i++;
-                } else if (tokenType == TokenType::ScalarVariable || tokenType == TokenType::ArrayVariable || tokenType == TokenType::HashVariable) {
+                } else if (tokenType == TokenType::ScalarVariable || tokenType == TokenType::ArrayVariable ||
+                           tokenType == TokenType::HashVariable) {
                     auto varName = tokensNode->tokens[i].data;
                     if (variableUsages.count(varName) == 0) {
                         variableUsages[varName] = std::vector<FilePos>();
@@ -201,10 +202,30 @@ void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const st
     }
 }
 
-std::shared_ptr<Variable> findDeclaration(const FileSymbols& fileSymbols, const std::string& variableName, FilePos pos) {
-    auto map = getSymbolMap(fileSymbols, pos);
-    if (map.count(variableName) > 0) return map[variableName];
-    return nullptr;
+void doGetDeclaration(const std::shared_ptr<SymbolNode> &symbolTree, std::string name, const FilePos &pos,
+                      std::shared_ptr<Variable> &currentDecl) {
+    for (const auto &variable : symbolTree->variables) {
+        if (variable->name == name) {
+            currentDecl = variable;
+        }
+    }
+
+    for (const auto &child : symbolTree->children) {
+        if (insideRange(child->startPos, child->endPos, pos)) {
+            doGetDeclaration(child, name, pos, currentDecl);
+        }
+    }
+}
+
+std::shared_ptr<Variable>
+findDeclaration(const FileSymbols &fileSymbols, const std::string &variableName, FilePos pos) {
+    std::shared_ptr<Variable> currentDecl = nullptr;
+    for (auto global: fileSymbols.globals) {
+        if (global->name == variableName) currentDecl = global;
+    }
+
+    doGetDeclaration(fileSymbols.symbolTree, variableName, pos, currentDecl);
+    return currentDecl;
 }
 
 std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols) {
@@ -213,6 +234,7 @@ std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockN
     std::unordered_map<std::string, std::vector<FilePos>> variableUsages;
     doFindVariableDeclarations(tree, symbolNode, fileSymbols, variables, variableUsages);
     fileSymbols.symbolTree = symbolNode;
+    fileSymbols.variables = variableUsages;
 
     // Now process variable usages
     for (auto it = variableUsages.begin(); it != variableUsages.end(); it++) {
