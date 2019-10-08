@@ -257,6 +257,7 @@ std::string Tokeniser::matchStringLiteral(char ident, bool includeIdent) {
         while (this->peek() != ident || (this->peek() == ident && this->peekAhead(0) == '\\')) {
             contents += this->peek();
             this->nextChar();
+            if (this->peek() == EOF) break;
         }
 
         if (includeIdent) {
@@ -720,6 +721,33 @@ std::vector<Token> Tokeniser::tokenise() {
             continue;
         }
 
+
+
+        // This one is tricky
+        // Could be a division (34 / 5) OR a bare regex literal (/354/)/
+        // Guess based on previous non-whitespace token
+        // TODO improve this heuristic
+        if (this->peek() == '/') {
+            int i = (int) tokens.size() - 1;
+            Token prevToken = tokens[i];
+            while (i > 0 && prevToken.isWhitespaceNewlineOrComment()) {
+                prevToken = tokens[--i];
+            }
+
+            auto type = prevToken.type;
+            if (type == TokenType::RParen || type == TokenType::NumericLiteral || type == TokenType::ScalarVariable ||
+                type == TokenType::HashVariable || type == TokenType::ArrayVariable || type == TokenType::RBracket || type == TokenType::RSquareBracket) {
+                this->nextChar();
+                tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
+                continue;
+            } else {
+                auto string = this->matchString();
+                if (!string.empty()) {
+                    tokens.emplace_back(Token(TokenType::String, startPos, string));
+                    continue;
+                }
+            }
+        }
 
         auto string = this->matchString();
         if (!string.empty()) {

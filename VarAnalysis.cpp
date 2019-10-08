@@ -238,6 +238,7 @@ std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockN
 
     // Now process variable usages
     for (auto it = variableUsages.begin(); it != variableUsages.end(); it++) {
+        std::cout << "X:" << it->first << std::endl;
         for (auto pos: variableUsages[it->first]) {
             auto declaration = findDeclaration(fileSymbols, it->first, pos);
             if (declaration != nullptr) {
