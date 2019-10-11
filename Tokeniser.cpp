@@ -56,13 +56,14 @@ Token::Token(const TokenType &type, FilePos start, const std::string &data) {
     }
 }
 
-Tokeniser::Tokeniser(std::string perl) {
+Tokeniser::Tokeniser(std::string perl, bool doSecondPass) {
     this->program = std::move(perl);
+    this->doSecondPass = doSecondPass;
 
     this->keywordConfigs = std::vector<KeywordConfig>{KeywordConfig("use", TokenType::Use),
                                                       KeywordConfig("if", TokenType::If),
                                                       KeywordConfig("else", TokenType::Else),
-                                                      KeywordConfig("elseif", TokenType::ElseIf),
+                                                      KeywordConfig("elsif", TokenType::ElsIf),
                                                       KeywordConfig("unless", TokenType::Until),
                                                       KeywordConfig("while", TokenType::While),
                                                       KeywordConfig("until", TokenType::Until),
@@ -330,7 +331,7 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
     if ((p1 == 'q' && p2 == 'q') || (p1 == 'q' && p2 == 'x') || (p1 == 'q' && p2 == 'w') || (p1 == 'q' && p2 == 'r')) {
         quoteChars = std::string(1, p1) + p2;
         offset += 2;
-    } else if (p1 == 'q' || p2 == 'm') {
+    } else if (p1 == 'q' || p1 == 'm') {
         quoteChars = std::string(1, p1);
         offset++;
     } else if (p1 == 's' || p1 == 'y') {
@@ -436,7 +437,7 @@ std::string Tokeniser::matchPod() {
             pod += this->getWhile(isNewline);
 
             // Now consume until ending
-            while (true) {
+            while (this->peek() != EOF) {
                 char c1 = this->peek();
                 char c2 = this->peekAhead(2);
                 char c3 = this->peekAhead(3);
@@ -566,7 +567,6 @@ std::string Tokeniser::matchWhitespace() {
     return this->getWhile(this->isWhitespace);
 }
 
-
 std::vector<Token> Tokeniser::tokenise() {
     std::vector<Token> tokens;
 
@@ -576,6 +576,7 @@ std::vector<Token> Tokeniser::tokenise() {
 
         if (this->peek() == EOF) {
             tokens.emplace_back(Token(TokenType::EndOfInput, startPos, startPos));
+            secondPass(tokens);
             return tokens;
         }
 
@@ -909,99 +910,200 @@ std::vector<Token> Tokeniser::matchSignatureTokens() {
 }
 
 
-// Second pass to fix any tokenization errors with a little bit of context
-// Note this is fixing errors, not doing any parsing
-void Tokeniser::secondPass(std::vector<Token> &tokens) {
-    for (int i = 0; i < (int) tokens.size() - 1; i++) {
-        if (tokens[i].type != TokenType::Sub) continue;
-        int subPos = i;
+void Tokeniser::secondPassSub(std::vector<Token>& tokens, int& i) {
+    int subPos = i;
 
-        // If function has a prototype/signature then needs to be fixed
-        auto nextToken = tokens[i + 1];
+    // If function has a prototype/signature then needs to be fixed
+    auto nextToken = tokens[i + 1];
+    while (nextToken.isWhitespaceNewlineOrComment() && i < tokens.size() - 1) {
+        i++;
+        nextToken = tokens[i];
+    }
+
+    auto name = nextToken;
+    if (nextToken.type == TokenType::Name) {
+        // Named token, continue past this
+        nextToken = tokens[i + 1];
         while (nextToken.isWhitespaceNewlineOrComment() && i < tokens.size() - 1) {
             i++;
             nextToken = tokens[i];
         }
+    }
 
-        auto name = nextToken;
-        if (nextToken.type == TokenType::Name) {
-            // Named token, continue past this
-            nextToken = tokens[i + 1];
-            while (nextToken.isWhitespaceNewlineOrComment() && i < tokens.size() - 1) {
-                i++;
-                nextToken = tokens[i];
-            }
-        }
+    // No prototype/signature/attributes
+    if (nextToken.type == TokenType::LBracket) return;
 
-        // No prototype/signature/attributes
-        if (nextToken.type == TokenType::LBracket) continue;
+    // Next token is a '(' (for signature or proto) or ':' (for attributes)
+    auto isProtoOrSig =
+            nextToken.type == TokenType::LParen || (nextToken.type == TokenType::Operator && nextToken.data == ":");
+    if (!isProtoOrSig) return;
 
-        // Next token is a '(' (for signature or proto) or ':' (for attributes)
-        auto isProtoOrSig =
-                nextToken.type == TokenType::LParen || (nextToken.type == TokenType::Operator && nextToken.data == ":");
-        if (!isProtoOrSig) continue;
+    FilePos start = nextToken.startPos;
+    auto finalTokenPos = nextToken.endPos;
 
-        FilePos start = nextToken.startPos;
-        auto finalTokenPos = nextToken.endPos;
+    int retokeniseStartIdx = i + 1;
+    while (i < tokens.size() - 1 && nextToken.type != TokenType::LBracket) {
+        nextToken = tokens[++i];
+    }
 
-        int retokeniseStartIdx = i + 1;
-        while (i < tokens.size() - 1 && nextToken.type != TokenType::LBracket) {
-            nextToken = tokens[++i];
-        }
+    int retokeniseEndIdx = i;
+    if (retokeniseEndIdx <= retokeniseStartIdx) return;
+    FilePos end = nextToken.endPos;
+    std::string code = this->program.substr(start.position, (end.position - start.position));
 
-        int retokeniseEndIdx = i;
-        if (retokeniseEndIdx <= retokeniseStartIdx) continue;
-        FilePos end = nextToken.endPos;
-        std::string code = this->program.substr(start.position, (end.position - start.position));
+    std::vector<Token> newSubTokens;
 
-        std::vector<Token> newSubTokens;
+    // Create new tokeniser to tokenise the code
+    // Use same logic to track location
+    Tokeniser subCodeTokeniser(code);
+    subCodeTokeniser.currentLine = finalTokenPos.line;
+    subCodeTokeniser.currentCol = finalTokenPos.col;
 
-        // Create new tokeniser to tokenise the code
-        // Use same logic to track location
-        Tokeniser subCodeTokeniser(code);
-        subCodeTokeniser.currentLine = finalTokenPos.line;
-        subCodeTokeniser.currentCol = finalTokenPos.col;
+    auto attrs = subCodeTokeniser.matchAttributes();
+    newSubTokens.insert(newSubTokens.end(), attrs.begin(), attrs.end());
+    auto startPos = subCodeTokeniser.currentPos();
+    auto whitespace = matchWhitespace();
+    if (!whitespace.empty()) newSubTokens.emplace_back(Token(TokenType::Whitespace, startPos, whitespace));
 
-        auto attrs = subCodeTokeniser.matchAttributes();
-        newSubTokens.insert(newSubTokens.end(), attrs.begin(), attrs.end());
-        auto startPos = subCodeTokeniser.currentPos();
-        auto whitespace = matchWhitespace();
-        if (!whitespace.empty()) newSubTokens.emplace_back(Token(TokenType::Whitespace, startPos, whitespace));
-
-        if (!attrs.empty()) {
-            // So we could next try to match a signature
-            std::vector<Token> signatureTokens = subCodeTokeniser.matchSignatureTokens();
+    if (!attrs.empty()) {
+        // So we could next try to match a signature
+        std::vector<Token> signatureTokens = subCodeTokeniser.matchSignatureTokens();
+        if (!signatureTokens.empty())
+            newSubTokens.insert(newSubTokens.end(), signatureTokens.begin(), signatureTokens.end());
+    } else {
+        // No attributes, try matching a prototype/signature
+        startPos = subCodeTokeniser.currentPos();
+        if (subCodeTokeniser.isPrototype()) {
+            auto prototype = subCodeTokeniser.matchPrototype();
+            if (!prototype.empty()) newSubTokens.emplace_back(Token(TokenType::Prototype, startPos, prototype));
+        } else {
+            auto signatureTokens = subCodeTokeniser.matchSignatureTokens();
             if (!signatureTokens.empty())
                 newSubTokens.insert(newSubTokens.end(), signatureTokens.begin(), signatureTokens.end());
-        } else {
-            // No attributes, try matching a prototype/signature
-            startPos = subCodeTokeniser.currentPos();
-            if (subCodeTokeniser.isPrototype()) {
-                auto prototype = subCodeTokeniser.matchPrototype();
-                if (!prototype.empty()) newSubTokens.emplace_back(Token(TokenType::Prototype, startPos, prototype));
+        }
+
+        // Finally try matching attributes
+        std::vector<Token> moreAttributes = subCodeTokeniser.matchAttributes();
+        if (!moreAttributes.empty()) {
+            newSubTokens.insert(newSubTokens.end(), moreAttributes.begin(), moreAttributes.end());
+        }
+    }
+
+    for (auto &token: newSubTokens) {
+        token.startPos.position += finalTokenPos.position;
+        token.endPos.position += finalTokenPos.position;
+    }
+
+    // Finally update tokens array
+    tokens.erase(tokens.begin() + retokeniseStartIdx, tokens.begin() + retokeniseEndIdx);
+    tokens.insert(tokens.begin() + retokeniseStartIdx, newSubTokens.begin(), newSubTokens.end());
+
+    i = subPos + 1; // Take care as we are modifying tokens while looping over them
+}
+
+void Tokeniser::secondPassHereDoc(std::vector<Token> &tokens, int &i) {
+    // Note that this iterator does not exclude whitespace
+    TokenIterator tokenIterator(tokens, std::vector<TokenType>{TokenType::Comment, TokenType::Newline}, i);
+    auto startOp = tokenIterator.next();
+    if (startOp.type != TokenType::Operator || startOp.data != "<<") return;
+
+    auto nextToken = tokenIterator.next();
+    bool hadWhitespace = false;
+    while (nextToken.type == TokenType::Whitespace) {
+        hadWhitespace = true;
+        nextToken = tokenIterator.next();
+    }
+
+    // If we had whitespace, then the next token MUST NOT be a Name(...) as there can not be a whitespace
+    if (nextToken.type == TokenType::Name && hadWhitespace) return;
+
+    // If next token is not a String or Name then not a heredoc
+    if (nextToken.type != TokenType::Name && nextToken.type != TokenType::String) return;
+    auto hereMarker = nextToken.data;   // This is what starts and therefore what will end the heredoc.
+
+    // Continue until the end of the line
+    //e.g. print <<EOF unless $a; will read until after ;
+    for (i = tokenIterator.getIndex(); i < (int)tokens.size(); i++) {
+        if (tokens[i].type == TokenType::Newline) break;
+    }
+
+    // Next we're looking for the ending here doc on a line of it's own
+    // Potentially tricky due to the tokens
+    std::string docContents;
+    std::string line;
+
+    auto tok = tokens[++i];
+    int progPos = 0;
+    int tokenLine = 1;
+
+    FilePos preBodyStart = tok.startPos;
+    int preBodyIdx = i;
+    while (i < tokens.size()) {
+        if (tok.type == TokenType::EndOfInput) break;
+        // Read a line
+        std::string prog = this->program.substr(tok.startPos.position, (tok.endPos.position - tok.startPos.position + 1));
+
+        while (progPos < prog.size()) {
+            auto c = prog[progPos];
+            progPos++;
+            if (c == '\n') {
+                tokenLine += 1;
+                if (line == hereMarker) {
+                    tokenLine--;
+                    goto done;
+                }
+                docContents += line + "\n";
+                line = "";
             } else {
-                auto signatureTokens = subCodeTokeniser.matchSignatureTokens();
-                if (!signatureTokens.empty())
-                    newSubTokens.insert(newSubTokens.end(), signatureTokens.begin(), signatureTokens.end());
-            }
-
-            // Finally try matching attributes
-            std::vector<Token> moreAttributes = subCodeTokeniser.matchAttributes();
-            if (!moreAttributes.empty()) {
-                newSubTokens.insert(newSubTokens.end(), moreAttributes.begin(), moreAttributes.end());
+                line += c;
             }
         }
 
-        for (auto &token: newSubTokens) {
-            token.startPos.position += finalTokenPos.position;
-            token.endPos.position += finalTokenPos.position;
+        tok = tokens[++i];
+        progPos = 0;
+        tokenLine = 1;
+    }
+
+    done:
+    int postBodyIdx = i;
+    if (preBodyIdx > postBodyIdx) return;
+    if (postBodyIdx >= tokens.size()) return;
+
+    std::vector<Token> newTokens;
+    FilePos end(tokenLine + tok.startPos.line,  line.size(), tok.startPos.position + progPos);
+    newTokens.emplace_back(Token(TokenType::HereDoc, preBodyStart, end, docContents));
+    // Next re parse any remaining content in
+    auto newProgram = tok.data.substr(progPos, tok.data.size() - progPos + 1);
+    if (!newProgram.empty()) {
+        Tokeniser tokeniser(newProgram, false);
+        auto retokTokens = tokeniser.tokenise();
+
+        // Update token positions
+        for (auto& token : retokTokens) {
+            token.startPos.position += tok.startPos.position + progPos;
+            token.endPos.position += tok.startPos.position + progPos;
+            token.startPos.line += tokenLine + tok.startPos.line;
+            token.endPos.line += tokenLine + tok.startPos.line;
         }
+        newTokens.insert(newTokens.end(), retokTokens.begin(), retokTokens.end());
+    }
 
-        // Finally update tokens array
-        tokens.erase(tokens.begin() + retokeniseStartIdx, tokens.begin() + retokeniseEndIdx);
-        tokens.insert(tokens.begin() + retokeniseStartIdx, newSubTokens.begin(), newSubTokens.end());
+    // Now just insert the new tokens
+    tokens.erase(tokens.begin() + preBodyIdx, tokens.begin() + postBodyIdx);
+    tokens.insert(tokens.begin() + preBodyIdx, newTokens.begin(), newTokens.end());
+    i -= (postBodyIdx - preBodyIdx);
+}
 
-        i = subPos + 1; // Take care as we are modifying tokens while looping over them
+// Second pass to fix any tokenization errors with a little bit of context
+// Note this is fixing errors, not doing any parsing
+void Tokeniser::secondPass(std::vector<Token> &tokens) {
+    if (!doSecondPass) return;
+    for (int i = 0; i < (int) tokens.size() - 1; i++) {
+        if (tokens[i].type == TokenType::Sub) {
+            secondPassSub(tokens, i);
+        } else if (tokens[i].type == TokenType::Operator && tokens[i].data == "<<") {
+            secondPassHereDoc(tokens, i);
+        }
     }
 }
 
@@ -1055,8 +1157,9 @@ bool Tokeniser::isPrototype() {
 }
 
 FilePos Tokeniser::currentPos() {
-    return FilePos(this->currentLine, this->currentCol, this->_position + 1);
+    return FilePos(this->currentLine, this->currentCol, this->_position + 1 + this->positionOffset);
 }
+
 
 std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::String) return "String";
@@ -1079,7 +1182,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::EndOfInput) return "EndOfInput";
     if (t == TokenType::If) return "If";
     if (t == TokenType::Else) return "Else";
-    if (t == TokenType::ElseIf) return "ElseIf";
+    if (t == TokenType::ElsIf) return "ElseIf";
     if (t == TokenType::Unless) return "Unless";
     if (t == TokenType::While) return "While";
     if (t == TokenType::Until) return "Until";
@@ -1112,6 +1215,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::AttributeColon) return "AttributeColon";
     if (t == TokenType::StringStart) return "StringStart";
     if (t == TokenType::StringEnd) return "StringEnd";
+    if (t == TokenType::HereDoc) return "HereDoc";
     return "TokenType toString NOT IMPLEMENTED";
 }
 

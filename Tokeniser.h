@@ -41,7 +41,7 @@ enum class TokenType {
     EndOfInput,
     If,
     Else,
-    ElseIf,
+    ElsIf,
     Unless,
     While,
     Until,
@@ -71,7 +71,8 @@ enum class TokenType {
     SubName,
     Attribute,
     AttributeArgs,
-    AttributeColon
+    AttributeColon,
+    HereDoc
 };
 
 struct KeywordConfig {
@@ -121,7 +122,7 @@ private:
 
 class Tokeniser {
 public:
-    explicit Tokeniser(std::string programStream);
+    Tokeniser(std::string program, bool doSecondPass = true);
 
     std::vector<Token> tokenise();
 
@@ -193,6 +194,10 @@ private:
 
     void secondPass(std::vector<Token> &tokens);
 
+    void secondPassSub(std::vector<Token>& tokens, int& i);
+
+    void secondPassHereDoc(std::vector<Token> &tokens, int &i);
+
     std::optional<Token> tryMatchKeywords(FilePos startPos);
 
     std::optional<Token> doMatchKeyword(FilePos startPos, const std::string &keywordCode, TokenType keywordType);
@@ -217,8 +222,10 @@ private:
     int currentCol = 1;
     std::string program;
     std::vector<KeywordConfig> keywordConfigs;
-
+    int positionOffset = 0;
+    bool doSecondPass = true;
     std::vector<Token> matchLiteralBody(const std::string& quoteChars, FilePos start, char matchedQuoteChar = EOF);
+
 };
 
 // TODO make this an actual iterator
