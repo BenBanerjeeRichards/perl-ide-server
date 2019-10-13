@@ -23,6 +23,17 @@ void testFiles() {
     }
 }
 
+void basicOutput(std::string path) {
+    // TODO enable second pass
+    Tokeniser tokeniser(readFile(path), false);
+    for (auto &token : tokeniser.tokenise()) {
+        if (token.type == TokenType::Whitespace || token.type == TokenType::Newline ||
+            token.type == TokenType::Comment)
+            continue;
+        std::cout << tokenTypeToString(token.type) << " ";
+    }
+}
+
 int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
 
@@ -34,9 +45,15 @@ int main(int argc, char **args) {
         return 0;
     }
 
+    if (argc == 3 && strncmp(args[1], "basicOutput", 7) == 0) {
+        basicOutput(std::string(args[2]));
+        return 0;
+    }
+
+
     if (argc == 4) {
         auto pos = FilePos(std::atoi(args[2]), std::atoi(args[3]));
-        for (const auto& c : autocomplete(file, pos)) {
+        for (const auto &c : autocomplete(file, pos)) {
             std::cout << c.name << std::endl << c.detail << std::endl;
         }
     } else if (argc > 1 && strncmp(args[1], "test", 4) == 0) {
@@ -76,7 +93,7 @@ int main(int argc, char **args) {
         std::cout << std::endl << "Variables at position" << std::endl;
         auto pos = FilePos(30, 1);
         auto map = getSymbolMap(fileSymbols, pos);
-        for (const auto& varItem : map) {
+        for (const auto &varItem : map) {
             std::cout << varItem.second->toStr() << std::endl;
         }
 
@@ -99,4 +116,5 @@ int main(int argc, char **args) {
         std::cout << "Var/Sub Analysis: " << variableAnalysisTime << "ms" << std::endl;
     }
 
+    return 0;
 }
