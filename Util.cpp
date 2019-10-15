@@ -84,3 +84,11 @@ std::string join(const std::vector<std::string> &vec, const char *delim) {
     copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(res, delim));
     return res.str();
 }
+
+Token firstNonWhitespaceToken(const std::vector<Token> &tokens) {
+    for (auto token : tokens) {
+        if (token.type != TokenType::Whitespace && token.type != TokenType::Newline) return token;
+    }
+
+    return tokens[0];   // Nothing found
+}

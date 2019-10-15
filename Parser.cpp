@@ -44,14 +44,6 @@ void doParse(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &t
     node->children.emplace_back(std::make_shared<TokensNode>(tokensAcc));
 }
 
-Token firstNonWhitespaceToken(const std::vector<Token> &tokens) {
-    for (auto token : tokens) {
-        if (token.type != TokenType::Whitespace && token.type != TokenType::Newline) return token;
-    }
-
-    return tokens[0];   // Nothing found
-}
-
 void doPrintParseTree(std::shared_ptr<Node> parent, int level) {
     for (int i = 0; i < (int) parent->children.size(); i++) {
         for (int j = 0; j < level; j++) std::cout << "  ";

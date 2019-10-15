@@ -6,6 +6,8 @@
 #define PERLPARSER_AUTOCOMPLETE_H
 
 #include "VarAnalysis.h"
+#include "Parser.h"
+#include "Tokeniser.h"
 
 struct AutocompleteItem {
 

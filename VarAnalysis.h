@@ -5,9 +5,11 @@
 #ifndef PERLPARSER_VARANALYSIS_H
 #define PERLPARSER_VARANALYSIS_H
 
-#include "Parser.h"
+#include "Token.h"
 #include "Util.h"
+#include "Node.h"
 #include <algorithm>
+#include <unordered_map>
 
 struct Variable {
     std::string name;

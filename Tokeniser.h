@@ -10,71 +10,14 @@
 #include <memory>
 #include <vector>
 #include <regex>
-#include "TokeniseException.h"
 #include <utility>
 #include <iostream>
-#include "FilePos.h"
-#include "Util.h"
 #include <unordered_map>
 #include <optional>
 
-enum class TokenType {
-    String,
-    StringStart,
-    StringEnd,
-    ScalarVariable,
-    ArrayVariable,
-    HashVariable,
-    Operator,
-    LBracket,
-    RBracket,
-    LParen,
-    RParen,
-    LSquareBracket,
-    RSquareBracket,
-    Comment,
-    Newline,
-    Whitespace,
-    Dot,
-    Assignment,
-    Semicolon,
-    EndOfInput,
-    If,
-    Else,
-    ElsIf,
-    Unless,
-    While,
-    Until,
-    For,
-    Foreach,
-    When,
-    Do,
-    Package,
-    Next,
-    Redo,
-    Last,
-    My,
-    State,
-    Our,
-    Break,
-    Continue,
-    Given,
-    Use,
-    Sub,
-    Name,
-    NumericLiteral,
-    Pod,
-    Comma,
-    Local,
-    Prototype,
-    Signature,
-    SubName,
-    Attribute,
-    AttributeArgs,
-    AttributeColon,
-    HereDoc,
-    HereDocEnd,
-};
+#include "Token.h"
+#include "Util.h"
+#include "TokeniseException.h"
 
 struct KeywordConfig {
     KeywordConfig(const std::string &code, TokenType type);
@@ -93,33 +36,6 @@ struct QuotedStringLiteral {
 
 std::string tokenTypeToString(const TokenType &t);
 
-
-class Token {
-
-public:
-    // When data is identical to code
-    Token(const TokenType &type, FilePos start, const std::string &data = "");
-
-    Token(const TokenType &type, FilePos start, int endCol, const std::string &data = "");
-
-    Token(const TokenType &type, FilePos start, FilePos end, const std::string &data = "");
-
-    std::string toStr(bool includeLocation = false);
-
-    bool isWhitespaceNewlineOrComment();
-
-    TokenType type;
-    // Position of token in file
-    FilePos startPos;
-    FilePos endPos;
-    // Readable name used in tostring
-    // Optional data used. e.g. $ident has 'ident' as it's data, but keyword my has no data
-    std::string data;
-
-
-private:
-
-};
 
 class Tokeniser {
 public:
@@ -226,23 +142,6 @@ private:
     std::vector<Token> matchLiteralBody(const std::string& quoteChars, FilePos start, char matchedQuoteChar = EOF);
 
     void nextTokens(std::vector<Token> &tokens, bool enableHereDoc = true);
-};
-
-// TODO make this an actual iterator
-class TokenIterator {
-public:
-    TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens);
-
-    TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens, int offset);
-
-    Token next();
-
-    int getIndex();
-
-private:
-    const std::vector<Token> &tokens;
-    std::vector<TokenType> ignoreTokens;
-    int i;
 };
 
 #endif //PERLPARSER_TOKENISER_H

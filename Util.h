@@ -8,7 +8,8 @@
 #include <string>
 #include <glob.h>
 #include <vector>
-#include "Tokeniser.h"
+#include "FilePos.h"
+#include "Token.h"
 
 std::string replace(std::string str, const std::string &what, const std::string &with);
 int numOccurrences(const std::string &str, const std::string& sub);
@@ -17,5 +18,6 @@ std::string fileName(const std::string& path);
 std::string readFile(const std::string& path);
 bool insideRange(FilePos start, FilePos end, FilePos pos);
 std::string join(const std::vector<std::string> &vec, const char *delim);
+Token firstNonWhitespaceToken(const std::vector<Token> &tokens);
 
 #endif //PERLPARSER_UTIL_H
