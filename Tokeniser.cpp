@@ -53,6 +53,23 @@ Tokeniser::Tokeniser(std::string perl, bool doSecondPass) {
                                                       KeywordConfig("package", TokenType::Package),
                                                       KeywordConfig("state", TokenType::State),
                                                       KeywordConfig("use", TokenType::Use),};
+
+    // Remove unicode Byte Order Mark (0xEFBBBF) if it exists
+    if (this->program.size() >= 3 && this->program[0] == '\xEF' && this->program[1] == '\xBB' &&
+        this->program[2] == '\xBF') {
+        this->program = this->program.substr(3, this->program.size() - 3);
+    } else if (this->program.size() >= 2 && this->program[0] == '\xFF' && this->program[1] == '\xFE') {
+        this->program = this->program.substr(2, this->program.size() - 3);
+    } else if (this->program.size() >= 2 && this->program[0] == '\xFE' && this->program[1] == '\xFF') {
+        this->program = this->program.substr(2, this->program.size() - 3);
+    } else if (this->program.size() >= 4 && this->program[0] == '\xFF' && this->program[1] == '\xFE' &&
+               this->program[2] == '\x00' && this->program[3] == '\x00') {
+        this->program = this->program.substr(4, this->program.size() - 3);
+    }else if (this->program.size() >= 4 && this->program[0] == '\x00' && this->program[1] == '\x00' &&
+              this->program[2] == '\xFE' && this->program[3] == '\xFF') {
+        this->program = this->program.substr(4, this->program.size() - 3);
+    }
+
 }
 
 int Tokeniser::nextLine() {
@@ -616,8 +633,8 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         // Next continue to read tokens until end of current line
         std::vector<Token> lineRemainingTokens;
         while (lineRemainingTokens.empty() ||
-                (lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::Newline &&
-               lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::EndOfInput)) {
+               (lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::Newline &&
+                lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::EndOfInput)) {
             nextTokens(lineRemainingTokens);
         }
 
@@ -635,7 +652,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                     break;
                 } else if (hasTilde) {
                     // Supports any number of whitespace before string then a newline
-                    for (int i = 0; i < (int)line.size(); i++) {
+                    for (int i = 0; i < (int) line.size(); i++) {
                         if (isWhitespace(line[i])) continue;
                         auto nonWhitespacePart = line.substr(i, line.size() - i);
                         if (nonWhitespacePart == hereDocStart) goto done;
