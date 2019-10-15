@@ -129,7 +129,7 @@ char Tokeniser::peek() {
 }
 
 bool Tokeniser::isEof() {
-    return this->_position > this->program.length() - 1;
+    return this->_position > (int)this->program.length() - 1;
 }
 
 std::string Tokeniser::getWhile(const std::function<bool(char)> &nextCharTest) {
@@ -556,7 +556,14 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // Position before anything is consumed
     auto startPos = currentPos();
 
-    if (this->peek() == EOF) {
+    // End program at EOF, 0x04 (^D) or 0x1A (^Z)
+    if (this->peek() == EOF || this->peek() == '\x04' || this->peek() == '\x1a') {
+        tokens.emplace_back(Token(TokenType::EndOfInput, startPos, startPos));
+        return;
+    }
+
+    // Search for __DATA__ and end program if reached
+    if (!this->matchString(std::vector<std::string>{"__DATA__", "__END__"}, true).empty()) {
         tokens.emplace_back(Token(TokenType::EndOfInput, startPos, startPos));
         return;
     }
