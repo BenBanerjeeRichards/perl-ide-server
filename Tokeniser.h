@@ -72,7 +72,8 @@ enum class TokenType {
     Attribute,
     AttributeArgs,
     AttributeColon,
-    HereDoc
+    HereDoc,
+    HereDocEnd,
 };
 
 struct KeywordConfig {
@@ -196,8 +197,6 @@ private:
 
     void secondPassSub(std::vector<Token>& tokens, int& i);
 
-    void secondPassHereDoc(std::vector<Token> &tokens, int &i);
-
     std::optional<Token> tryMatchKeywords(FilePos startPos);
 
     std::optional<Token> doMatchKeyword(FilePos startPos, const std::string &keywordCode, TokenType keywordType);
@@ -226,6 +225,7 @@ private:
     bool doSecondPass = true;
     std::vector<Token> matchLiteralBody(const std::string& quoteChars, FilePos start, char matchedQuoteChar = EOF);
 
+    void nextTokens(std::vector<Token> &tokens, bool enableHereDoc = true);
 };
 
 // TODO make this an actual iterator

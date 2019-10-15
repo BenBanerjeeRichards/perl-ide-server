@@ -567,225 +567,320 @@ std::string Tokeniser::matchWhitespace() {
     return this->getWhile(this->isWhitespace);
 }
 
+void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
+    // Position before anything is consumed
+    auto startPos = currentPos();
+
+    if (this->peek() == EOF) {
+        tokens.emplace_back(Token(TokenType::EndOfInput, startPos, startPos));
+        return;
+    }
+
+    // Devour any whitespace
+    std::string whitespace = matchWhitespace();
+    if (whitespace.length() > 0) {
+        tokens.emplace_back(Token(TokenType::Whitespace, startPos, whitespace));
+        return;
+    }
+
+    // Now for newlines
+    if (this->peek() == '\n') {
+        // Linux/mac newline
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Newline, startPos, "\n"));
+        return;
+    } else if (this->peek() == '\r' && this->peekAhead(2) == '\n') {
+        // windows
+        this->nextChar();
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Newline, startPos, "\r\n"));
+        return;
+    }
+
+    auto var = this->matchVariable();
+    if (!var.empty()) {
+        auto type = TokenType::HashVariable;
+        if (var[0] == '$') type = TokenType::ScalarVariable;
+        if (var[0] == '@') type = TokenType::ArrayVariable;
+        tokens.emplace_back(Token(type, startPos, var));
+        return;
+    }
+
+    if (enableHereDoc && this->peek() == '<' && this->peekAhead(2) == '<') {
+        std::string hereDocStart;
+        // Possible heredoc.
+        // Check if next token is a String(...) or Name(...)
+        auto start = this->currentPos();
+        this->nextChar();
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Operator, start, "<<"));
+
+        auto preNameWhitespace = this->matchWhitespace();
+        // Now try to match tilde
+        // tilde is a indented here doc
+        // e.g. <<~OUT or << ~"Hello World"
+        // Important as it affects the way we close the
+        auto hasTilde = this->peek() == '~';
+        if (hasTilde) this->nextChar();
+
+        auto stringLiteral = this->matchStringLiteral('"', true);
+        if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('\'', true);
+        if (!stringLiteral.empty()) {
+            // Remove quotations from string body
+            stringLiteral = stringLiteral.substr(1, stringLiteral.size() - 2);
+        }
+        // Note that a bareword Name(..) is only allowed in heredoc if not preceeded by whitespace:
+        // <<OUT        OK
+        // << OUT       NOT OK
+        // <<"HellO"    OK
+        // << "Hello"   OK
+        if (stringLiteral.empty() && preNameWhitespace.empty()) {
+            if ((isalpha(peek()) || peek() == '_')) {
+                hereDocStart = this->matchName();
+            } else {
+                // Failed to match
+                // TODO implement this
+            }
+        } else {
+            hereDocStart = stringLiteral;
+        }
+
+        // Next continue to read tokens until end of current line
+        std::vector<Token> lineRemainingTokens;
+        while (lineRemainingTokens.empty() ||
+                (lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::Newline &&
+               lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::EndOfInput)) {
+            nextTokens(lineRemainingTokens);
+        }
+
+        tokens.insert(tokens.end(), lineRemainingTokens.begin(), lineRemainingTokens.end());
+
+        // Now read newlines until we reach the ending terminator on a separate line
+        start = currentPos();
+        FilePos bodyEnd;
+        FilePos lineStart;
+        std::string hereDocContents;
+        std::string line;
+        while (this->peek() != EOF) {
+            if (this->peek() == '\n') {
+                if (line == hereDocStart) {
+                    break;
+                } else if (hasTilde) {
+                    // Supports any number of whitespace before string then a newline
+                    for (int i = 0; i < (int)line.size(); i++) {
+                        if (isWhitespace(line[i])) continue;
+                        auto nonWhitespacePart = line.substr(i, line.size() - i);
+                        if (nonWhitespacePart == hereDocStart) goto done;
+                        else break;
+                    }
+                } else {
+                    bodyEnd = currentPos();
+                }
+
+                line += '\n';
+                bodyEnd = currentPos();
+                this->nextChar();
+                hereDocContents += line;
+                line = "";
+                lineStart = currentPos();
+            } else {
+                line += this->peek();
+                this->nextChar();
+            }
+        }
+
+        done:
+        auto end = currentPos();
+        // Finally add our heredoc token
+        tokens.emplace_back(Token(TokenType::HereDoc, start, bodyEnd, hereDocContents));
+        tokens.emplace_back(Token(TokenType::HereDocEnd, lineStart, line));
+        return;
+    }
+
+    // Perl has so many operators...
+    // Thankfully we don't actually care what the do, just need to recognise them
+    // TODO complete this list
+    auto operators = std::vector<std::string>{
+            "->", "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
+            "/=", "//=", "=>", "//", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
+            ">=",
+            "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
+            "~", "^=", "^.=", "^", "...", "..", "?:", ":", ".=",
+    };
+
+    // These operators must be followed by a non alphanumeric
+    auto wordOperators = std::vector<std::string>{
+            "lt", "gt", "le", "ge", "eq", "ne", "cmp", "and", "or", "not", "xor"
+    };
+
+
+    std::string op = matchString(operators);
+    if (!op.empty()) {
+        tokens.emplace_back(Token(TokenType::Operator, startPos, op));
+        return;
+    }
+
+    std::string op2 = matchString(wordOperators, true);
+    if (!op2.empty()) {
+        tokens.emplace_back(Token(TokenType::Operator, startPos, op2));
+        return;
+    }
+
+    // Now consider the really easy single character tokens
+    char peek = this->peek();
+
+    if (peek == ';') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Semicolon, startPos, startPos.col));
+        return;
+    }
+    if (peek == ',') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Comma, startPos, startPos.col));
+        return;
+    }
+    if (peek == '{') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
+        return;
+    }
+    if (peek == '}') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::RBracket, startPos, startPos.col));
+        return;
+    }
+    if (peek == '(') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::LParen, startPos, startPos.col));
+        return;
+    }
+    if (peek == ')') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::RParen, startPos, startPos.col));
+        return;
+    }
+    if (peek == '[') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::LSquareBracket, startPos, startPos.col));
+        return;
+    }
+    if (peek == ']') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::RSquareBracket, startPos, startPos.col));
+        return;
+    }
+    if (peek == '.') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Dot, startPos, startPos.col + 1));
+        return;
+    }
+
+    // Program keywords
+    auto tryKeyword = tryMatchKeywords(startPos);
+    if (tryKeyword.has_value()) {
+        tokens.emplace_back(tryKeyword.value());
+        return;
+    }
+
+    auto numeric = this->matchNumeric();
+    if (!numeric.empty()) {
+        tokens.emplace_back(Token(TokenType::NumericLiteral, startPos, numeric));
+        return;
+    }
+
+    // Numeric first
+    if (this->peek() == '-') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Operator, startPos, "-"));
+        return;
+    }
+
+    auto pod = this->matchPod();
+    if (!pod.empty()) {
+        // One of the few tokens that can span multiple lines
+        tokens.emplace_back(Token(TokenType::Pod, startPos, FilePos(this->currentLine, this->currentCol - 1), pod));
+        return;
+    }
+
+    // POD takes priority
+    if (this->peek() == '=') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Assignment, startPos, startPos.col));
+        return;
+    }
+
+    // This one is tricky
+    // Could be a division (34 / 5) OR a bare regex literal (/354/)/
+    // Guess based on previous non-whitespace token
+    // TODO improve this heuristic
+    if (this->peek() == '/') {
+        int i = (int) tokens.size() - 1;
+        Token prevToken = tokens[i];
+        while (i > 0 && prevToken.isWhitespaceNewlineOrComment()) {
+            prevToken = tokens[--i];
+        }
+
+        auto type = prevToken.type;
+        if (type == TokenType::RParen || type == TokenType::NumericLiteral || type == TokenType::ScalarVariable ||
+            type == TokenType::HashVariable || type == TokenType::ArrayVariable || type == TokenType::RBracket ||
+            type == TokenType::RSquareBracket) {
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
+            return;
+        } else {
+            auto string = this->matchString();
+            if (!string.empty()) {
+                tokens.emplace_back(Token(TokenType::String, startPos, string));
+                return;
+            }
+        }
+    }
+
+    auto string = this->matchString();
+    if (!string.empty()) {
+        tokens.emplace_back(Token(TokenType::String, startPos, string));
+        return;
+    }
+
+    // String literals / quote literals / transliterations / ...
+    auto quoteTokens = matchQuoteLiteral();
+    if (!quoteTokens.empty()) {
+        tokens.insert(tokens.end(), quoteTokens.begin(), quoteTokens.end());
+        return;
+    }
+
+    // Numeric first
+    if (this->peek() == '/') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
+        return;
+    }
+
+
+    auto comment = this->matchComment();
+    if (!comment.empty()) {
+        tokens.emplace_back(Token(TokenType::Comment, startPos, comment));
+        return;
+    }
+
+    auto name = this->matchName();
+    if (!name.empty()) {
+        tokens.emplace_back(Token(TokenType::Name, startPos, name));
+        return;
+    }
+
+    throw TokeniseException(std::string("Remaining code exists"));
+}
+
 std::vector<Token> Tokeniser::tokenise() {
     std::vector<Token> tokens;
 
-    while (true) {
-        // Position before anything is consumed
-        auto startPos = currentPos();
-
-        if (this->peek() == EOF) {
-            tokens.emplace_back(Token(TokenType::EndOfInput, startPos, startPos));
-            secondPass(tokens);
-            return tokens;
-        }
-
-        // Devour any whitespace
-        std::string whitespace = matchWhitespace();
-        if (whitespace.length() > 0) {
-            tokens.emplace_back(Token(TokenType::Whitespace, startPos, whitespace));
-            continue;
-        }
-
-        // Now for newlines
-        if (this->peek() == '\n') {
-            // Linux/mac newline
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::Newline, startPos, "\n"));
-            continue;
-        } else if (this->peek() == '\r' && this->peekAhead(2) == '\n') {
-            // windows
-            this->nextChar();
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::Newline, startPos, "\r\n"));
-            continue;
-        }
-
-        auto var = this->matchVariable();
-        if (!var.empty()) {
-            auto type = TokenType::HashVariable;
-            if (var[0] == '$') type = TokenType::ScalarVariable;
-            if (var[0] == '@') type = TokenType::ArrayVariable;
-            tokens.emplace_back(Token(type, startPos, var));
-            continue;
-        }
-
-        // Perl has so many operators...
-        // Thankfully we don't actually care what the do, just need to recognise them
-        // TODO complete this list
-        auto operators = std::vector<std::string>{
-                "->", "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
-                "/=", "//=", "=>", "//", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
-                ">=",
-                "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
-                "~", "^=", "^.=", "^", "...", "..", "?:", ":", ".=",
-        };
-
-        // These operators must be followed by a non alphanumeric
-        auto wordOperators = std::vector<std::string>{
-                "lt", "gt", "le", "ge", "eq", "ne", "cmp", "and", "or", "not", "xor"
-        };
-
-
-        std::string op = matchString(operators);
-        if (!op.empty()) {
-            tokens.emplace_back(Token(TokenType::Operator, startPos, op));
-            continue;
-        }
-
-        std::string op2 = matchString(wordOperators, true);
-        if (!op2.empty()) {
-            tokens.emplace_back(Token(TokenType::Operator, startPos, op2));
-            continue;
-        }
-
-        // Now consider the really easy single character tokens
-        char peek = this->peek();
-
-        if (peek == ';') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::Semicolon, startPos, startPos.col));
-            continue;
-        }
-        if (peek == ',') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::Comma, startPos, startPos.col));
-            continue;
-        }
-        if (peek == '{') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
-            continue;
-        }
-        if (peek == '}') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::RBracket, startPos, startPos.col));
-            continue;
-        }
-        if (peek == '(') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::LParen, startPos, startPos.col));
-            continue;
-        }
-        if (peek == ')') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::RParen, startPos, startPos.col));
-            continue;
-        }
-        if (peek == '[') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::LSquareBracket, startPos, startPos.col));
-            continue;
-        }
-        if (peek == ']') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::RSquareBracket, startPos, startPos.col));
-            continue;
-        }
-        if (peek == '.') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::Dot, startPos, startPos.col + 1));
-            continue;
-        }
-
-        // Program keywords
-        auto tryKeyword = tryMatchKeywords(startPos);
-        if (tryKeyword.has_value()) {
-            tokens.emplace_back(tryKeyword.value());
-            continue;
-        }
-
-        auto numeric = this->matchNumeric();
-        if (!numeric.empty()) {
-            tokens.emplace_back(Token(TokenType::NumericLiteral, startPos, numeric));
-            continue;
-        }
-
-        // Numeric first
-        if (this->peek() == '-') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::Operator, startPos, "-"));
-            continue;
-        }
-
-        auto pod = this->matchPod();
-        if (!pod.empty()) {
-            // One of the few tokens that can span multiple lines
-            tokens.emplace_back(Token(TokenType::Pod, startPos, FilePos(this->currentLine, this->currentCol - 1), pod));
-            continue;
-        }
-
-        // POD takes priority
-        if (this->peek() == '=') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::Assignment, startPos, startPos.col));
-            continue;
-        }
-
-
-
-        // This one is tricky
-        // Could be a division (34 / 5) OR a bare regex literal (/354/)/
-        // Guess based on previous non-whitespace token
-        // TODO improve this heuristic
-        if (this->peek() == '/') {
-            int i = (int) tokens.size() - 1;
-            Token prevToken = tokens[i];
-            while (i > 0 && prevToken.isWhitespaceNewlineOrComment()) {
-                prevToken = tokens[--i];
-            }
-
-            auto type = prevToken.type;
-            if (type == TokenType::RParen || type == TokenType::NumericLiteral || type == TokenType::ScalarVariable ||
-                type == TokenType::HashVariable || type == TokenType::ArrayVariable || type == TokenType::RBracket || type == TokenType::RSquareBracket) {
-                this->nextChar();
-                tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
-                continue;
-            } else {
-                auto string = this->matchString();
-                if (!string.empty()) {
-                    tokens.emplace_back(Token(TokenType::String, startPos, string));
-                    continue;
-                }
-            }
-        }
-
-        auto string = this->matchString();
-        if (!string.empty()) {
-            tokens.emplace_back(Token(TokenType::String, startPos, string));
-            continue;
-        }
-
-        // String literals / quote literals / transliterations / ...
-        auto quoteTokens = matchQuoteLiteral();
-        if (!quoteTokens.empty()) {
-            tokens.insert(tokens.end(), quoteTokens.begin(), quoteTokens.end());
-            continue;
-        }
-
-        // Numeric first
-        if (this->peek() == '/') {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
-            continue;
-        }
-
-
-        auto comment = this->matchComment();
-        if (!comment.empty()) {
-            tokens.emplace_back(Token(TokenType::Comment, startPos, comment));
-            continue;
-        }
-
-        auto name = this->matchName();
-        if (!name.empty()) {
-            tokens.emplace_back(Token(TokenType::Name, startPos, name));
-            continue;
-        }
-
-        throw TokeniseException(std::string("Remaining code exists"));
+    while (tokens.empty() || tokens[tokens.size() - 1].type != TokenType::EndOfInput) {
+        nextTokens(tokens);
     }
 
+    secondPass(tokens);
+    return tokens;
 }
 
 std::vector<Token> Tokeniser::matchAttribute() {
@@ -910,7 +1005,7 @@ std::vector<Token> Tokeniser::matchSignatureTokens() {
 }
 
 
-void Tokeniser::secondPassSub(std::vector<Token>& tokens, int& i) {
+void Tokeniser::secondPassSub(std::vector<Token> &tokens, int &i) {
     int subPos = i;
 
     // If function has a prototype/signature then needs to be fixed
@@ -1001,99 +1096,6 @@ void Tokeniser::secondPassSub(std::vector<Token>& tokens, int& i) {
     i = subPos + 1; // Take care as we are modifying tokens while looping over them
 }
 
-void Tokeniser::secondPassHereDoc(std::vector<Token> &tokens, int &i) {
-    // Note that this iterator does not exclude whitespace
-    TokenIterator tokenIterator(tokens, std::vector<TokenType>{TokenType::Comment, TokenType::Newline}, i);
-    auto startOp = tokenIterator.next();
-    if (startOp.type != TokenType::Operator || startOp.data != "<<") return;
-
-    auto nextToken = tokenIterator.next();
-    bool hadWhitespace = false;
-    while (nextToken.type == TokenType::Whitespace) {
-        hadWhitespace = true;
-        nextToken = tokenIterator.next();
-    }
-
-    // If we had whitespace, then the next token MUST NOT be a Name(...) as there can not be a whitespace
-    if (nextToken.type == TokenType::Name && hadWhitespace) return;
-
-    // If next token is not a String or Name then not a heredoc
-    if (nextToken.type != TokenType::Name && nextToken.type != TokenType::String) return;
-    auto hereMarker = nextToken.data;   // This is what starts and therefore what will end the heredoc.
-
-    // Continue until the end of the line
-    //e.g. print <<EOF unless $a; will read until after ;
-    for (i = tokenIterator.getIndex(); i < (int)tokens.size(); i++) {
-        if (tokens[i].type == TokenType::Newline) break;
-    }
-
-    // Next we're looking for the ending here doc on a line of it's own
-    // Potentially tricky due to the tokens
-    std::string docContents;
-    std::string line;
-
-    auto tok = tokens[++i];
-    int progPos = 0;
-    int tokenLine = 1;
-
-    FilePos preBodyStart = tok.startPos;
-    int preBodyIdx = i;
-    while (i < tokens.size()) {
-        if (tok.type == TokenType::EndOfInput) break;
-        // Read a line
-        std::string prog = this->program.substr(tok.startPos.position, (tok.endPos.position - tok.startPos.position + 1));
-
-        while (progPos < prog.size()) {
-            auto c = prog[progPos];
-            progPos++;
-            if (c == '\n') {
-                tokenLine += 1;
-                if (line == hereMarker) {
-                    tokenLine--;
-                    goto done;
-                }
-                docContents += line + "\n";
-                line = "";
-            } else {
-                line += c;
-            }
-        }
-
-        tok = tokens[++i];
-        progPos = 0;
-        tokenLine = 1;
-    }
-
-    done:
-    int postBodyIdx = i;
-    if (preBodyIdx > postBodyIdx) return;
-    if (postBodyIdx >= tokens.size()) return;
-
-    std::vector<Token> newTokens;
-    FilePos end(tokenLine + tok.startPos.line,  line.size(), tok.startPos.position + progPos);
-    newTokens.emplace_back(Token(TokenType::HereDoc, preBodyStart, end, docContents));
-    // Next re parse any remaining content in
-    auto newProgram = tok.data.substr(progPos, tok.data.size() - progPos + 1);
-    if (!newProgram.empty()) {
-        Tokeniser tokeniser(newProgram, false);
-        auto retokTokens = tokeniser.tokenise();
-
-        // Update token positions
-        for (auto& token : retokTokens) {
-            token.startPos.position += tok.startPos.position + progPos;
-            token.endPos.position += tok.startPos.position + progPos;
-            token.startPos.line += tokenLine + tok.startPos.line;
-            token.endPos.line += tokenLine + tok.startPos.line;
-        }
-        newTokens.insert(newTokens.end(), retokTokens.begin(), retokTokens.end());
-    }
-
-    // Now just insert the new tokens
-    tokens.erase(tokens.begin() + preBodyIdx, tokens.begin() + postBodyIdx);
-    tokens.insert(tokens.begin() + preBodyIdx, newTokens.begin(), newTokens.end());
-    i -= (postBodyIdx - preBodyIdx);
-}
-
 // Second pass to fix any tokenization errors with a little bit of context
 // Note this is fixing errors, not doing any parsing
 void Tokeniser::secondPass(std::vector<Token> &tokens) {
@@ -1101,8 +1103,6 @@ void Tokeniser::secondPass(std::vector<Token> &tokens) {
     for (int i = 0; i < (int) tokens.size() - 1; i++) {
         if (tokens[i].type == TokenType::Sub) {
             secondPassSub(tokens, i);
-        } else if (tokens[i].type == TokenType::Operator && tokens[i].data == "<<") {
-            secondPassHereDoc(tokens, i);
         }
     }
 }
@@ -1216,6 +1216,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::StringStart) return "StringStart";
     if (t == TokenType::StringEnd) return "StringEnd";
     if (t == TokenType::HereDoc) return "HereDoc";
+    if (t == TokenType::HereDocEnd) return "HereDocEnd";
     return "TokenType toString NOT IMPLEMENTED";
 }
 
