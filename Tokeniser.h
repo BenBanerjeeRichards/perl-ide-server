@@ -85,7 +85,7 @@ private:
     // Match some perl 'name' - could be a function name, function call, etc... We just don't know yet
     std::string matchName();
 
-    std::string matchStringLiteral(char ident, bool includeIdent = true);
+    std::string matchStringLiteral(char delim, bool includeDelim = true);
 
     std::string matchBracketedStringLiteral(char bracket);
 

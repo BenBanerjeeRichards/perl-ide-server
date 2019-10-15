@@ -236,19 +236,38 @@ std::string Tokeniser::matchString() {
     return regexStr;
 }
 
-std::string Tokeniser::matchStringLiteral(char ident, bool includeIdent) {
+std::string Tokeniser::matchStringLiteral(char delim, bool includeDelim) {
     std::string contents;
-    if (this->peek() == ident || !includeIdent) {
-        if (includeIdent) this->nextChar();
-        while (this->peek() != ident || (this->peek() == ident && this->peekAhead(0) == '\\')) {
+    if (this->peek() == delim || !includeDelim) {
+        if (includeDelim) this->nextChar();
+        while (this->peek() != EOF) {
+            if (this->peek() == '\\') {
+                if (this->peekAhead(2) == delim) {
+                    // Escaped deliminator (e.g. \")
+                    contents += '\\';
+                    contents += delim;
+                    this->nextChar();
+                    this->nextChar();
+                    continue;
+                } else if (this->peekAhead(2) == '\\') {
+                    // Escaped backslash (i.e. \\)
+                    contents += '\\';
+                    this->nextChar();
+                    this->nextChar();
+                    continue;
+                }
+            } else if (this->peek() == delim) {
+                // Deliminator without escape => Done
+                break;
+            }
             contents += this->peek();
             this->nextChar();
             if (this->peek() == EOF) break;
         }
 
-        if (includeIdent) {
+        if (includeDelim) {
             this->nextChar();
-            contents = ident + contents + ident;
+            contents = delim + contents + delim;
         }
     }
 
