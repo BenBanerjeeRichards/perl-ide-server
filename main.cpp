@@ -15,7 +15,7 @@ void printFileTokens(const std::string &file, bool includeLocation) {
 }
 
 void testFiles() {
-    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/1/*");
+    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/4/*");
     for (auto file : perlFiles) {
         std::cout << file << std::endl;
         Tokeniser tokeniser(readFile(file));
@@ -67,7 +67,7 @@ int main(int argc, char **args) {
         auto tokeniseTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
         for (auto token : tokens) {
-            std::cout << tokeniser.tokenToStrWithCode(token, true) << std::endl;
+//            std::cout << tokeniser.tokenToStrWithCode(token, true) << std::endl;
         }
 
         begin = std::chrono::steady_clock::now();

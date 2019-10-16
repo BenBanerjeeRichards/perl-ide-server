@@ -54,22 +54,12 @@ private:
 
     bool isEof();
 
-    std::string substring(int fromIdx, int length);
-
     char prevChar(int i);
 
     // Whitespace such as tabs, empty spaces. Does NOT include new lines
     static bool isWhitespace(char c);
 
     static bool isNewline(char c);
-
-    static bool isLowercase(char c);
-
-    static bool isUppercase(char c);
-
-    static bool isNumber(char c);
-
-    static bool isAlphaNumeric(char c);
 
     static bool isPunctuation(char c);
 
@@ -80,7 +70,7 @@ private:
     std::string getWhile(const std::function<bool(char)> &nextCharTest);
 
     // options should be sorted longest to shortest and in preference of match
-    std::string matchString(const std::vector<std::string> &options, bool requireTrailingNonAN = false);
+    std::string matchStringOption(const std::vector<std::string> &options, bool requireTrailingNonAN = false);
 
     // Match some perl 'name' - could be a function name, function call, etc... We just don't know yet
     std::string matchName();
@@ -142,6 +132,8 @@ private:
     std::vector<Token> matchLiteralBody(const std::string& quoteChars, FilePos start, char matchedQuoteChar = EOF);
 
     void nextTokens(std::vector<Token> &tokens, bool enableHereDoc = true);
+
+    bool matchHeredDoc(std::vector<Token> &tokens);
 };
 
 #endif //PERLPARSER_TOKENISER_H

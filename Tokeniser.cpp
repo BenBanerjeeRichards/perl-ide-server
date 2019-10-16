@@ -107,11 +107,6 @@ char Tokeniser::peekAhead(int i) {
     return this->program[this->_position + i];
 }
 
-// TODO probably useless
-std::string Tokeniser::substring(int fromIdx, int length) {
-    return this->program.substr(fromIdx, length);
-}
-
 // Returns null for start of file
 char Tokeniser::prevChar(int i) {
     // So i = 0 gets the same char as peekAhead(0) would except handles start of files correctly
@@ -149,35 +144,18 @@ bool Tokeniser::isNewline(char c) {
     return c == '\n' || c == '\r';
 }
 
-bool Tokeniser::isLowercase(char c) {
-    return c >= 'a' && c <= 'z';
-}
-
-bool Tokeniser::isUppercase(char c) {
-    return c >= 'A' && c <= 'Z';
-}
-
-
 bool Tokeniser::isPunctuation(char c) {
     return (c >= '!' && c <= '/') || (c >= ':' && c <= '@') || (c >= '[' && c <= '`') || (c >= '{' && c <= '~');
 }
 
-bool Tokeniser::isNumber(char c) {
-    return c >= '0' && c <= '9';
-}
-
-bool Tokeniser::isAlphaNumeric(char c) {
-    // TODO make more efficient by using better ASCII ranges
-    return isNumber(c) || isUppercase(c) || isLowercase(c);
-}
-
 // Variable body i.e. variable name after any Sigil and then first char
 bool Tokeniser::isNameBody(char c) {
-    return c >= '!' && c != ';' && c != ',' && c != '>' && c != '<' && c != '-' && c != '.' && c != '{' && c != '}' && c != '(' &&
+    return c >= '!' && c != ';' && c != ',' && c != '>' && c != '<' && c != '-' && c != '.' && c != '{' && c != '}' &&
+           c != '(' &&
            c != ')' && c != '[' && c != ']' && c != ':';
 }
 
-std::string Tokeniser::matchString(const std::vector<std::string> &options, bool requireTrailingNonAN) {
+std::string Tokeniser::matchStringOption(const std::vector<std::string> &options, bool requireTrailingNonAN) {
     for (const std::string &option : options) {
         bool match = true;  // Assume match until proven otherwise
         for (int i = 0; i < (int) option.length(); i++) {
@@ -186,10 +164,7 @@ std::string Tokeniser::matchString(const std::vector<std::string> &options, bool
 
         // If requireTrailingNonAN check next char is not alphanumeric
         // This fixes issues with `sub length() {...}` being translated to NAME(SUB) OP(LE) NAME(GTH) ...
-        if (match && (!requireTrailingNonAN || !this->isAlphaNumeric(this->peekAhead((int) option.length() + 1)))) {
-            if (requireTrailingNonAN) {
-
-            }
+        if (match && (!requireTrailingNonAN || !isalpha(this->peekAhead((int) option.length() + 1)))) {
             this->advancePositionSameLine(option.length());
             return option;
         }
@@ -208,7 +183,7 @@ bool Tokeniser::matchKeyword(const std::string &keyword) {
     // Keyword has been matched
     // Keyword must be followed by non a-zA-Z0-9 character
     char nextChar = this->peekAhead((int) keyword.size() + 1);
-    if (isAlphaNumeric(nextChar)) return false;
+    if (isalpha(nextChar)) return false;
 
     // We have the keyword
     this->advancePositionSameLine(keyword.size());
@@ -359,7 +334,7 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
 
     auto quoteChar = peekAhead(offset);
 
-    if (isAlphaNumeric(quoteChar)) {
+    if (isalpha(quoteChar)) {
         if (whitespace.empty()) {
             // Must have whitespace for alphanumeric quote char
             return std::vector<Token>();
@@ -399,12 +374,15 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
 std::string Tokeniser::matchNumeric() {
     std::string testString;
     int i = 0;
-    while (isAlphaNumeric(peekAhead(i + 1)) || peekAhead(i + 1) == '.' || peekAhead(i + 1) == '+' ||
+    while (isalpha(peekAhead(i + 1)) || peekAhead(i + 1) == '.' || peekAhead(i + 1) == '+' ||
            peekAhead(i + 1) == '-') {
         testString += peekAhead(i + 1);
         i += 1;
     }
     if (testString.empty()) return "";
+    // Do quick check before we use expensive regex
+    if (!isnumber(testString[0]) && testString[0] != '+' && testString[0] != '-') return "";
+
     std::smatch regexMatch;
 
     if (std::regex_match(testString, regexMatch, NUMERIC_REGEX)) {
@@ -486,13 +464,13 @@ std::string Tokeniser::matchVariable() {
     // Main complication here is the package rules (:: and ')
     int packageDelta = peekPackageTokens(i);
     i += packageDelta;
-    if (isUppercase(this->peekAhead(i)) || isLowercase(this->peekAhead(i)) || this->peekAhead(i) == '_') {
+    if (isupper(this->peekAhead(i)) || islower(this->peekAhead(i)) || this->peekAhead(i) == '_') {
         // Valid starting
         i += 1;
         while (true) {
             int start = i;
             i += peekPackageTokens(i);
-            while (this->isAlphaNumeric(this->peekAhead(i)) || this->peekAhead(i) == '_') i += 1;
+            while (isalpha(this->peekAhead(i)) || isalpha(i) == '_') i += 1;
 
             // If we don't progress any more, then the variable is finished
             if (i == start) {
@@ -506,17 +484,17 @@ std::string Tokeniser::matchVariable() {
         if (this->peekAhead(i) == '^') {
             // Variable in the form $^A;
             char second = this->peekAhead(i + 1);
-            if (this->isUppercase(second) || second == '[' || second == ']' || second == '^' || second == '_' ||
+            if (isupper(second) || second == '[' || second == ']' || second == '^' || second == '_' ||
                 second == '?' || second == '\\') {
                 i += 2;
                 goto done;
             }
         }
 
-        if (this->isNumber(this->peekAhead(i))) {
+        if (isnumber(this->peekAhead(i))) {
             // Numeric variable
             i += 1;
-            while (this->isNumber(this->peekAhead(i))) i += 1;
+            while (isnumber(this->peekAhead(i))) i += 1;
             goto done;
         }
 
@@ -531,7 +509,7 @@ std::string Tokeniser::matchVariable() {
             // The square bracket ones
             i += 2;
             if (this->peekAhead(i) == '_') i += 1;      // Optional underscore
-            while (this->isAlphaNumeric(this->peekAhead(i))) i += 1;
+            while (isalpha(this->peekAhead(i))) i += 1;
             if (this->peekAhead(i) == '}') {
                 i += 1;
                 goto done;
@@ -544,7 +522,8 @@ std::string Tokeniser::matchVariable() {
     done:
     // If nothing after sigil matched, then don't match as a variable
     if (i == 2) return "";
-    std::string var = this->substring(this->_position + 1, i - 1);
+
+    std::string var = this->program.substr(this->_position + 1, i - 1);
     this->advancePositionSameLine(i - 1);
     return var;
 }
@@ -571,6 +550,98 @@ std::string Tokeniser::matchWhitespace() {
     return this->getWhile(this->isWhitespace);
 }
 
+bool Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
+    if (this->peek() != '<' || this->peekAhead(2) != '<') return false;
+
+    std::string hereDocStart;
+    // Possible heredoc.
+    // Check if next token is a String(...) or Name(...)
+    auto start = this->currentPos();
+    this->nextChar();
+    this->nextChar();
+    tokens.emplace_back(Token(TokenType::Operator, start, "<<"));
+
+    auto preNameWhitespace = this->matchWhitespace();
+    // Now try to match tilde
+    // tilde is a indented here doc
+    // e.g. <<~OUT or << ~"Hello World"
+    // Important as it affects the way we close the
+    auto hasTilde = this->peek() == '~';
+    if (hasTilde) this->nextChar();
+
+    auto stringLiteral = this->matchStringLiteral('"', true);
+    if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('\'', true);
+    if (!stringLiteral.empty()) {
+        // Remove quotations from string body
+        stringLiteral = stringLiteral.substr(1, stringLiteral.size() - 2);
+    }
+    // Note that a bareword Name(..) is only allowed in heredoc if not preceeded by whitespace:
+    // <<OUT        OK
+    // << OUT       NOT OK
+    // <<"HellO"    OK
+    // << "Hello"   OK
+    if (stringLiteral.empty() && preNameWhitespace.empty()) {
+        if ((isalpha(peek()) || peek() == '_')) {
+            hereDocStart = this->matchName();
+        } else {
+            // Failed to match
+            return false;
+        }
+    } else {
+        hereDocStart = stringLiteral;
+    }
+
+    // Next continue to read tokens until end of current line
+    std::vector<Token> lineRemainingTokens;
+    while (lineRemainingTokens.empty() ||
+           (lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::Newline &&
+            lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::EndOfInput)) {
+        nextTokens(lineRemainingTokens);
+    }
+
+    tokens.insert(tokens.end(), lineRemainingTokens.begin(), lineRemainingTokens.end());
+
+    // Now read newlines until we reach the ending terminator on a separate line
+    start = currentPos();
+    FilePos bodyEnd;
+    FilePos lineStart;
+    std::string hereDocContents;
+    std::string line;
+    while (this->peek() != EOF) {
+        if (this->peek() == '\n') {
+            if (line == hereDocStart) {
+                break;
+            } else if (hasTilde) {
+                // Supports any number of whitespace before string then a newline
+                for (int i = 0; i < (int) line.size(); i++) {
+                    if (isWhitespace(line[i])) continue;
+                    auto nonWhitespacePart = line.substr(i, line.size() - i);
+                    if (nonWhitespacePart == hereDocStart) goto done;
+                    else break;
+                }
+            } else {
+                bodyEnd = currentPos();
+            }
+
+            line += '\n';
+            bodyEnd = currentPos();
+            this->nextChar();
+            hereDocContents += line;
+            line = "";
+            lineStart = currentPos();
+        } else {
+            line += this->peek();
+            this->nextChar();
+        }
+    }
+
+    done:
+    // Finally add our heredoc token
+    tokens.emplace_back(Token(TokenType::HereDoc, start, bodyEnd, hereDocContents));
+    tokens.emplace_back(Token(TokenType::HereDocEnd, lineStart, line));
+    return true;
+}
+
 void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // Position before anything is consumed
     auto startPos = currentPos();
@@ -582,7 +653,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     }
 
     // Search for __DATA__ and end program if reached
-    if (!this->matchString(std::vector<std::string>{"__DATA__", "__END__"}, true).empty()) {
+    if (!this->matchStringOption(std::vector<std::string>{"__DATA__", "__END__"}, true).empty()) {
         tokens.emplace_back(Token(TokenType::EndOfInput, startPos, startPos));
         return;
     }
@@ -621,95 +692,9 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         return;
     }
 
-    if (enableHereDoc && this->peek() == '<' && this->peekAhead(2) == '<') {
-        std::string hereDocStart;
-        // Possible heredoc.
-        // Check if next token is a String(...) or Name(...)
-        auto start = this->currentPos();
-        this->nextChar();
-        this->nextChar();
-        tokens.emplace_back(Token(TokenType::Operator, start, "<<"));
 
-        auto preNameWhitespace = this->matchWhitespace();
-        // Now try to match tilde
-        // tilde is a indented here doc
-        // e.g. <<~OUT or << ~"Hello World"
-        // Important as it affects the way we close the
-        auto hasTilde = this->peek() == '~';
-        if (hasTilde) this->nextChar();
-
-        auto stringLiteral = this->matchStringLiteral('"', true);
-        if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('\'', true);
-        if (!stringLiteral.empty()) {
-            // Remove quotations from string body
-            stringLiteral = stringLiteral.substr(1, stringLiteral.size() - 2);
-        }
-        // Note that a bareword Name(..) is only allowed in heredoc if not preceeded by whitespace:
-        // <<OUT        OK
-        // << OUT       NOT OK
-        // <<"HellO"    OK
-        // << "Hello"   OK
-        if (stringLiteral.empty() && preNameWhitespace.empty()) {
-            if ((isalpha(peek()) || peek() == '_')) {
-                hereDocStart = this->matchName();
-            } else {
-                // Failed to match
-                // TODO implement this
-            }
-        } else {
-            hereDocStart = stringLiteral;
-        }
-
-        // Next continue to read tokens until end of current line
-        std::vector<Token> lineRemainingTokens;
-        while (lineRemainingTokens.empty() ||
-               (lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::Newline &&
-                lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::EndOfInput)) {
-            nextTokens(lineRemainingTokens);
-        }
-
-        tokens.insert(tokens.end(), lineRemainingTokens.begin(), lineRemainingTokens.end());
-
-        // Now read newlines until we reach the ending terminator on a separate line
-        start = currentPos();
-        FilePos bodyEnd;
-        FilePos lineStart;
-        std::string hereDocContents;
-        std::string line;
-        while (this->peek() != EOF) {
-            if (this->peek() == '\n') {
-                if (line == hereDocStart) {
-                    break;
-                } else if (hasTilde) {
-                    // Supports any number of whitespace before string then a newline
-                    for (int i = 0; i < (int) line.size(); i++) {
-                        if (isWhitespace(line[i])) continue;
-                        auto nonWhitespacePart = line.substr(i, line.size() - i);
-                        if (nonWhitespacePart == hereDocStart) goto done;
-                        else break;
-                    }
-                } else {
-                    bodyEnd = currentPos();
-                }
-
-                line += '\n';
-                bodyEnd = currentPos();
-                this->nextChar();
-                hereDocContents += line;
-                line = "";
-                lineStart = currentPos();
-            } else {
-                line += this->peek();
-                this->nextChar();
-            }
-        }
-
-        done:
-        auto end = currentPos();
-        // Finally add our heredoc token
-        tokens.emplace_back(Token(TokenType::HereDoc, start, bodyEnd, hereDocContents));
-        tokens.emplace_back(Token(TokenType::HereDocEnd, lineStart, line));
-        return;
+    if (enableHereDoc) {
+        if (matchHeredDoc(tokens)) return;
     }
 
     // Perl has so many operators...
@@ -729,13 +714,16 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     };
 
 
-    std::string op = matchString(operators);
-    if (!op.empty()) {
-        tokens.emplace_back(Token(TokenType::Operator, startPos, op));
-        return;
+    if (!isalpha(this->peek())) {
+        std::string op = matchStringOption(operators);
+        if (!op.empty()) {
+            tokens.emplace_back(Token(TokenType::Operator, startPos, op));
+            return;
+        }
     }
 
-    std::string op2 = matchString(wordOperators, true);
+
+    std::string op2 = matchStringOption(wordOperators, true);
     if (!op2.empty()) {
         tokens.emplace_back(Token(TokenType::Operator, startPos, op2));
         return;
