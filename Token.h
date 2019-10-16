@@ -7,6 +7,7 @@
 
 #include <vector>
 #include "FilePos.h"
+#include "Util.h"
 
 enum class TokenType {
     String,
@@ -112,6 +113,8 @@ private:
     int i;
 };
 
+
+std::string tokenTypeToString(const TokenType &t);
 
 
 #endif //PERLPARSER_TOKEN_H

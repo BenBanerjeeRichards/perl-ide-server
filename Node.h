@@ -30,7 +30,10 @@ struct TokensNode : Node {
     std::string toStr() override {
 
         if (tokens.size() > 1) {
-            return "TokensNode " + firstNonWhitespaceToken(tokens).toStr(true) + " - " +
+            int i = 0;
+            auto token = tokens[i];
+            while (i < tokens.size() && tokens[i].isWhitespaceNewlineOrComment()) i++;
+            return "TokensNode " + tokens[i].toStr(true) + " - " +
                    tokens[tokens.size() - 1].startPos.toStr() + " " + tokens[tokens.size() - 1].endPos.toStr();
         }
 

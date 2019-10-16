@@ -28,17 +28,6 @@ std::string replace(std::string str, const std::string &what, const std::string 
     return baseString;
 }
 
-// Based on https://stackoverflow.com/a/22489298
-int numOccurrences(const std::string &str, const std::string &sub) {
-    int occurrences = 0;
-    std::string::size_type pos = 0;
-    while ((pos = str.find(sub, pos)) != std::string::npos) {
-        ++occurrences;
-        pos += sub.length();
-    }
-    return occurrences;
-}
-
 std::vector<std::string> globglob(const std::string &pattern) {
     glob_t glob_result;
     std::vector<std::string> result;
@@ -83,12 +72,4 @@ std::string join(const std::vector<std::string> &vec, const char *delim) {
     std::stringstream res;
     copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(res, delim));
     return res.str();
-}
-
-Token firstNonWhitespaceToken(const std::vector<Token> &tokens) {
-    for (auto token : tokens) {
-        if (token.type != TokenType::Whitespace && token.type != TokenType::Newline) return token;
-    }
-
-    return tokens[0];   // Nothing found
 }

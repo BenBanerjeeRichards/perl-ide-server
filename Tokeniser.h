@@ -34,9 +34,6 @@ struct QuotedStringLiteral {
     FilePos literalEnd;
 };
 
-std::string tokenTypeToString(const TokenType &t);
-
-
 class Tokeniser {
 public:
     Tokeniser(std::string program, bool doSecondPass = true);
