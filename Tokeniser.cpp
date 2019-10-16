@@ -146,7 +146,7 @@ std::string Tokeniser::matchStringOption(const std::vector<std::string> &options
 
         // If requireTrailingNonAN check next char is not alphanumeric
         // This fixes issues with `sub length() {...}` being translated to NAME(SUB) OP(LE) NAME(GTH) ...
-        if (match && (!requireTrailingNonAN || !isalpha(this->peekAhead((int) option.length() + 1)))) {
+        if (match && (!requireTrailingNonAN || !isalnum(this->peekAhead((int) option.length() + 1)))) {
             this->advancePositionSameLine(option.length());
             return option;
         }
@@ -165,7 +165,7 @@ bool Tokeniser::matchKeyword(const std::string &keyword) {
     // Keyword has been matched
     // Keyword must be followed by non a-zA-Z0-9 character
     char nextChar = this->peekAhead((int) keyword.size() + 1);
-    if (isalpha(nextChar)) return false;
+    if (isalnum(nextChar)) return false;
 
     // We have the keyword
     this->advancePositionSameLine(keyword.size());
@@ -316,7 +316,7 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
 
     auto quoteChar = peekAhead(offset);
 
-    if (isalpha(quoteChar)) {
+    if (isalnum(quoteChar)) {
         if (whitespace.empty()) {
             // Must have whitespace for alphanumeric quote char
             return std::vector<Token>();
@@ -356,7 +356,7 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
 std::string Tokeniser::matchNumeric() {
     std::string testString;
     int i = 0;
-    while (isalpha(peekAhead(i + 1)) || peekAhead(i + 1) == '.' || peekAhead(i + 1) == '+' ||
+    while (isalnum(peekAhead(i + 1)) || peekAhead(i + 1) == '.' || peekAhead(i + 1) == '+' ||
            peekAhead(i + 1) == '-') {
         testString += peekAhead(i + 1);
         i += 1;
@@ -452,7 +452,7 @@ std::string Tokeniser::matchVariable() {
         while (true) {
             int start = i;
             i += peekPackageTokens(i);
-            while (isalpha(this->peekAhead(i)) || isalpha(i) == '_') i += 1;
+            while (isalnum(this->peekAhead(i)) || this->peekAhead(i) == '_') i += 1;
 
             // If we don't progress any more, then the variable is finished
             if (i == start) {
@@ -491,7 +491,7 @@ std::string Tokeniser::matchVariable() {
             // The square bracket ones
             i += 2;
             if (this->peekAhead(i) == '_') i += 1;      // Optional underscore
-            while (isalpha(this->peekAhead(i))) i += 1;
+            while (isalnum(this->peekAhead(i))) i += 1;
             if (this->peekAhead(i) == '}') {
                 i += 1;
                 goto done;
@@ -563,7 +563,7 @@ bool Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
     // <<"HellO"    OK
     // << "Hello"   OK
     if (stringLiteral.empty() && preNameWhitespace.empty()) {
-        if ((isalpha(peek()) || peek() == '_')) {
+        if ((isalnum(peek()) || peek() == '_')) {
             hereDocStart = this->matchName();
         } else {
             // Failed to match
@@ -696,7 +696,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     };
 
 
-    if (!isalpha(this->peek())) {
+    if (!isalnum(this->peek())) {
         std::string op = matchStringOption(operators);
         if (!op.empty()) {
             tokens.emplace_back(Token(TokenType::Operator, startPos, op));
