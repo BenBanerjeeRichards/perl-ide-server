@@ -65,8 +65,8 @@ Tokeniser::Tokeniser(std::string perl, bool doSecondPass) {
     } else if (this->program.size() >= 4 && this->program[0] == '\xFF' && this->program[1] == '\xFE' &&
                this->program[2] == '\x00' && this->program[3] == '\x00') {
         this->program = this->program.substr(4, this->program.size() - 3);
-    }else if (this->program.size() >= 4 && this->program[0] == '\x00' && this->program[1] == '\x00' &&
-              this->program[2] == '\xFE' && this->program[3] == '\xFF') {
+    } else if (this->program.size() >= 4 && this->program[0] == '\x00' && this->program[1] == '\x00' &&
+               this->program[2] == '\xFE' && this->program[3] == '\xFF') {
         this->program = this->program.substr(4, this->program.size() - 3);
     }
 
@@ -88,7 +88,7 @@ char Tokeniser::nextChar() {
         return EOF;
     }
 
-    if ((this->peek() == '\r' && this->peekAhead(2) == '\n') || this->peek() == '\n') {
+    if ((this->peek() == '\r' && this->peekAhead(2) == '\n') || (this->peek() == '\n' && this->peekAhead(0) != '\r')) {
         // Newline coming up, other code will handle token
         this->nextLine();
     } else {
@@ -129,7 +129,7 @@ char Tokeniser::peek() {
 }
 
 bool Tokeniser::isEof() {
-    return this->_position > (int)this->program.length() - 1;
+    return this->_position > (int) this->program.length() - 1;
 }
 
 std::string Tokeniser::getWhile(const std::function<bool(char)> &nextCharTest) {
@@ -142,7 +142,7 @@ std::string Tokeniser::getWhile(const std::function<bool(char)> &nextCharTest) {
 }
 
 bool Tokeniser::isWhitespace(char c) {
-    return c == ' ' || c == '\t';
+    return c == ' ' || c == '\t' || c == '\x0c';
 }
 
 bool Tokeniser::isNewline(char c) {
@@ -173,7 +173,7 @@ bool Tokeniser::isAlphaNumeric(char c) {
 
 // Variable body i.e. variable name after any Sigil and then first char
 bool Tokeniser::isNameBody(char c) {
-    return c >= '!' && c != ';' && c != ',' && c != '>' && c != '-' && c != '.' && c != '{' && c != '}' && c != '(' &&
+    return c >= '!' && c != ';' && c != ',' && c != '>' && c != '<' && c != '-' && c != '.' && c != '{' && c != '}' && c != '(' &&
            c != ')' && c != '[' && c != ']' && c != ':';
 }
 
@@ -606,6 +606,10 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         this->nextChar();
         tokens.emplace_back(Token(TokenType::Newline, startPos, "\r\n"));
         return;
+    } else if (this->peek() == '\r') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Newline, startPos, "\r"));
+        return;
     }
 
     auto var = this->matchVariable();
@@ -825,6 +829,13 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // Guess based on previous non-whitespace token
     // TODO improve this heuristic
     if (this->peek() == '/') {
+        if (tokens.empty()) {
+            auto string = this->matchString();
+            if (!string.empty()) {
+                tokens.emplace_back(Token(TokenType::String, startPos, string));
+                return;
+            }
+        }
         int i = (int) tokens.size() - 1;
         Token prevToken = tokens[i];
         while (i > 0 && prevToken.isWhitespaceNewlineOrComment()) {
