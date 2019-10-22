@@ -242,10 +242,8 @@ doFindVariableUsages(const std::shared_ptr<SymbolNode>& rootSymbolNode, const st
                 // First find declaration
                 std::shared_ptr<Variable> declaration = findDeclaration(rootSymbolNode, symbolNode, token.data, token.startPos);
                 if (declaration == nullptr) {
-                    std::cout <<  token.data << " " << token.startPos.toStr() << " **NO DECL** for variable " << std::endl;
+//                    std::cerr <<  token.data << " " << token.startPos.toStr() << " **NO DECL** for variable " << std::endl;
                 } else {
-                    std::cout <<  token.data << " " << token.startPos.toStr()  << " declared at " << declaration->declaration.toStr() << std::endl;
-
                     if (usages.count(declaration) == 0) usages[declaration] = std::vector<FilePos>();
                     usages[declaration].emplace_back(token.startPos);
                 }
@@ -312,15 +310,15 @@ void printSymbolTree(const std::shared_ptr<SymbolNode> &node) {
 }
 
 void printFileSymbols(FileSymbols &fileSymbols) {
-    std::cout << std::endl << "Packages" << std::endl;
+    std::cout << std::endl << "\e[1mPackages\e[0m" << std::endl;
     for (auto package : fileSymbols.packages) {
         std::cout << package.packageName << " " << package.start.toStr() << "-" << package.end.toStr() << std::endl;
     }
 
-    std::cout << std::endl << "Variables" << std::endl;
+    std::cout << std::endl << "\e[1mVariables\e[0m" << std::endl;
     printSymbolTree(fileSymbols.symbolTree);
 
-    std::cout << std::endl << "Subroutines" << std::endl;
+    std::cout << std::endl << "\e[1mSubroutines\e[0m" << std::endl;
     for (auto function : fileSymbols.subroutines) {
         std::cout << function.toStr() << std::endl;
     }

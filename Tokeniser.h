@@ -130,7 +130,7 @@ private:
 
     void nextTokens(std::vector<Token> &tokens, bool enableHereDoc = true);
 
-    bool matchHeredDoc(std::vector<Token> &tokens);
+    void matchHeredDoc(std::vector<Token> &tokens);
 };
 
 #endif //PERLPARSER_TOKENISER_H

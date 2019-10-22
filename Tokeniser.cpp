@@ -532,8 +532,8 @@ std::string Tokeniser::matchWhitespace() {
     return this->getWhile(this->isWhitespace);
 }
 
-bool Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
-    if (this->peek() != '<' || this->peekAhead(2) != '<') return false;
+void Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
+    if (this->peek() != '<' || this->peekAhead(2) != '<') return;
 
     std::string hereDocStart;
     // Possible heredoc.
@@ -543,13 +543,19 @@ bool Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
     this->nextChar();
     tokens.emplace_back(Token(TokenType::Operator, start, "<<"));
 
+    start = this->currentPos();
     auto preNameWhitespace = this->matchWhitespace();
+    if (!preNameWhitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, preNameWhitespace));
     // Now try to match tilde
     // tilde is a indented here doc
     // e.g. <<~OUT or << ~"Hello World"
     // Important as it affects the way we close the
+    start = this->currentPos();
     auto hasTilde = this->peek() == '~';
-    if (hasTilde) this->nextChar();
+    if (hasTilde) {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Operator, start, "~"));
+    }
 
     auto stringLiteral = this->matchStringLiteral('"', true);
     if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('\'', true);
@@ -567,11 +573,13 @@ bool Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
             hereDocStart = this->matchName();
         } else {
             // Failed to match
-            return false;
+            return;
         }
     } else {
         hereDocStart = stringLiteral;
     }
+
+    if (hereDocStart.empty()) return;
 
     // Next continue to read tokens until end of current line
     std::vector<Token> lineRemainingTokens;
@@ -621,7 +629,7 @@ bool Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
     // Finally add our heredoc token
     tokens.emplace_back(Token(TokenType::HereDoc, start, bodyEnd, hereDocContents));
     tokens.emplace_back(Token(TokenType::HereDocEnd, lineStart, line));
-    return true;
+    return;
 }
 
 void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
@@ -675,8 +683,9 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     }
 
 
-    if (enableHereDoc) {
-        if (matchHeredDoc(tokens)) return;
+    if (enableHereDoc && peek() == '<' && peekAhead(2) == '<') {
+        matchHeredDoc(tokens);
+        return;
     }
 
     // Perl has so many operators...

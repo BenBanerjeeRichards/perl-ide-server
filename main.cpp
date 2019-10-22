@@ -6,6 +6,10 @@
 #include "Autocomplete.h"
 #include "PerlCommandLine.h"
 
+std::string CONSOLE_BOLD = "\e[1m";
+std::string CONSOLE_DIM = "\e[37m";
+std::string CONSOLE_CLEAR = "\e[0m";
+
 void printFileTokens(const std::string &file, bool includeLocation) {
     Tokeniser tokeniser(readFile(file));
     auto tokens = tokeniser.tokenise();
@@ -74,9 +78,9 @@ int main(int argc, char **args) {
         auto tokeniseTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
         for (auto token : tokens) {
-//            std::cout << tokeniser.tokenToStrWithCode(token, true) << std::endl;
+            if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << CONSOLE_DIM;
+            std::cout << tokeniser.tokenToStrWithCode(token, true) << CONSOLE_CLEAR << std::endl;
         }
-
         begin = std::chrono::steady_clock::now();
         auto parseTree = parse(tokens);
         end = std::chrono::steady_clock::now();
@@ -97,14 +101,14 @@ int main(int argc, char **args) {
 
         printFileSymbols(fileSymbols);
 
-        std::cout << std::endl << "Variables at position" << std::endl;
+        std::cout << CONSOLE_BOLD << std::endl << "Variables at position" << std::endl;
         auto pos = FilePos(30, 1);
         auto map = getSymbolMap(fileSymbols, pos);
         for (const auto &varItem : map) {
             std::cout << varItem.second->toStr() << std::endl;
         }
 
-        std::cout << std::endl << "Variable usages" << std::endl;
+        std::cout << CONSOLE_BOLD << std::endl << "Variable usages" << CONSOLE_CLEAR << std::endl;
         for (auto it = fileSymbols.variableUsages.begin(); it != fileSymbols.variableUsages.end(); it++) {
             std::cout << it->first->toStr() << ": ";
             for (auto varPos: fileSymbols.variableUsages[it->first]) {
@@ -115,7 +119,7 @@ int main(int argc, char **args) {
         }
 
 
-        std::cout << "Done" << std::endl << std::endl;
+        std::cout << std::endl << CONSOLE_BOLD << "Timing"  << CONSOLE_CLEAR << std::endl;
 
         std::cout << "Tokenisation: " << tokeniseTime << "ms" << std::endl;
         std::cout << "Parsing: " << parseTime << "ms" << std::endl;
