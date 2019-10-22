@@ -26,6 +26,18 @@ struct FilePos {
         this->position = position;
     }
 
+    bool operator==(const FilePos& other) {
+        // NOTE: Ignores position
+        return other.line == this->line && other.col == this->col;
+    }
+
+    bool operator<(const FilePos& other) {
+        return this->position < other.position;
+    }
+
+    bool operator<=(const FilePos& other) {
+        return this->operator<(other) || this->operator==(other);
+    }
 
     std::string toStr();
 

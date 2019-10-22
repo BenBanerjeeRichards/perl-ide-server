@@ -38,13 +38,12 @@ void basicOutput(std::string path) {
 int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
 
-    PerlProject project("/Users/bbr/IdeaProjects/PerlParser/perl", "perl");
-    auto paths = getIncludePaths(project);
-    std::cout << "MODULE: " << resolveModulePath(project, std::vector<std::string>{"Math", "BigFloat"}) << std::endl;
+//    PerlProject project("/Users/bbr/IdeaProjects/PerlParser/perl", "perl");
+//    auto paths = getIncludePaths(project);
+//    std::cout << "MODULE: " << resolveModulePath(project, std::vector<std::string>{"Math", "BigFloat"}) << std::endl;
+//
+//    std::cout << join(paths, "\n") << std::endl;
 
-    std::cout << join(paths, "\n") << std::endl;
-
-    return 0;
     if (argc >= 2) file = args[1];
 //    printFileTokens(file, argc == 2);
 

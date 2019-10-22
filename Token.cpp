@@ -124,6 +124,7 @@ TokenIterator::TokenIterator(const std::vector<Token> &tokens, std::vector<Token
 
 TokenIterator::TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens) : tokens(tokens) {
     this->ignoreTokens = ignoreTokens;
+    this->i = 0;
 }
 
 

@@ -9,11 +9,17 @@
 #include "Util.h"
 #include "Node.h"
 #include <algorithm>
+#include <utility>
 #include <unordered_map>
 
 struct Variable {
     std::string name;
     FilePos declaration;
+    int id;
+
+    bool operator==(const Variable& other) const {
+        return this->id == other.id;
+    }
 
     virtual bool isAccessibleAt(const FilePos &pos) {
         return false;
@@ -24,18 +30,28 @@ struct Variable {
     virtual std::string getDetail() { return ""; }
 };
 
+
+namespace std{
+    template <> struct hash<Variable> {
+        std::size_t operator()(const Variable& var) const {
+            return std::hash<int>()(var.id);
+        }
+    };
+}
+
 class ScopedVariable : public Variable {
 public:
-    ScopedVariable(const std::string &name, FilePos declaration, FilePos scopeEnd) {
+    ScopedVariable(int id, const std::string &name, FilePos declaration, FilePos scopeEnd) {
         this->name = name;
         this->declaration = declaration;
         this->scopeEnd = scopeEnd;
+        this->id = id;
     }
 
     bool isAccessibleAt(const FilePos &pos) override;
 
     std::string toStr() override {
-        return "[" + this->declaration.toStr() + "] " + name;
+        return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ")" + name;
     }
 
 
@@ -45,16 +61,17 @@ private:
 
 class GlobalVariable : public Variable {
 public:
-    GlobalVariable(const std::string &name, FilePos declaration, const std::string &package) {
+    GlobalVariable(int id, const std::string &name, FilePos declaration, const std::string &package) {
         this->name = name;
         this->declaration = declaration;
         this->package = package;
+        this->id = id;
     }
 
     bool isAccessibleAt(const FilePos &pos) override;
 
     std::string toStr() override {
-        return "[" + this->declaration.toStr() + "] " + name + " (GLOBAL)";
+        return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ")" + name + " (GLOBAL)";
     }
 
     std::string getDetail() override {
@@ -69,8 +86,8 @@ private:
 
 class OurVariable : public ScopedVariable {
 public:
-    OurVariable(const std::string &name, FilePos declaration, FilePos scopeEnd, const std::string &package)
-            : ScopedVariable(name, declaration, scopeEnd) {
+    OurVariable(int id, const std::string &name, FilePos declaration, FilePos scopeEnd, const std::string &package)
+            : ScopedVariable(id, name, declaration, scopeEnd) {
         this->package = package;
     }
 
@@ -81,7 +98,8 @@ public:
     }
 
     std::string toStr() override {
-        return "our [" + this->declaration.toStr() + "] " + package + "::" + name;
+        if (name.empty()) return "<NO NAME>";
+        return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ") our " + name[0] + package + "::" + name.substr(1, name.size() -1);
     }
 };
 
@@ -91,19 +109,22 @@ public:
 // So instead we treat them as scoped variables and ban renames on them when possible
 class LocalVariable : public ScopedVariable {
 public:
-    LocalVariable(const std::string &name, FilePos declaration, FilePos scopeEnd)
-            : ScopedVariable(name, declaration, scopeEnd) {
+    LocalVariable(int id, const std::string &name, FilePos declaration, FilePos scopeEnd)
+            : ScopedVariable(id, name, declaration, scopeEnd) {
     }
 
     std::string toStr() override {
-        return "[" + this->declaration.toStr() + "] " + name + " (LOCAL)";
+        return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ")" + name + " (LOCAL)";
     }
 };
 
 class SymbolNode {
 public:
-    SymbolNode(const FilePos &startPos, const FilePos &endPos);
-    SymbolNode(const FilePos &startPos, const FilePos &endPos, std::vector<std::string> parentFeatures);
+    SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode);
+    SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode, std::vector<std::string> parentFeatures);
+
+    // Reference to tokens
+    std::shared_ptr<BlockNode> blockNode;
 
     // Variables declared in this scope
     std::vector<std::shared_ptr<Variable>> variables;
@@ -138,11 +159,6 @@ struct Subroutine {
     std::string toStr();
 };
 
-struct VariableUsage {
-    FilePos pos;
-    std::shared_ptr<Variable> variable;
-};
-
 struct FileSymbols {
     std::shared_ptr<SymbolNode> symbolTree;
     std::vector<PackageSpan> packages;
@@ -151,21 +167,13 @@ struct FileSymbols {
     // This is a temp measure until packages are fully implemented
     std::vector<std::shared_ptr<Variable>> globals;
 
-    // Locations of all variables in the file (both declarations and usages)
-    // NOTE: Usages not declared
-    std::unordered_map<std::string, std::vector<FilePos>> variables;
-
-
     // Usages of each variable
     // Includes definition.
-    // NOTE: May not be filled out - only needed for files being edited. Expensive to compute.
     std::unordered_map<std::shared_ptr<Variable>, std::vector<FilePos>> variableUsages;
 };
 
 
 std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols);
-
-std::shared_ptr<Variable> sym2(const FileSymbols &fileSymbols,std::string name, const FilePos &pos);
 
 
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
