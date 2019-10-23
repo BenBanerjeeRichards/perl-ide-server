@@ -253,10 +253,32 @@ std::string Tokeniser::matchBracketedStringLiteral(char bracket) {
 
     int bracketCount = 1;
     while (bracketCount > 0 && peek() != EOF) {
-        if (peek() == bracket && peekAhead(0) != '\\') {
-            bracketCount++;
-        } else if (peek() == endBracket && peekAhead(0) != '\\') {
+
+        if (this->peek() == '\\') {
+            if (this->peekAhead(2) == bracket) {
+                contents += '\\';
+                contents += bracket;
+                this->nextChar();
+                this->nextChar();
+                continue;
+            } else if (this->peekAhead(2) == endBracket) {
+                // Escaped end bracket (e.g. `\}`)
+                contents += '\\';
+                contents += endBracket;
+                this->nextChar();
+                this->nextChar();
+                continue;
+            } else if (this->peekAhead(2) == '\\') {
+                // Escaped backslash (i.e. \\)
+                contents += '\\';
+                this->nextChar();
+                this->nextChar();
+                continue;
+            }
+        } else if (this->peek() == endBracket) {
             bracketCount--;
+        } else if (this->peek() == bracket) {
+            bracketCount++;
         }
 
         if (bracketCount == 0) return contents;

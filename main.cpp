@@ -20,12 +20,33 @@ void printFileTokens(const std::string &file, bool includeLocation) {
     }
 }
 
+// Bad symbol node = symbol node with end pos = 0:0
+// Indicates parser has consumed entire file
+std::shared_ptr<SymbolNode> findBadSymbolNode(std::shared_ptr<SymbolNode> node) {
+    if (node->endPos.line == 0) return node;
+    for (auto child : node->children) {
+        auto res = findBadSymbolNode(child);
+        if (res != nullptr) return res;
+    }
+
+    return nullptr;
+}
+
 void testFiles() {
-    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/4/*");
+    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/1/*");
     for (auto file : perlFiles) {
         std::cout << file << std::endl;
         Tokeniser tokeniser(readFile(file));
-        tokeniser.tokenise();
+        auto tokens = tokeniser.tokenise();
+        auto parseTree = parse(tokens);
+        FileSymbols fileSymbols;
+        fileSymbols.packages = parsePackages(parseTree);
+        auto symbolTree = buildVariableSymbolTree(parseTree, fileSymbols);
+
+        if (auto badNode = findBadSymbolNode(symbolTree)) {
+            std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED <<  "Bad SymbolNode found at position " << badNode->startPos.toStr() << CONSOLE_CLEAR <<  std::endl;
+            return;
+        }
     }
 }
 
@@ -40,17 +61,6 @@ void basicOutput(std::string path) {
     }
 }
 
-// Bad symbol node = symbol node with end pos = 0:0
-// Indicates parser has consumed entire file
-std::shared_ptr<SymbolNode> findBadSymbolNode(std::shared_ptr<SymbolNode> node) {
-    if (node->endPos.line == 0) return node;
-    for (auto child : node->children) {
-        auto res = findBadSymbolNode(child);
-        if (res != nullptr) return res;
-    }
-
-    return nullptr;
-}
 
 int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
@@ -101,7 +111,7 @@ int main(int argc, char **args) {
         end = std::chrono::steady_clock::now();
         auto parseTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
-        printParseTree(parseTree);
+//        printParseTree(parseTree);
 
         FileSymbols fileSymbols;
         begin = std::chrono::steady_clock::now();
