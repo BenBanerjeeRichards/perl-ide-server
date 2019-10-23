@@ -115,6 +115,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::HashDerefStart) return "HashDerefStart";
     if (t == TokenType::HashDerefEnd) return "HashDerefEnd";
     if (t == TokenType::QuoteIdent) return "QuoteIdent";
+    if (t == TokenType::StringModifiers) return "StringModifiers";
     return "TokenType toString NOT IMPLEMENTED";
 }
 

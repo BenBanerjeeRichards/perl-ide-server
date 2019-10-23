@@ -70,6 +70,7 @@ enum class TokenType {
     HashDerefStart,
     HashDerefEnd,
     QuoteIdent,
+    StringModifiers,
 };
 
 class Token {

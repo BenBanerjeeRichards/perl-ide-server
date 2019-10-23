@@ -118,6 +118,8 @@ private:
 
     std::vector<Token> matchSignatureTokens();
 
+    std::string matchStringContainingOnlyLetters(std::string letters);
+
 
     bool isPrototype();
 

@@ -182,6 +182,17 @@ std::string Tokeniser::matchName() {
     return acc;
 }
 
+std::string Tokeniser::matchStringContainingOnlyLetters(std::string letters) {
+    std::string str;
+    while (letters.find(peek()) != std::string::npos) {
+        str += peek();
+        nextChar();
+    }
+
+    return str;
+}
+
+
 
 std::string Tokeniser::matchString() {
     std::string contents;
@@ -347,34 +358,54 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
     if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
 
     matchDelimString(tokens);
-    if (!isMultipleLiteral) return tokens;
+    if (isMultipleLiteral) {
 
-    if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
-        // If first block is brackets, then allow for whitespace
-        start = currentPos();
-        whitespace = matchWhitespace();
-        if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
+        if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
+            // If first block is brackets, then allow for whitespace
+            start = currentPos();
+            whitespace = matchWhitespace();
+            if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
 
-        // Now we can match something completly new
-        matchDelimString(tokens);
-    } else {
-        // Match more string then followed by ending string
-        start = currentPos();
-        std::string contents = matchStringLiteral(quoteChar, false);
-        auto pos = currentPos();
-        pos.position -= 1;
-        pos.col = pos.col == 0 ? 0 : pos.col - 1;   // FIXME
+            // Now we can match something completly new
+            matchDelimString(tokens);
+        } else {
+            // Match more string then followed by ending string
+            start = currentPos();
+            std::string contents = matchStringLiteral(quoteChar, false);
+            auto pos = currentPos();
+            pos.position -= 1;
+            pos.col = pos.col == 0 ? 0 : pos.col - 1;   // FIXME
 
-        if (!contents.empty()) {
-            auto endPos = currentPos();
-            endPos.position -= 1;
-            endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
-            tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
+            if (!contents.empty()) {
+                auto endPos = currentPos();
+                endPos.position -= 1;
+                endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
+                tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
+            }
+            tokens.emplace_back(Token(TokenType::StringEnd, currentPos(), std::string(1, quoteChar)));
+            nextChar();
         }
-        tokens.emplace_back(Token(TokenType::StringEnd, currentPos(), std::string(1, quoteChar)));
-        nextChar();
+    }
+    // Finally to match ending part of string for certain types
+    std::string modifiers;
+    start = currentPos();
+    if (p1 == 's') {
+        modifiers = matchStringContainingOnlyLetters("msixpodualngcer");
+    }
+    if (p1 == 'm') {
+        modifiers = matchStringContainingOnlyLetters("msixpodualngc");
+    }
+    if (p1 == 'q' && p2 == 'r') {
+        modifiers = matchStringContainingOnlyLetters("msixpodualn");
+    }
+    if (p1 == 't' && p2 == 'r') {
+        modifiers = matchStringContainingOnlyLetters("cdsr");
+    }
+    if (p1 == 'y') {
+        modifiers = matchStringContainingOnlyLetters("cdsr");
     }
 
+    if (!modifiers.empty()) tokens.emplace_back(Token(TokenType::StringModifiers, start, modifiers));
     return tokens;
 }
 
@@ -841,6 +872,13 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
             auto string = this->matchString();
             if (!string.empty()) {
                 tokens.emplace_back(Token(TokenType::String, startPos, string));
+
+                // Now try to match any modifiers
+                auto start = currentPos();
+                auto modifiers = this->matchStringContainingOnlyLetters("msixpodualngc");
+                if (!modifiers.empty()) {
+                    tokens.emplace_back(Token(TokenType::StringModifiers, start, modifiers));
+                }
                 return;
             }
         }
@@ -861,6 +899,11 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
             auto string = this->matchString();
             if (!string.empty()) {
                 tokens.emplace_back(Token(TokenType::String, startPos, string));
+                auto start = currentPos();
+                auto modifiers = this->matchStringContainingOnlyLetters("msixpodualngc");
+                if (!modifiers.empty()) {
+                    tokens.emplace_back(Token(TokenType::StringModifiers, start, modifiers));
+                }
                 return;
             }
         }
