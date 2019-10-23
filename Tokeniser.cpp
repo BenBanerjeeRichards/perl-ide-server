@@ -339,8 +339,16 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
 
     if (isMultipleLiteral) {
         start = currentPos();
-        literal = (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[')
-                  ? matchBracketedStringLiteral(quoteChar) : matchStringLiteral(quoteChar, false);
+
+        if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
+            tokens.emplace_back(Token(TokenType::StringStart, start, std::string(1, quoteChar)));
+            nextChar();
+            start = currentPos();
+            literal = matchBracketedStringLiteral(quoteChar);
+        } else {
+            literal = matchStringLiteral(quoteChar, false);
+        }
+
         tokens.emplace_back(Token(TokenType::String, start, literal));
         start = currentPos();
         endChar = peek();
