@@ -574,6 +574,9 @@ void Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
 
     auto stringLiteral = this->matchStringLiteral('"', true);
     if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('\'', true);
+    if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('`', true);
+    bool emptyStringLiteral = stringLiteral.empty();        // Get this before we remove quotation marks
+                                                            // Important for <<"" ... ; syntax
     if (!stringLiteral.empty()) {
         // Remove quotations from string body
         stringLiteral = stringLiteral.substr(1, stringLiteral.size() - 2);
@@ -583,7 +586,7 @@ void Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
     // << OUT       NOT OK
     // <<"HellO"    OK
     // << "Hello"   OK
-    if (stringLiteral.empty() && preNameWhitespace.empty()) {
+    if (emptyStringLiteral && preNameWhitespace.empty()) {
         if ((isalnum(peek()) || peek() == '_')) {
             hereDocStart = this->matchName();
         } else {
@@ -594,7 +597,7 @@ void Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
         hereDocStart = stringLiteral;
     }
 
-    if (hereDocStart.empty()) return;
+    if (emptyStringLiteral && hereDocStart.empty()) return;
 
     // Next continue to read tokens until end of current line
     std::vector<Token> lineRemainingTokens;
