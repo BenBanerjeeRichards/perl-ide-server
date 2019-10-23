@@ -341,7 +341,14 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
         start = currentPos();
 
         if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
-            tokens.emplace_back(Token(TokenType::StringStart, start, std::string(1, quoteChar)));
+            // Allow whitespace between brackets
+            start = currentPos();
+            auto middleWhitespace = matchWhitespace();
+            if (!middleWhitespace.empty()) {
+                tokens.emplace_back(Token(TokenType::Whitespace, start, middleWhitespace));
+            }
+
+            tokens.emplace_back(Token(TokenType::StringStart, currentPos(), std::string(1, quoteChar)));
             nextChar();
             start = currentPos();
             literal = matchBracketedStringLiteral(quoteChar);

@@ -9,6 +9,7 @@
 std::string CONSOLE_BOLD = "\e[1m";
 std::string CONSOLE_DIM = "\e[37m";
 std::string CONSOLE_CLEAR = "\e[0m";
+std::string CONSOLE_RED = "\e[31m";
 
 void printFileTokens(const std::string &file, bool includeLocation) {
     Tokeniser tokeniser(readFile(file));
@@ -37,6 +38,18 @@ void basicOutput(std::string path) {
             continue;
         std::cout << tokenTypeToString(token.type) << " ";
     }
+}
+
+// Bad symbol node = symbol node with end pos = 0:0
+// Indicates parser has consumed entire file
+std::shared_ptr<SymbolNode> findBadSymbolNode(std::shared_ptr<SymbolNode> node) {
+    if (node->endPos.line == 0) return node;
+    for (auto child : node->children) {
+        auto res = findBadSymbolNode(child);
+        if (res != nullptr) return res;
+    }
+
+    return nullptr;
 }
 
 int main(int argc, char **args) {
@@ -126,6 +139,12 @@ int main(int argc, char **args) {
         std::cout << "Parsing: " << parseTime << "ms" << std::endl;
         std::cout << "Package analysis: " << packageTime << "ms" << std::endl;
         std::cout << "Var/Sub Analysis: " << variableAnalysisTime << "ms" << std::endl;
+
+        auto badSymbol = findBadSymbolNode(fileSymbols.symbolTree);
+        if (badSymbol != nullptr) {
+            std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED <<  "Bad SymbolNode found at position " << badSymbol->startPos.toStr() << CONSOLE_CLEAR <<  std::endl;
+        }
+
     }
 
     return 0;
