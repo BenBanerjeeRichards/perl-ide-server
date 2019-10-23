@@ -81,6 +81,8 @@ int main(int argc, char **args) {
             if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << CONSOLE_DIM;
             std::cout << tokeniser.tokenToStrWithCode(token, true) << CONSOLE_CLEAR << std::endl;
         }
+        std::cout << CONSOLE_CLEAR;
+
         begin = std::chrono::steady_clock::now();
         auto parseTree = parse(tokens);
         end = std::chrono::steady_clock::now();
@@ -101,7 +103,7 @@ int main(int argc, char **args) {
 
         printFileSymbols(fileSymbols);
 
-        std::cout << CONSOLE_BOLD << std::endl << "Variables at position" << std::endl;
+        std::cout << CONSOLE_BOLD << std::endl << "Variables at position" << CONSOLE_CLEAR << std::endl;
         auto pos = FilePos(30, 1);
         auto map = getSymbolMap(fileSymbols, pos);
         for (const auto &varItem : map) {
@@ -118,8 +120,7 @@ int main(int argc, char **args) {
             std::cout << std::endl;
         }
 
-
-        std::cout << std::endl << CONSOLE_BOLD << "Timing"  << CONSOLE_CLEAR << std::endl;
+        std::cout << std::endl << CONSOLE_BOLD << "Timing" << CONSOLE_CLEAR << std::endl;
 
         std::cout << "Tokenisation: " << tokeniseTime << "ms" << std::endl;
         std::cout << "Parsing: " << parseTime << "ms" << std::endl;

@@ -65,6 +65,10 @@ enum class TokenType {
     AttributeColon,
     HereDoc,
     HereDocEnd,
+    HashSubStart,
+    HashSubEnd,
+    HashDerefStart,
+    HashDerefEnd
 };
 
 class Token {
@@ -116,5 +120,6 @@ private:
 
 std::string tokenTypeToString(const TokenType &t);
 
+bool isVariable(const TokenType& tokenType);
 
 #endif //PERLPARSER_TOKEN_H

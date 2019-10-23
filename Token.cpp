@@ -110,9 +110,17 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::StringEnd) return "StringEnd";
     if (t == TokenType::HereDoc) return "HereDoc";
     if (t == TokenType::HereDocEnd) return "HereDocEnd";
+    if (t == TokenType::HashSubStart) return "HashSubStart";
+    if (t == TokenType::HashSubEnd) return "HashSubEnd";
+    if (t == TokenType::HashDerefStart) return "HashDerefStart";
+    if (t == TokenType::HashDerefEnd) return "HashDerefEnd";
     return "TokenType toString NOT IMPLEMENTED";
 }
 
+bool isVariable(const TokenType &tokenType) {
+    return tokenType == TokenType::HashVariable || tokenType == TokenType::ArrayVariable ||
+           tokenType == TokenType::ScalarVariable;
+}
 
 int TokenIterator::getIndex() { return i; }
 
@@ -126,5 +134,28 @@ TokenIterator::TokenIterator(const std::vector<Token> &tokens, std::vector<Token
     this->ignoreTokens = ignoreTokens;
     this->i = 0;
 }
+
+Token TokenIterator::next() {
+    while (i < tokens.size()) {
+        bool shouldIgnore = false;
+        for (auto ignore: ignoreTokens) {
+            if (tokens[i].type == ignore) {
+                // Try next token
+                i++;
+                shouldIgnore = true;
+                break;
+            }
+        }
+
+        if (shouldIgnore) continue;
+        auto token = tokens[i];
+        i++;
+        return token;
+    }
+
+    return Token(TokenType::EndOfInput, FilePos(0, 0));
+}
+
+
 
 

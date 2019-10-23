@@ -98,7 +98,9 @@ private:
 
     void secondPass(std::vector<Token> &tokens);
 
-    void secondPassSub(std::vector<Token>& tokens, int& i);
+    void secondPassSub(std::vector<Token> &tokens, int &i);
+
+    void secondPassHash(std::vector<Token> &tokens, int &i);
 
     std::optional<Token> tryMatchKeywords(FilePos startPos);
 
@@ -126,11 +128,14 @@ private:
     std::vector<KeywordConfig> keywordConfigs;
     int positionOffset = 0;
     bool doSecondPass = true;
-    std::vector<Token> matchLiteralBody(const std::string& quoteChars, FilePos start, char matchedQuoteChar = EOF);
+
+    std::vector<Token> matchLiteralBody(const std::string &quoteChars, FilePos start, char matchedQuoteChar = EOF);
 
     void nextTokens(std::vector<Token> &tokens, bool enableHereDoc = true);
 
     void matchHeredDoc(std::vector<Token> &tokens);
+
+    void secondPassHashReref(std::vector<Token> &tokens, int &i);
 };
 
 #endif //PERLPARSER_TOKENISER_H

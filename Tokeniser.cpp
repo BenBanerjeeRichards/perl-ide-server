@@ -1097,6 +1097,65 @@ void Tokeniser::secondPassSub(std::vector<Token> &tokens, int &i) {
     i = subPos + 1; // Take care as we are modifying tokens while looping over them
 }
 
+void Tokeniser::secondPassHash(std::vector<Token> &tokens, int &i) {
+    TokenIterator tokenIterator(tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment, TokenType::Whitespace}, i);
+    Token token = tokenIterator.next();
+    if (!isVariable(token.type)) return;
+    token = tokenIterator.next();
+    if (token.type != TokenType::LBracket) return;
+    int lBracketOffset = tokenIterator.getIndex() - 1;
+
+    // Expect comma separated list of variable|string|name
+    while (token.type != TokenType::RBracket && token.type != TokenType::EndOfInput) {
+        // Read variable, name or string
+        token = tokenIterator.next();
+        if (token.type != TokenType::Name && token.type != TokenType::String && !isVariable(token.type)) return;
+        token = tokenIterator.next();
+
+        // Now a possible comma
+        if (token.type != TokenType::Comma && token.type != TokenType::RBracket) return;
+    }
+
+    if (token.type != TokenType::RBracket) return;
+
+    // Now just replace brackets
+    tokens[lBracketOffset].type = TokenType::HashSubStart;
+    tokens[tokenIterator.getIndex() -1 ].type = TokenType::HashSubEnd;
+    i++;
+}
+
+void Tokeniser::secondPassHashReref(std::vector<Token> &tokens, int &i)  {
+    TokenIterator tokenIterator(tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment, TokenType::Whitespace}, i);
+    Token token = tokenIterator.next();
+    if (!isVariable(token.type)) return;
+    token = tokenIterator.next();
+    if (token.type != TokenType::Operator || token.data != "->") return;
+
+    token = tokenIterator.next();
+    if (token.type != TokenType::LBracket) return;
+    int lBracketOffset = tokenIterator.getIndex() - 1;
+
+    // Keep count of brackets to match
+    int bracketCount = 1;
+    token = tokenIterator.next();
+    int rBracketOffset = tokenIterator.getIndex();
+
+    while (bracketCount > 0 && token.type != TokenType::EndOfInput) {
+        if (token.type == TokenType::LBracket) bracketCount++;
+        if (token.type == TokenType::RBracket) {
+            rBracketOffset = tokenIterator.getIndex() - 1;
+            bracketCount--;
+        }
+        token = tokenIterator.next();
+    }
+
+    if (bracketCount > 0) return;
+    tokens[lBracketOffset].type = TokenType::HashDerefStart;
+    tokens[rBracketOffset].type = TokenType::HashDerefEnd;
+    i++;
+}
+
+
 // Second pass to fix any tokenization errors with a little bit of context
 // Note this is fixing errors, not doing any parsing
 void Tokeniser::secondPass(std::vector<Token> &tokens) {
@@ -1104,6 +1163,11 @@ void Tokeniser::secondPass(std::vector<Token> &tokens) {
     for (int i = 0; i < (int) tokens.size() - 1; i++) {
         if (tokens[i].type == TokenType::Sub) {
             secondPassSub(tokens, i);
+        } else if (isVariable(tokens[i].type)) {
+            int prevI = i;
+            secondPassHash(tokens, i);
+            i = prevI;
+            secondPassHashReref(tokens, i);
         }
     }
 }
@@ -1161,27 +1225,6 @@ FilePos Tokeniser::currentPos() {
     return FilePos(this->currentLine, this->currentCol, this->_position + 1 + this->positionOffset);
 }
 
-
-Token TokenIterator::next() {
-    while (i < tokens.size()) {
-        bool shouldIgnore = false;
-        for (auto ignore: ignoreTokens) {
-            if (tokens[i].type == ignore) {
-                // Try next token
-                i++;
-                shouldIgnore = true;
-                break;
-            }
-        }
-
-        if (shouldIgnore) continue;
-        auto token = tokens[i];
-        i++;
-        return token;
-    }
-
-    return Token(TokenType::EndOfInput, FilePos(0, 0));
-}
 
 KeywordConfig::KeywordConfig(const std::string &code, TokenType type) : code(code), type(type) {}
 
