@@ -16,7 +16,7 @@ void printFileTokens(const std::string &file, bool includeLocation) {
     auto tokens = tokeniser.tokenise();
 
     for (auto token : tokens) {
-        std::cout << token.toStr(includeLocation) << std::endl;
+        std::cout << token.startPos.position << " " << token.endPos.position << " " << token.toStr(false) << std::endl;
     }
 }
 

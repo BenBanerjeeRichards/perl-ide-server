@@ -129,7 +129,7 @@ private:
     int positionOffset = 0;
     bool doSecondPass = true;
 
-    std::vector<Token> matchLiteralBody(const std::string &quoteChars, FilePos start, char matchedQuoteChar = EOF);
+    void matchDelimString(std::vector<Token> &tokens);
 
     void nextTokens(std::vector<Token> &tokens, bool enableHereDoc = true);
 

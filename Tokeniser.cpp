@@ -256,28 +256,42 @@ std::string Tokeniser::matchBracketedStringLiteral(char bracket) {
     return contents;
 }
 
-std::vector<Token> Tokeniser::matchLiteralBody(const std::string &quoteChars, FilePos start, char matchedQuoteChar) {
-    std::vector<Token> tokens;
-    char quoteChar;
-    if (matchedQuoteChar == EOF) {
-        auto whitespace = matchWhitespace();
-        quoteChar = peek();
+void Tokeniser::matchDelimString(std::vector<Token> &tokens) {
+    char quoteChar = this->peek();
+    auto start = currentPos();
+    this->nextChar();
+    std::string contents;
+    if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
+        tokens.emplace_back(Token(TokenType::StringStart, start, std::string(1, quoteChar)));
+        start = currentPos();
+        contents = matchBracketedStringLiteral(quoteChar);
+        if (!contents.empty()) {
+            auto endPos = currentPos();
+            endPos.position -= 1;
+            endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
+            tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
+        }
+        start = currentPos();
+        auto endChar = peek();
         nextChar();
-        tokens.emplace_back(Token(TokenType::StringStart, start, quoteChars + whitespace + quoteChar));
+        tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
     } else {
-        quoteChar = matchedQuoteChar;
+        tokens.emplace_back(Token(TokenType::StringStart, start, std::string(1, quoteChar)));
+        start = currentPos();
+        contents = matchStringLiteral(quoteChar, false);
+        if (!contents.empty()) {
+            auto endPos = currentPos();
+            endPos.position -= 1;
+            endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
+            tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
+        }
+        start = currentPos();
+        auto endChar = peek();
+        nextChar();
+        tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
     }
-
-    start = currentPos();
-    std::string literal = (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[')
-                          ? matchBracketedStringLiteral(quoteChar) : matchStringLiteral(quoteChar, false);
-    tokens.emplace_back(Token(TokenType::String, start, literal));
-    start = currentPos();
-    auto endChar = peek();
-    nextChar();
-    tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
-    return tokens;
 }
+
 
 std::vector<Token> Tokeniser::matchQuoteLiteral() {
     auto start = currentPos();
@@ -323,48 +337,45 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
         }
     }
 
-    for (int i = 0; i < offset - 1; i++) this->nextChar();
-
-    nextChar();
-    tokens.emplace_back(Token(TokenType::StringStart, start, quoteChars + whitespace + quoteChar));
 
     start = currentPos();
-    std::string literal = (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[')
-                          ? matchBracketedStringLiteral(quoteChar) : matchStringLiteral(quoteChar, false);
-    tokens.emplace_back(Token(TokenType::String, start, literal));
-    start = currentPos();
-    auto endChar = peek();
-    nextChar();
-    tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
+    auto quoteIdent = this->matchStringOption(std::vector<std::string>{quoteChars});
+    tokens.emplace_back(Token(TokenType::QuoteIdent, start, quoteIdent));
 
-    if (isMultipleLiteral) {
+    start = currentPos();
+    whitespace = this->matchWhitespace();
+    if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
+
+    matchDelimString(tokens);
+    if (!isMultipleLiteral) return tokens;
+
+    if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
+        // If first block is brackets, then allow for whitespace
         start = currentPos();
+        whitespace = matchWhitespace();
+        if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
 
-        if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
-            // Allow whitespace between brackets
-            start = currentPos();
-            auto middleWhitespace = matchWhitespace();
-            if (!middleWhitespace.empty()) {
-                tokens.emplace_back(Token(TokenType::Whitespace, start, middleWhitespace));
-            }
+        // Now we can match something completly new
+        matchDelimString(tokens);
+    } else {
+        // Match more string then followed by ending string
+        start = currentPos();
+        std::string contents = matchStringLiteral(quoteChar, false);
+        auto pos = currentPos();
+        pos.position -= 1;
+        pos.col = pos.col == 0 ? 0 : pos.col - 1;   // FIXME
 
-            tokens.emplace_back(Token(TokenType::StringStart, currentPos(), std::string(1, quoteChar)));
-            nextChar();
-            start = currentPos();
-            literal = matchBracketedStringLiteral(quoteChar);
-        } else {
-            literal = matchStringLiteral(quoteChar, false);
+        if (!contents.empty()) {
+            auto endPos = currentPos();
+            endPos.position -= 1;
+            endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
+            tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
         }
-
-        tokens.emplace_back(Token(TokenType::String, start, literal));
-        start = currentPos();
-        endChar = peek();
+        tokens.emplace_back(Token(TokenType::StringEnd, currentPos(), std::string(1, quoteChar)));
         nextChar();
-        tokens.emplace_back(Token(TokenType::StringEnd, start, std::string(1, endChar)));
     }
 
     return tokens;
-
 }
 
 
@@ -576,7 +587,7 @@ void Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
     if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('\'', true);
     if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('`', true);
     bool emptyStringLiteral = stringLiteral.empty();        // Get this before we remove quotation marks
-                                                            // Important for <<"" ... ; syntax
+    // Important for <<"" ... ; syntax
     if (!stringLiteral.empty()) {
         // Remove quotations from string body
         stringLiteral = stringLiteral.substr(1, stringLiteral.size() - 2);
@@ -1116,7 +1127,8 @@ void Tokeniser::secondPassSub(std::vector<Token> &tokens, int &i) {
 }
 
 void Tokeniser::secondPassHash(std::vector<Token> &tokens, int &i) {
-    TokenIterator tokenIterator(tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment, TokenType::Whitespace}, i);
+    TokenIterator tokenIterator(tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment,
+                                                               TokenType::Whitespace}, i);
     Token token = tokenIterator.next();
     if (!isVariable(token.type)) return;
     token = tokenIterator.next();
@@ -1138,12 +1150,13 @@ void Tokeniser::secondPassHash(std::vector<Token> &tokens, int &i) {
 
     // Now just replace brackets
     tokens[lBracketOffset].type = TokenType::HashSubStart;
-    tokens[tokenIterator.getIndex() -1 ].type = TokenType::HashSubEnd;
+    tokens[tokenIterator.getIndex() - 1].type = TokenType::HashSubEnd;
     i++;
 }
 
-void Tokeniser::secondPassHashReref(std::vector<Token> &tokens, int &i)  {
-    TokenIterator tokenIterator(tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment, TokenType::Whitespace}, i);
+void Tokeniser::secondPassHashReref(std::vector<Token> &tokens, int &i) {
+    TokenIterator tokenIterator(tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment,
+                                                               TokenType::Whitespace}, i);
     Token token = tokenIterator.next();
     if (!isVariable(token.type)) return;
     token = tokenIterator.next();

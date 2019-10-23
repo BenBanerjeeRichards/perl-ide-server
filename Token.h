@@ -68,7 +68,8 @@ enum class TokenType {
     HashSubStart,
     HashSubEnd,
     HashDerefStart,
-    HashDerefEnd
+    HashDerefEnd,
+    QuoteIdent,
 };
 
 class Token {
