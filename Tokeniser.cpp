@@ -201,7 +201,9 @@ std::string Tokeniser::matchString() {
     auto singleStr = matchStringLiteral('\'');
     if (!singleStr.empty()) return singleStr;
     auto regexStr = matchStringLiteral('/');
-    return regexStr;
+    if (!regexStr.empty()) return regexStr;
+    auto executeString = matchStringLiteral('`');
+    return executeString;
 }
 
 std::string Tokeniser::matchStringLiteral(char delim, bool includeDelim) {
