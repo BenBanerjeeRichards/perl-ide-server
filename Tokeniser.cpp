@@ -818,14 +818,16 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
 
     if (peek == '{') {
         if (!tokens.empty()) {
-            int i = (int)tokens.size() - 1;
+            int i = (int) tokens.size() - 1;
             auto prevType = tokens[i].type;
-            while (i > 0 && (prevType == TokenType::Whitespace || prevType == TokenType::Newline || prevType == TokenType::Comment)) {
+            while (i > 0 && (prevType == TokenType::Whitespace || prevType == TokenType::Newline ||
+                             prevType == TokenType::Comment)) {
                 i--;
                 prevType = tokens[i].type;
             }
 
-            if (prevType == TokenType::ScalarVariable || prevType == TokenType::HashVariable || prevType == TokenType::ArrayVariable) {
+            if (prevType == TokenType::ScalarVariable || prevType == TokenType::HashVariable ||
+                prevType == TokenType::ArrayVariable || (prevType == TokenType::Operator && tokens[i].data == "->")) {
                 // So we have something like %x{...}. Contents of brackets can contain unquoted barewords
                 int offset = 2;
                 while (isWhitespace(peekAhead(offset))) offset++;
