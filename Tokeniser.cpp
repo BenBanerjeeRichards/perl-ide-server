@@ -618,7 +618,7 @@ void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, std::string hereDoc
     std::string hereDocContents;
     std::string line;
     while (this->peek() != EOF) {
-        if (this->peek() == '\n') {
+        if (this->peek() == '\n' || this->peek() == '\r') {
             if (line == hereDocDelim) {
                 break;
             } else if (hasTilde) {
@@ -633,9 +633,19 @@ void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, std::string hereDoc
                 bodyEnd = currentPos();
             }
 
-            line += '\n';
             bodyEnd = currentPos();
-            this->nextChar();
+            if (this->peek() == '\n') {
+                line += '\n';
+                this->nextChar();
+            }
+            else if (this->peek() == '\r' && this->peek() == '\n') {
+                line += "\r\n";
+                this->nextChar();
+                this->nextChar();
+            } else if (this->peek() == '\r') {
+                line += '\r';
+                this->nextChar();
+            }
             hereDocContents += line;
             line = "";
             lineStart = currentPos();
