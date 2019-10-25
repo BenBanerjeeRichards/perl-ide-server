@@ -61,21 +61,27 @@ void basicOutput(std::string path) {
     }
 }
 
+void unitTest(std::string path) {
+    Tokeniser tokeniser(readFile(path), false);
+    for (auto &token : tokeniser.tokenise()) {
+        if (token.type == TokenType::Whitespace || token.type == TokenType::Newline ||
+            token.type == TokenType::Comment || token.type == TokenType::EndOfInput)
+            continue;
+        std::cout << token.toStr() << std::endl;
+    }
 
+}
 int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
-
-//    PerlProject project("/Users/bbr/IdeaProjects/PerlParser/perl", "perl");
-//    auto paths = getIncludePaths(project);
-//    std::cout << "MODULE: " << resolveModulePath(project, std::vector<std::string>{"Math", "BigFloat"}) << std::endl;
-//
-//    std::cout << join(paths, "\n") << std::endl;
-
     if (argc >= 2) file = args[1];
-//    printFileTokens(file, argc == 2);
 
     if (argc == 2 && strncmp(args[1], "strtest", 7) == 0) {
         testFiles();
+        return 0;
+    }
+
+    if (argc == 3 && strncmp(args[1], "unitTest", 8) == 0) {
+        unitTest(std::string(args[2]));
         return 0;
     }
 

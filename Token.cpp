@@ -125,6 +125,10 @@ bool isVariable(const TokenType &tokenType) {
            tokenType == TokenType::ScalarVariable;
 }
 
+bool isWhitespaceNewlineComment(const TokenType &tokenType) {
+    return tokenType == TokenType::Whitespace || tokenType == TokenType::Newline || tokenType == TokenType::Comment;
+}
+
 int TokenIterator::getIndex() { return i; }
 
 TokenIterator::TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens, int offset)

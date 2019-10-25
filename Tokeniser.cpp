@@ -711,7 +711,22 @@ void Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
     // Finally add our heredoc token
     tokens.emplace_back(Token(TokenType::HereDoc, start, bodyEnd, hereDocContents));
     tokens.emplace_back(Token(TokenType::HereDocEnd, lineStart, line));
-    return;
+}
+
+bool Tokeniser::matchSlashString(std::vector<Token> &tokens) {
+    auto start = this->currentPos();
+    auto string = this->matchString();
+    if (!string.empty()) {
+        tokens.emplace_back(Token(TokenType::String, start, string));
+        auto start = currentPos();
+        auto modifiers = this->matchStringContainingOnlyLetters("msixpodualngc");
+        if (!modifiers.empty()) {
+            tokens.emplace_back(Token(TokenType::StringModifiers, start, modifiers));
+        }
+        return true;
+    }
+
+    return false;
 }
 
 void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
@@ -791,7 +806,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // TODO complete this list
     auto operators = std::vector<std::string>{
             "->", "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
-            "/=", "//=", "=>", "//", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
+            "//=", "=>", "//", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
             ">=",
             "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
             "~", "^=", "^.=", "^", "...", "..", "?:", ":", ".=",
@@ -961,45 +976,29 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // Guess based on previous non-whitespace token
     // TODO improve this heuristic
     if (this->peek() == '/') {
-        if (tokens.empty()) {
-            auto string = this->matchString();
-            if (!string.empty()) {
-                tokens.emplace_back(Token(TokenType::String, startPos, string));
+        auto prevTokenTypeOption = previousNonWhitespaceToken(tokens);
 
-                // Now try to match any modifiers
-                auto start = currentPos();
-                auto modifiers = this->matchStringContainingOnlyLetters("msixpodualngc");
-                if (!modifiers.empty()) {
-                    tokens.emplace_back(Token(TokenType::StringModifiers, start, modifiers));
-                }
-                return;
-            }
-        }
-        int i = (int) tokens.size() - 1;
-        Token prevToken = tokens[i];
-        while (i > 0 && prevToken.isWhitespaceNewlineOrComment()) {
-            prevToken = tokens[--i];
-        }
-
-        auto type = prevToken.type;
-        if (type == TokenType::RParen || type == TokenType::NumericLiteral || type == TokenType::ScalarVariable ||
-            type == TokenType::HashVariable || type == TokenType::ArrayVariable || type == TokenType::RBracket ||
-            type == TokenType::RSquareBracket) {
-            this->nextChar();
-            tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
-            return;
+        if (!prevTokenTypeOption.has_value()) {
+            if (this->matchSlashString(tokens)) return;
         } else {
-            auto string = this->matchString();
-            if (!string.empty()) {
-                tokens.emplace_back(Token(TokenType::String, startPos, string));
-                auto start = currentPos();
-                auto modifiers = this->matchStringContainingOnlyLetters("msixpodualngc");
-                if (!modifiers.empty()) {
-                    tokens.emplace_back(Token(TokenType::StringModifiers, start, modifiers));
-                }
+            auto prevTokenType = prevTokenTypeOption.value().type;
+
+            if (isVariable(prevTokenType) || prevTokenType == TokenType::RParen ||
+                prevTokenType == TokenType::NumericLiteral || prevTokenType == TokenType::RBracket ||
+                prevTokenType == TokenType::RSquareBracket) {
+                this->nextChar();
+                tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
                 return;
+            } else {
+                if (this->matchSlashString(tokens)) return;
             }
         }
+    }
+
+    if (peek == '/' && peekAhead(2) == '=') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Operator, startPos, startPos.col, "/="));
+        return;
     }
 
     auto string = this->matchString();
@@ -1396,3 +1395,15 @@ FilePos Tokeniser::currentPos() {
 KeywordConfig::KeywordConfig(
         const std::string &code, TokenType
 type) : code(code), type(type) {}
+
+
+std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens) {
+    if (tokens.empty()) return std::optional<Token>();
+    int i = tokens.size() - 1;
+    while (i > 0 && isWhitespaceNewlineComment(tokens[i].type)) {
+        i--;
+    }
+
+    if (isWhitespaceNewlineComment(tokens[i].type)) return std::optional<Token>();
+    return std::optional<Token>(tokens[i]);
+}

@@ -124,5 +124,6 @@ private:
 std::string tokenTypeToString(const TokenType &t);
 
 bool isVariable(const TokenType& tokenType);
+bool isWhitespaceNewlineComment(const TokenType& tokenType);
 
 #endif //PERLPARSER_TOKEN_H

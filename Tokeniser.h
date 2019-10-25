@@ -130,6 +130,10 @@ private:
     void matchHeredDoc(std::vector<Token> &tokens);
 
     void secondPassHashReref(std::vector<Token> &tokens, int &i);
+
+    bool matchSlashString(std::vector<Token> &tokens);
 };
+
+std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens);
 
 #endif //PERLPARSER_TOKENISER_H
