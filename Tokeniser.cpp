@@ -739,7 +739,9 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                     if (tokens[i].type == TokenType::Name && hasWhitespace) continue;    // Now allowed with barewords
                     // Now finally we can confirm a valid heredoc.
                     if (tokens[i].type == TokenType::Name) delim = tokens[i].data;
-                    else if (tokens[i].type == TokenType::String) delim = tokens[i].data.substr(1, tokens[i].data.size() - 2);
+                    else if (tokens[i].type == TokenType::String) delim = tokens[i].data.substr(1,
+                                                                                                tokens[i].data.size() -
+                                                                                                2);
                     matchHereDocBody(tokens, delim, hasTilde);
                     break;
                 }
@@ -778,7 +780,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // Thankfully we don't actually care what the do, just need to recognise them
     // TODO complete this list
     auto operators = std::vector<std::string>{
-            "->", "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
+            "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
             "//=", "=>", "//", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
             ">=",
             "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
@@ -819,6 +821,19 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         tokens.emplace_back(Token(TokenType::Comma, startPos, startPos.col));
         return;
     }
+
+    // Dereference, check for possible Name on other wise
+    if (peek == '-' && this->peekAhead(2) == '>') {
+        this->nextChar();
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Operator, startPos, "->"));
+
+        auto start = this->currentPos();
+        auto name = this->matchName();
+        if (!name.empty()) tokens.emplace_back(Token(TokenType::Name, start, name));
+        return;
+    }
+
 
     if (peek == '{') {
         if (!tokens.empty()) {
