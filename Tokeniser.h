@@ -127,11 +127,13 @@ private:
 
     void nextTokens(std::vector<Token> &tokens, bool enableHereDoc = true);
 
-    void matchHeredDoc(std::vector<Token> &tokens);
+    void matchHereDocBody(std::vector<Token> &tokens, std::string hereDocDelim, bool hasTilde);
 
     void secondPassHashReref(std::vector<Token> &tokens, int &i);
 
     bool matchSlashString(std::vector<Token> &tokens);
+
+    bool matchNewline(std::vector<Token> &tokens);
 };
 
 std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens);

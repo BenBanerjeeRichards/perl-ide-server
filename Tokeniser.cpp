@@ -611,84 +611,22 @@ std::string Tokeniser::matchWhitespace() {
     return this->getWhile(this->isWhitespace);
 }
 
-void Tokeniser::matchHeredDoc(std::vector<Token> &tokens) {
-    if (this->peek() != '<' || this->peekAhead(2) != '<') return;
-
-    std::string hereDocStart;
-    // Possible heredoc.
-    // Check if next token is a String(...) or Name(...)
-    auto start = this->currentPos();
-    this->nextChar();
-    this->nextChar();
-    tokens.emplace_back(Token(TokenType::Operator, start, "<<"));
-
-    start = this->currentPos();
-    auto preNameWhitespace = this->matchWhitespace();
-    if (!preNameWhitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, preNameWhitespace));
-    // Now try to match tilde
-    // tilde is a indented here doc
-    // e.g. <<~OUT or << ~"Hello World"
-    // Important as it affects the way we close the
-    start = this->currentPos();
-    auto hasTilde = this->peek() == '~';
-    if (hasTilde) {
-        this->nextChar();
-        tokens.emplace_back(Token(TokenType::Operator, start, "~"));
-    }
-
-    auto stringLiteral = this->matchStringLiteral('"', true);
-    if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('\'', true);
-    if (stringLiteral.empty()) stringLiteral = this->matchStringLiteral('`', true);
-    bool emptyStringLiteral = stringLiteral.empty();        // Get this before we remove quotation marks
-    // Important for <<"" ... ; syntax
-    if (!stringLiteral.empty()) {
-        // Remove quotations from string body
-        stringLiteral = stringLiteral.substr(1, stringLiteral.size() - 2);
-    }
-    // Note that a bareword Name(..) is only allowed in heredoc if not preceeded by whitespace:
-    // <<OUT        OK
-    // << OUT       NOT OK
-    // <<"HellO"    OK
-    // << "Hello"   OK
-    if (emptyStringLiteral && preNameWhitespace.empty()) {
-        if ((isalnum(peek()) || peek() == '_')) {
-            hereDocStart = this->matchName();
-        } else {
-            // Failed to match
-            return;
-        }
-    } else {
-        hereDocStart = stringLiteral;
-    }
-
-    if (emptyStringLiteral && hereDocStart.empty()) return;
-
-    // Next continue to read tokens until end of current line
-    std::vector<Token> lineRemainingTokens;
-    while (lineRemainingTokens.empty() ||
-           (lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::Newline &&
-            lineRemainingTokens[lineRemainingTokens.size() - 1].type != TokenType::EndOfInput)) {
-        nextTokens(lineRemainingTokens);
-    }
-
-    tokens.insert(tokens.end(), lineRemainingTokens.begin(), lineRemainingTokens.end());
-
-    // Now read newlines until we reach the ending terminator on a separate line
-    start = currentPos();
+void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, std::string hereDocDelim, bool hasTilde) {
+    auto start = currentPos();
     FilePos bodyEnd;
     FilePos lineStart;
     std::string hereDocContents;
     std::string line;
     while (this->peek() != EOF) {
         if (this->peek() == '\n') {
-            if (line == hereDocStart) {
+            if (line == hereDocDelim) {
                 break;
             } else if (hasTilde) {
                 // Supports any number of whitespace before string then a newline
                 for (int i = 0; i < (int) line.size(); i++) {
                     if (isWhitespace(line[i])) continue;
                     auto nonWhitespacePart = line.substr(i, line.size() - i);
-                    if (nonWhitespacePart == hereDocStart) goto done;
+                    if (nonWhitespacePart == hereDocDelim) goto done;
                     else break;
                 }
             } else {
@@ -729,6 +667,29 @@ bool Tokeniser::matchSlashString(std::vector<Token> &tokens) {
     return false;
 }
 
+bool Tokeniser::matchNewline(std::vector<Token> &tokens) {
+    auto start = this->currentPos();
+    if (this->peek() == '\n') {
+        // Linux/mac newline
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Newline, start, "\n"));
+        return true;
+    } else if (this->peek() == '\r' && this->peekAhead(2) == '\n') {
+        // windows
+        this->nextChar();
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Newline, start, "\r\n"));
+        return true;
+    } else if (this->peek() == '\r') {
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::Newline, start, "\r"));
+        return true;
+    }
+
+    return false;
+}
+
+
 void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // Position before anything is consumed
     auto startPos = currentPos();
@@ -753,20 +714,38 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     }
 
     // Now for newlines
-    if (this->peek() == '\n') {
-        // Linux/mac newline
-        this->nextChar();
-        tokens.emplace_back(Token(TokenType::Newline, startPos, "\n"));
-        return;
-    } else if (this->peek() == '\r' && this->peekAhead(2) == '\n') {
-        // windows
-        this->nextChar();
-        this->nextChar();
-        tokens.emplace_back(Token(TokenType::Newline, startPos, "\r\n"));
-        return;
-    } else if (this->peek() == '\r') {
-        this->nextChar();
-        tokens.emplace_back(Token(TokenType::Newline, startPos, "\r"));
+    if (matchNewline(tokens)) {
+        // Check this line for a possible heredoc starter
+        for (int idx = tokens.size() - 2; idx >= 0; idx--) {
+            int i = idx;
+            if (tokens[i].type == TokenType::Newline) break;
+            if (tokens[i].type == TokenType::Operator && tokens[i].data == "<<") {
+                // got a <<, see if it could be a heredoc
+                int heredocStartIdx = i;
+                bool hasWhitespace = i + 1 < tokens.size() && tokens[i + 1].type == TokenType::Whitespace;
+                if (hasWhitespace) i++;
+
+                bool hasTilde =
+                        i + 1 < tokens.size() && tokens[i + 1].type == TokenType::Operator && tokens[i + 1].data == "~";
+                if (hasTilde) i++;
+
+                // Now consider if we have ok identifier
+                i++;
+                if (i >= tokens.size() - 1) continue;
+                if (tokens[i].type != TokenType::Name && tokens[i].type != TokenType::String) {
+                    continue;
+                } else {
+                    std::string delim;
+                    if (tokens[i].type == TokenType::Name && hasWhitespace) continue;    // Now allowed with barewords
+                    // Now finally we can confirm a valid heredoc.
+                    if (tokens[i].type == TokenType::Name) delim = tokens[i].data;
+                    else if (tokens[i].type == TokenType::String) delim = tokens[i].data.substr(1, tokens[i].data.size() - 2);
+                    matchHereDocBody(tokens, delim, hasTilde);
+                    break;
+                }
+            }
+        }
+
         return;
     }
 
@@ -776,12 +755,6 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         if (var[0] == '$') type = TokenType::ScalarVariable;
         if (var[0] == '@') type = TokenType::ArrayVariable;
         tokens.emplace_back(Token(type, startPos, var));
-        return;
-    }
-
-
-    if (enableHereDoc && peek() == '<' && peekAhead(2) == '<') {
-        matchHeredDoc(tokens);
         return;
     }
 
