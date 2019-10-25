@@ -26,14 +26,6 @@ struct KeywordConfig {
     TokenType type;
 };
 
-struct QuotedStringLiteral {
-    QuotedStringLiteral(FilePos start, FilePos end, std::string literal);
-
-    std::string contents;
-    FilePos literalStart;
-    FilePos literalEnd;
-};
-
 class Tokeniser {
 public:
     Tokeniser(std::string program, bool doSecondPass = true);

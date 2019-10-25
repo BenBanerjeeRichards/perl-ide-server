@@ -134,7 +134,7 @@ bool Tokeniser::isPunctuation(char c) {
 bool Tokeniser::isNameBody(char c) {
     return c >= '!' && c != ';' && c != ',' && c != '>' && c != '<' && c != '-' && c != '.' && c != '{' && c != '}' &&
            c != '(' &&
-           c != ')' && c != '[' && c != ']' && c != ':';
+           c != ')' && c != '[' && c != ']' && c != ':' && c != '=';
 }
 
 std::string Tokeniser::matchStringOption(const std::vector<std::string> &options, bool requireTrailingNonAN) {
@@ -191,7 +191,6 @@ std::string Tokeniser::matchStringContainingOnlyLetters(std::string letters) {
 
     return str;
 }
-
 
 
 std::string Tokeniser::matchString() {
@@ -371,7 +370,6 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
             return std::vector<Token>();
         }
     }
-
 
     start = currentPos();
     auto quoteIdent = this->matchStringOption(std::vector<std::string>{quoteChars});
@@ -817,7 +815,35 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         tokens.emplace_back(Token(TokenType::Comma, startPos, startPos.col));
         return;
     }
+
     if (peek == '{') {
+        if (!tokens.empty()) {
+            int i = (int)tokens.size() - 1;
+            auto prevType = tokens[i].type;
+            while (i > 0 && (prevType == TokenType::Whitespace || prevType == TokenType::Newline || prevType == TokenType::Comment)) {
+                i--;
+                prevType = tokens[i].type;
+            }
+
+            if (prevType == TokenType::ScalarVariable || prevType == TokenType::HashVariable || prevType == TokenType::ArrayVariable) {
+                // So we have something like %x{...}. Contents of brackets can contain unquoted barewords
+                int offset = 2;
+                while (isWhitespace(peekAhead(offset))) offset++;
+                if (isalnum(peekAhead(offset))) {
+                    // got a bareword
+                    nextChar();
+                    auto start = currentPos();
+                    tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
+                    auto preWhitespace = this->matchWhitespace();
+                    if (!preWhitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
+                    start = this->currentPos();
+                    auto name = this->matchName();
+                    if (!name.empty()) tokens.emplace_back(Token(TokenType::Name, start, name));
+                    return;
+                }
+            }
+        }
+
         this->nextChar();
         tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
         return;
@@ -851,6 +877,31 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         this->nextChar();
         tokens.emplace_back(Token(TokenType::Dot, startPos, startPos.col + 1));
         return;
+    }
+
+    // Consider => operator. If we have some Name them this will be quoted
+    // Must be done here to prevent confusion with keywords/quoted operators
+    int offset = 1;
+    if (this->peek() == '_' || islower(this->peek())) {
+        offset++;
+        while (isalnum(peekAhead(offset)) || peekAhead(offset) == '_') offset++;
+        while (isWhitespace(peekAhead(offset))) offset++;
+        if (peekAhead(offset) == '=' && peekAhead(offset + 1) == '>') {
+            auto start = currentPos();
+            auto name = this->matchName();
+            tokens.emplace_back(Token(TokenType::Name, start, name));
+
+            start = currentPos();
+            auto preArrowWhitespace = this->matchWhitespace();
+            if (!preArrowWhitespace.empty())
+                tokens.emplace_back(Token(TokenType::Whitespace, start, preArrowWhitespace));
+
+            start = currentPos();
+            this->nextChar();
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Operator, start, "=>"));
+            return;
+        }
     }
 
     // Program keywords
@@ -1324,10 +1375,6 @@ FilePos Tokeniser::currentPos() {
 }
 
 
-KeywordConfig::KeywordConfig(const std::string &code, TokenType type) : code(code), type(type) {}
-
-QuotedStringLiteral::QuotedStringLiteral(FilePos start, FilePos end, std::string literal) {
-    this->literalStart = start;
-    this->literalEnd = end;
-    this->contents = literal;
-}
+KeywordConfig::KeywordConfig(
+        const std::string &code, TokenType
+type) : code(code), type(type) {}
