@@ -770,6 +770,22 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         return;
     }
 
+    if (this->peek() == '-' && !isalnum(peekAhead(3))) {
+        auto testChar = this->peekAhead(2);
+
+        if (testChar == 'r' || testChar == 'x' || testChar == 'w' || testChar == 'o' || testChar == 'R' ||
+            testChar == 'W' || testChar == 'X' || testChar == 'O' || testChar == 'e' || testChar == 'z' ||
+            testChar == 's' || testChar == 'f' || testChar == 'd' || testChar == 'l' || testChar == 'p' ||
+            testChar == 'S' || testChar == 'b' || testChar == 'c' || testChar == 't' || testChar == 'u' ||
+            testChar == 'g' || testChar == 'k' || testChar == 'T' || testChar == 'B' || testChar == 'M' ||
+            testChar == 'A' || testChar == 'C') {
+            this->nextChar();
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::FileTest, startPos, "-" + std::string(1, testChar)));
+            return;
+        }
+    }
+
     // Perl has so many operators...
     // Thankfully we don't actually care what the do, just need to recognise them
     // TODO complete this list
