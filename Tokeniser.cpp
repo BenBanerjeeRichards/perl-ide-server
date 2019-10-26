@@ -853,7 +853,12 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         this->nextChar();
         tokens.emplace_back(Token(TokenType::Operator, startPos, "->"));
 
+        // Add whitespace tokem
         auto start = this->currentPos();
+        whitespace = this->matchWhitespace();
+        if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
+
+        start = this->currentPos();
         auto name = this->matchName();
         if (!name.empty()) tokens.emplace_back(Token(TokenType::Name, start, name));
         return;
