@@ -71,7 +71,8 @@ enum class TokenType {
     HashDerefEnd,
     QuoteIdent,
     StringModifiers,
-    FileTest
+    FileTest,
+    Deref
 };
 
 class Token {

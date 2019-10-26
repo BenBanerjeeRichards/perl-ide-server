@@ -117,6 +117,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::QuoteIdent) return "QuoteIdent";
     if (t == TokenType::StringModifiers) return "StringModifiers";
     if (t == TokenType::FileTest) return "FileTest";
+    if (t == TokenType::Deref) return "Deref";
     return "TokenType toString NOT IMPLEMENTED";
 }
 

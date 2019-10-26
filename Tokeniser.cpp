@@ -761,6 +761,21 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         return;
     }
 
+    // Consider dereference before variable
+    if (this->peek() == '$' || this->peek() == '@' || this->peek() == '%') {
+        int i = 2;
+        while (isWhitespace(this->peekAhead(i))) i++;
+        if (this->peekAhead(i) == '$' || this->peekAhead(i) == '@' || this->peekAhead(i) == '%') {
+            // We have double sigil => deref
+            // TODO check that this could not be valid variable
+            auto pos = this->currentPos();
+            auto sigil = this->peek();
+            this->nextChar();
+            tokens.emplace_back(Token(TokenType::Deref, pos, std::string(1, sigil)));
+            return;
+        }
+    }
+
     auto var = this->matchVariable();
     if (!var.empty()) {
         auto type = TokenType::HashVariable;
@@ -794,7 +809,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
             "//=", "=>", "//", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
             ">=",
             "~~", "&=", "&.=", "&&=", "&&", "&", "||=", "|.=", "|=", "||",
-            "~", "^=", "^.=", "^", "...", "..", "?:", ":", ".=",
+            "~", "^=", "^.=", "^", "...", "..", "?:", ":", ".=", "?"
     };
 
     // These operators must be followed by a non alphanumeric
@@ -855,8 +870,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                 prevType = tokens[i].type;
             }
 
-            if (prevType == TokenType::ScalarVariable || prevType == TokenType::HashVariable ||
-                prevType == TokenType::ArrayVariable || (prevType == TokenType::Operator && tokens[i].data == "->")) {
+            if (isVariable(prevType) || (prevType == TokenType::Operator && tokens[i].data == "->")) {
                 // So we have something like %x{...}. Contents of brackets can contain unquoted barewords
                 int offset = 2;
                 while (isWhitespace(peekAhead(offset))) offset++;
@@ -906,7 +920,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     }
     if (peek == '.') {
         this->nextChar();
-        tokens.emplace_back(Token(TokenType::Dot, startPos, startPos.col + 1));
+        tokens.emplace_back(Token(TokenType::Dot, startPos, startPos.col));
         return;
     }
 
