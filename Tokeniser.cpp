@@ -369,6 +369,9 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
             // Must have whitespace for alphanumeric quote char
             return std::vector<Token>();
         }
+    } else if (quoteChar == '_') {
+        // Banned quote characters
+        return std::vector<Token>();
     }
 
     start = currentPos();
