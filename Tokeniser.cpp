@@ -599,7 +599,7 @@ std::string Tokeniser::matchBasicIdentifier(int &i) {
     if (isnumber(this->peekAhead(i))) return "";
     // Now we can just match alpha numerics
     std::string contents;
-    while (isalnum(this->peekAhead(i))) contents += this->peekAhead(i++);
+    while (isNameBody(this->peekAhead(i))) contents += this->peekAhead(i++);
     return contents;
 }
 
@@ -688,9 +688,9 @@ std::string Tokeniser::matchWhitespace() {
     return this->getWhile(this->isWhitespace);
 }
 
-void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, std::string hereDocDelim, bool hasTilde) {
+void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, const std::string& hereDocDelim, bool hasTilde) {
     auto start = currentPos();
-    FilePos bodyEnd;
+    FilePos bodyEnd = currentPos();
     FilePos lineStart;
     std::string hereDocContents;
     std::string line;
@@ -706,8 +706,6 @@ void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, std::string hereDoc
                     if (nonWhitespacePart == hereDocDelim) goto done;
                     else break;
                }
-            } else {
-                bodyEnd = currentPos();
             }
 
             bodyEnd = currentPos();
@@ -734,7 +732,7 @@ void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, std::string hereDoc
 
     done:
     // Finally add our heredoc token
-    tokens.emplace_back(Token(TokenType::HereDoc, start, bodyEnd, hereDocContents));
+    if (!hereDocContents.empty()) tokens.emplace_back(Token(TokenType::HereDoc, start, bodyEnd, hereDocContents));
     tokens.emplace_back(Token(TokenType::HereDocEnd, lineStart, line));
 }
 

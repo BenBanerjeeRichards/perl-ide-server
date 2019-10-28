@@ -127,7 +127,7 @@ private:
 
     void nextTokens(std::vector<Token> &tokens, bool enableHereDoc = true);
 
-    void matchHereDocBody(std::vector<Token> &tokens, std::string hereDocDelim, bool hasTilde);
+    void matchHereDocBody(std::vector<Token> &tokens, const std::string& hereDocDelim, bool hasTilde);
 
     void secondPassHashReref(std::vector<Token> &tokens, int &i);
 
