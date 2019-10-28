@@ -526,7 +526,12 @@ std::string Tokeniser::matchVariable() {
     int i = 1;
     // Must start with sigil
     if (peekAhead(i) != '$' && peekAhead(i) != '@' && peekAhead(i) != '%') return "";
+    if (peekAhead(i) == '$' && peekAhead(i + 1) == '#') {
+        // Get first element of the array
+        i++;
+    }
     i += 1;
+
 
     // Consider a standard variable
     // Main complication here is the package rules (:: and ')
