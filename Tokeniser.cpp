@@ -836,6 +836,16 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         return;
     }
 
+    // Consider special variables
+    // TODO fill this our more
+    // $$ (returns PID) does mess with parser if not handled properly now
+    if (this->peek() == '$' && this->peekAhead(2) == '$' && !isNameBody(this->peekAhead(3))) {
+        auto start = this->currentPos();
+        this->nextChar();
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::ScalarVariable, startPos, "$$"));
+        return;
+    }
     // Consider dereference before variable
     if (this->peek() == '$' || this->peek() == '@' || this->peek() == '%') {
         int i = 2;
