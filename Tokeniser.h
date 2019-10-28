@@ -134,6 +134,12 @@ private:
     bool matchSlashString(std::vector<Token> &tokens);
 
     bool matchNewline(std::vector<Token> &tokens);
+
+    std::string matchBasicIdentifier(int &i);
+
+    std::string doMatchNormalIdentifier(int &i);
+
+    std::string matchIdentifier();
 };
 
 std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens);

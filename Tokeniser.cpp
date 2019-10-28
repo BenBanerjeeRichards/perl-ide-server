@@ -592,6 +592,80 @@ std::string Tokeniser::matchVariable() {
     return var;
 }
 
+// This is defined https://perldoc.perl.org/perldata.html#Identifier-parsing
+// TODO can normal regex be faster?
+std::string Tokeniser::matchBasicIdentifier(int &i) {
+    // First char can't be a number
+    if (isnumber(this->peekAhead(i))) return "";
+    // Now we can just match alpha numerics
+    std::string contents;
+    while (isalnum(this->peekAhead(i))) contents += this->peekAhead(i++);
+    return contents;
+}
+
+// https://perldoc.perl.org/perldata.html#Identifier-parsing
+// Matches identifiers with packages
+// No sigil though (so not a variable/glob)
+std::string Tokeniser::doMatchNormalIdentifier(int& i) {
+    int initialI = i;
+    std::string contents;
+    // (?: :: )* '?
+    while (peekAhead(i) == ':') {
+        // Only match colons in groups of 2
+        if (!peekAhead(i + 1)) return contents;
+        contents += "::";
+        i += 2;
+    }
+
+    if (peekAhead(i) == '\'') {
+        contents += '\'';
+        i++;
+    }
+
+    // (?&basic_identifier)
+    auto basic = matchBasicIdentifier(i);
+    if (basic.empty()) {
+        i = initialI;
+        return "";
+    }
+
+    contents += basic;
+
+    while (peekAhead(i) == ':') {
+        if (!peekAhead(i + 1)) {
+            i = initialI;
+            return "";
+        }
+        contents += "::";
+        i += 2;
+    }
+
+    if (peekAhead(i) == '\'') {
+        contents += '\'';
+        i++;
+    }
+
+    auto normalRecurse = doMatchNormalIdentifier(i);
+    contents += normalRecurse;
+    while (peekAhead(i) == ':') {
+        if (!peekAhead(i + 1)) {
+            i = initialI;
+            return "";
+        }
+        contents += "::";
+        i += 2;
+    }
+
+    return contents;
+}
+
+std::string Tokeniser::matchIdentifier() {
+    int i = 1;
+    auto ident =  doMatchNormalIdentifier(i);
+    this->advancePositionSameLine(i - 1);
+    return ident;
+}
+
 std::optional<Token>
 Tokeniser::doMatchKeyword(FilePos startPos, const std::string &keywordCode, TokenType keywordType) {
     if (this->matchKeyword(keywordCode)) {
@@ -631,7 +705,7 @@ void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, std::string hereDoc
                     auto nonWhitespacePart = line.substr(i, line.size() - i);
                     if (nonWhitespacePart == hereDocDelim) goto done;
                     else break;
-                }
+               }
             } else {
                 bodyEnd = currentPos();
             }
@@ -1002,10 +1076,27 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
             if (this->matchSlashString(tokens)) return;
         } else {
             auto prevTokenType = prevTokenTypeOption.value().type;
+            TokenType secondType = TokenType::EndOfInput;
+            std::string secondData = "";
+
+            if (prevTokenType == TokenType::Name) {
+                // See if it is a direct dereference (e.g ->name)
+                int i = (int)tokens.size() - 1;
+                while (i > 0) {
+                    if (tokens[i].type == TokenType::Whitespace || tokens[i].type == TokenType::Name) {
+                        i--;
+                        continue;
+                    }
+
+                    secondType = tokens[i].type;
+                    secondData = tokens[i].data;
+                    break;
+                }
+            }
 
             if (isVariable(prevTokenType) || prevTokenType == TokenType::RParen ||
                 prevTokenType == TokenType::NumericLiteral || prevTokenType == TokenType::RBracket ||
-                prevTokenType == TokenType::RSquareBracket) {
+                prevTokenType == TokenType::RSquareBracket || (secondType == TokenType::Operator && secondData == "->")) {
                 this->nextChar();
                 tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
                 return;
@@ -1046,6 +1137,14 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     if (!comment.empty()) {
         tokens.emplace_back(Token(TokenType::Comment, startPos, comment));
         return;
+    }
+
+    auto ident = matchIdentifier();
+    if (!ident.empty()) {
+        // Also use a name here
+        tokens.emplace_back(Token(TokenType::Name, startPos, ident));
+        return;
+
     }
 
     auto name = this->matchName();
