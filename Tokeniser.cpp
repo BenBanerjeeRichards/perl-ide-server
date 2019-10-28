@@ -475,7 +475,7 @@ std::string Tokeniser::matchPod() {
     std::string pod;
     if (prevChar == 0 || prevChar == '\n' || prevChar == '\r') {
         // Valid place to put a pod, now check if there is one
-        if (this->peek() == '=') {
+        if (this->peek() == '=' && !isWhitespace(this->peekAhead(2))) {
             // Yes
             pod += this->nextChar();
 
@@ -484,13 +484,17 @@ std::string Tokeniser::matchPod() {
 
             // Now consume until ending
             while (this->peek() != EOF) {
-                char c1 = this->peek();
-                char c2 = this->peekAhead(2);
-                char c3 = this->peekAhead(3);
-                char c4 = this->peekAhead(4);
+                char c0 = this->peek();
+                char c1 = this->peekAhead(2);
+                char c2 = this->peekAhead(3);
+                char c3 = this->peekAhead(4);
+                char c4 = this->peekAhead(5);
                 pod += this->nextChar();
-                if ((c1 == '=' && c2 == 'c' && c3 == 'u' && c4 == 't')) {
-                    this->advancePositionSameLine(3);
+                if (c0 == '\n' && c1 == '=' && c2 == 'c' && c3 == 'u' && c4 == 't') {
+                    this->nextChar();
+                    this->nextChar();
+                    this->nextChar();
+                    this->nextChar();
                     pod += "cut";
                     break;
                 }
