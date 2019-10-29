@@ -127,7 +127,7 @@ std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNod
     subroutine.pos = subToken.startPos;
 
     auto nextTok = tokenIter.next();
-    if (nextTok.type == TokenType::Name) {
+    if (nextTok.type == TokenType::SubName) {
         // If this is not the case then function is unnamed
         subroutine.name = nextTok.data;
         subroutine.nameStart = nextTok.startPos;

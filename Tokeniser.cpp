@@ -616,12 +616,11 @@ std::string Tokeniser::matchBasicIdentifier(int &i) {
 // Matches identifiers with packages
 // No sigil though (so not a variable/glob)
 std::string Tokeniser::doMatchNormalIdentifier(int &i) {
-    int initialI = i;
     std::string contents;
     // (?: :: )* '?
     while (peekAhead(i) == ':') {
         // Only match colons in groups of 2
-        if (!peekAhead(i + 1)) return contents;
+        if (peekAhead(i + 1) != ':') return contents;
         contents += "::";
         i += 2;
     }
@@ -634,16 +633,14 @@ std::string Tokeniser::doMatchNormalIdentifier(int &i) {
     // (?&basic_identifier)
     auto basic = matchBasicIdentifier(i);
     if (basic.empty()) {
-        i = initialI;
-        return "";
+        return contents;
     }
 
     contents += basic;
 
     while (peekAhead(i) == ':') {
-        if (!peekAhead(i + 1)) {
-            i = initialI;
-            return "";
+        if (peekAhead(i + 1) != ':') {
+            return contents;
         }
         contents += "::";
         i += 2;
@@ -657,9 +654,8 @@ std::string Tokeniser::doMatchNormalIdentifier(int &i) {
     auto normalRecurse = doMatchNormalIdentifier(i);
     contents += normalRecurse;
     while (peekAhead(i) == ':') {
-        if (!peekAhead(i + 1)) {
-            i = initialI;
-            return "";
+        if (peekAhead(i + 1) != ':') {
+            return contents;
         }
         contents += "::";
         i += 2;
@@ -1098,6 +1094,12 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     auto tryKeyword = tryMatchKeywords(startPos);
     if (tryKeyword.has_value()) {
         tokens.emplace_back(tryKeyword.value());
+
+        // If we have matched a subroutine then we want to match it's tokens
+        if (tryKeyword.value().type == TokenType::Sub) {
+            matchSubroutine(tokens);
+        }
+
         return;
     }
 
@@ -1159,7 +1161,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
 
             if (isVariable(prevTokenType) || prevTokenType == TokenType::RParen ||
                 prevTokenType == TokenType::NumericLiteral || prevTokenType == TokenType::RBracket ||
-                prevTokenType == TokenType::RSquareBracket ||
+                prevTokenType == TokenType::RSquareBracket || prevTokenType == TokenType::HashDerefEnd ||
                 (secondType == TokenType::Operator && secondData == "->")) {
                 this->nextChar();
                 tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
@@ -1231,17 +1233,18 @@ std::vector<Token> Tokeniser::tokenise() {
     return tokens;
 }
 
-std::vector<Token> Tokeniser::matchAttribute() {
+bool Tokeniser::matchAttribute(std::vector<Token> &tokens) {
     // Read name of attribute
-    std::vector<Token> tokens;
     if (this->peek() == ':') {
         tokens.emplace_back(Token(TokenType::AttributeColon, currentPos(), ":"));
         nextChar();
     }
 
+    addWhitespaceToken(tokens);
+
     auto start = currentPos();
     auto attrName = matchName();
-    if (attrName.empty()) return tokens;
+    if (attrName.empty()) return false;
     tokens.emplace_back(Token(TokenType::Attribute, start, attrName));
 
     start = currentPos();
@@ -1262,33 +1265,30 @@ std::vector<Token> Tokeniser::matchAttribute() {
         }
     }
 
-    return tokens;
+    return true;
 }
 
-std::vector<Token> Tokeniser::matchAttributes() {
+bool Tokeniser::matchAttributes(std::vector<Token> &tokens) {
     // Attributes must start with semicolon
-    std::vector<Token> tokens;
-
     auto start = this->currentPos();
     auto whitespace = matchWhitespace();
     if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
 
-    if (peek() != ':') return tokens;
+    if (peek() != ':') return false;
     tokens.emplace_back(Token(TokenType::AttributeColon, currentPos(), ":"));
     this->nextChar();
 
     // The newline check is just to prevent bad code from consuming the entire file
     while (peek() != '(' || peek() != '{' || peek() != EOF) {
-        auto attrTokens = matchAttribute();
-        if (attrTokens.empty()) return tokens;
-        tokens.insert(tokens.end(), attrTokens.begin(), attrTokens.end());
+        auto attrTokens = matchAttribute(tokens);
+        if (!attrTokens) return true;   // We know there is an attribute as we have matched the colon
 
         start = this->currentPos();
         whitespace = matchWhitespace();
         if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
     }
 
-    return tokens;
+    return true;
 }
 
 std::string Tokeniser::matchPrototype() {
@@ -1313,8 +1313,13 @@ std::string Tokeniser::matchSignature() {
     signature += peek();
     nextChar();
 
-    while (peek() != '}' && peek() != EOF && !isNewline(peek())) {
+    while (peek() != '}' && peek() != EOF && peek() != ')') {
         signature += peek();
+        nextChar();
+    }
+
+    if (peek() == ')') {
+        signature += ')';
         nextChar();
     }
 
@@ -1322,11 +1327,10 @@ std::string Tokeniser::matchSignature() {
 }
 
 
-std::vector<Token> Tokeniser::matchSignatureTokens() {
+bool Tokeniser::matchSignatureTokens(std::vector<Token> &tokens) {
     auto start = currentPos();
     auto signature = matchSignature();
-    std::vector<Token> tokens;
-    if (signature.empty()) return tokens;
+    if (signature.empty()) return false;
 
     // Handle trailing space
     int numWhitespace = 0;
@@ -1349,99 +1353,55 @@ std::vector<Token> Tokeniser::matchSignatureTokens() {
         tokens.emplace_back(Token(TokenType::Signature, start, signature));
     }
 
-    return tokens;
+    return true;
 }
 
 
-void Tokeniser::secondPassSub(std::vector<Token> &tokens, int &i) {
-    int subPos = i;
+void Tokeniser::matchSubroutine(std::vector<Token> &tokens) {
+    // Assumes sub keyword has already been matched
+    // Try first to match a name i.e. sub <NAME>
+    addWhitespaceToken(tokens);
 
-    // If function has a prototype/signature then needs to be fixed
-    auto nextToken = tokens[i + 1];
-    while (nextToken.isWhitespaceNewlineOrComment() && i < tokens.size() - 1) {
-        i++;
-        nextToken = tokens[i];
+    auto start = currentPos();
+    auto name = this->matchIdentifier();
+    if (!name.empty()) {
+        tokens.emplace_back(Token(TokenType::SubName, start, name));
     }
+    addWhitespaceToken(tokens);
 
-    auto name = nextToken;
-    if (nextToken.type == TokenType::Name) {
-        // Named token, continue past this
-        nextToken = tokens[i + 1];
-        while (nextToken.isWhitespaceNewlineOrComment() && i < tokens.size() - 1) {
-            i++;
-            nextToken = tokens[i];
-        }
+    // No prototype/signature/attributes.
+    if (peek() == '{') {
+        start = currentPos();
+        start = currentPos();
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::LBracket, start, "{"));
+        return;
     }
-
-    // No prototype/signature/attributes
-    if (nextToken.type == TokenType::LBracket) return;
 
     // Next token is a '(' (for signature or proto) or ':' (for attributes)
-    auto isProtoOrSig =
-            nextToken.type == TokenType::LParen || (nextToken.type == TokenType::Operator && nextToken.data == ":");
-    if (!isProtoOrSig) return;
+    // If not then we are done, return
+    if (!(peek() == '(' || peek() ==  ':')) return;
 
-    FilePos start = nextToken.startPos;
-    auto finalTokenPos = nextToken.endPos;
+    // Try to match some attributes
+    auto attributesMatched = matchAttributes(tokens);
+    addWhitespaceToken(tokens);
 
-    int retokeniseStartIdx = i + 1;
-    while (i < tokens.size() - 1 && nextToken.type != TokenType::LBracket) {
-        nextToken = tokens[++i];
-    }
-
-    int retokeniseEndIdx = i;
-    if (retokeniseEndIdx <= retokeniseStartIdx) return;
-    FilePos end = nextToken.endPos;
-    std::string code = this->program.substr(start.position, (end.position - start.position));
-
-    std::vector<Token> newSubTokens;
-
-    // Create new tokeniser to tokenise the code
-    // Use same logic to track location
-    Tokeniser subCodeTokeniser(code);
-    subCodeTokeniser.currentLine = finalTokenPos.line;
-    subCodeTokeniser.currentCol = finalTokenPos.col;
-
-    auto attrs = subCodeTokeniser.matchAttributes();
-    newSubTokens.insert(newSubTokens.end(), attrs.begin(), attrs.end());
-    auto startPos = subCodeTokeniser.currentPos();
-    auto whitespace = matchWhitespace();
-    if (!whitespace.empty()) newSubTokens.emplace_back(Token(TokenType::Whitespace, startPos, whitespace));
-
-    if (!attrs.empty()) {
+    if (attributesMatched) {
         // So we could next try to match a signature
-        std::vector<Token> signatureTokens = subCodeTokeniser.matchSignatureTokens();
-        if (!signatureTokens.empty())
-            newSubTokens.insert(newSubTokens.end(), signatureTokens.begin(), signatureTokens.end());
+        matchSignatureTokens(tokens);
     } else {
         // No attributes, try matching a prototype/signature
-        startPos = subCodeTokeniser.currentPos();
-        if (subCodeTokeniser.isPrototype()) {
-            auto prototype = subCodeTokeniser.matchPrototype();
-            if (!prototype.empty()) newSubTokens.emplace_back(Token(TokenType::Prototype, startPos, prototype));
+        auto startPos = currentPos();
+        if (isPrototype()) {
+            auto prototype = matchPrototype();
+            if (!prototype.empty()) tokens.emplace_back(Token(TokenType::Prototype, startPos, prototype));
         } else {
-            auto signatureTokens = subCodeTokeniser.matchSignatureTokens();
-            if (!signatureTokens.empty())
-                newSubTokens.insert(newSubTokens.end(), signatureTokens.begin(), signatureTokens.end());
+            matchSignatureTokens(tokens);
         }
 
         // Finally try matching attributes
-        std::vector<Token> moreAttributes = subCodeTokeniser.matchAttributes();
-        if (!moreAttributes.empty()) {
-            newSubTokens.insert(newSubTokens.end(), moreAttributes.begin(), moreAttributes.end());
-        }
+        matchAttributes(tokens);
     }
-
-    for (auto &token: newSubTokens) {
-        token.startPos.position += finalTokenPos.position;
-        token.endPos.position += finalTokenPos.position;
-    }
-
-    // Finally update tokens array
-    tokens.erase(tokens.begin() + retokeniseStartIdx, tokens.begin() + retokeniseEndIdx);
-    tokens.insert(tokens.begin() + retokeniseStartIdx, newSubTokens.begin(), newSubTokens.end());
-
-    i = subPos + 1; // Take care as we are modifying tokens while looping over them
 }
 
 void Tokeniser::secondPassHash(std::vector<Token> &tokens, int &i) {
@@ -1470,6 +1430,12 @@ void Tokeniser::secondPassHash(std::vector<Token> &tokens, int &i) {
     tokens[lBracketOffset].type = TokenType::HashSubStart;
     tokens[tokenIterator.getIndex() - 1].type = TokenType::HashSubEnd;
     i++;
+}
+
+void Tokeniser::addWhitespaceToken(std::vector<Token> tokens) {
+    auto start = currentPos();
+    auto whitespace = matchWhitespace();
+    if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
 }
 
 void Tokeniser::secondPassHashReref(std::vector<Token> &tokens, int &i) {
@@ -1510,9 +1476,7 @@ void Tokeniser::secondPassHashReref(std::vector<Token> &tokens, int &i) {
 void Tokeniser::secondPass(std::vector<Token> &tokens) {
     if (!doSecondPass) return;
     for (int i = 0; i < (int) tokens.size() - 1; i++) {
-        if (tokens[i].type == TokenType::Sub) {
-            secondPassSub(tokens, i);
-        } else if (isVariable(tokens[i].type)) {
+         if (isVariable(tokens[i].type)) {
             int prevI = i;
             secondPassHash(tokens, i);
             i = prevI;

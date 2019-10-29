@@ -90,7 +90,7 @@ private:
 
     void secondPass(std::vector<Token> &tokens);
 
-    void secondPassSub(std::vector<Token> &tokens, int &i);
+    void matchSubroutine(std::vector<Token> &tokens);
 
     void secondPassHash(std::vector<Token> &tokens, int &i);
 
@@ -100,15 +100,15 @@ private:
 
     FilePos currentPos();
 
-    std::vector<Token> matchAttribute();
+    bool matchAttribute(std::vector<Token> &tokens);
 
-    std::vector<Token> matchAttributes();
+    bool matchAttributes(std::vector<Token> &tokens);
 
     std::string matchPrototype();
 
     std::string matchSignature();
 
-    std::vector<Token> matchSignatureTokens();
+    bool matchSignatureTokens(std::vector<Token> &tokens);
 
     std::string matchStringContainingOnlyLetters(std::string letters);
 
@@ -142,6 +142,8 @@ private:
     std::string matchIdentifier();
 
     void matchDereferenceBrackets(std::vector<Token> &tokens);
+
+    void addWhitespaceToken(std::vector<Token> tokens);
 };
 
 std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens);
