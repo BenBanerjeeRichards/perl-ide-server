@@ -390,8 +390,9 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
             start = currentPos();
             whitespace = matchWhitespace();
             if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
+            matchNewlinesAndWhitespaces(tokens);
+            // Now we can match something new
 
-            // Now we can match something completly new
             matchDelimString(tokens);
         } else {
             // Match more string then followed by ending string
@@ -754,6 +755,26 @@ bool Tokeniser::matchSlashString(std::vector<Token> &tokens) {
     }
 
     return false;
+}
+
+bool Tokeniser::matchNewlinesAndWhitespaces(std::vector<Token> &tokens) {
+    bool matched = true;
+    int size = tokens.size();
+    while (matched) {
+        matched = false;
+
+        matched = matchNewline(tokens) || matched;
+        auto start = currentPos();
+        auto whitespace = matchWhitespace();
+        if (!whitespace.empty()) {
+            tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
+            matched = true;
+        }
+
+        matched = matchNewline(tokens) || matched;
+    }
+
+    return size != tokens.size();
 }
 
 bool Tokeniser::matchNewline(std::vector<Token> &tokens) {
@@ -1360,6 +1381,7 @@ void Tokeniser::matchSubroutine(std::vector<Token> &tokens) {
     // Assumes sub keyword has already been matched
     // Try first to match a name i.e. sub <NAME>
     addWhitespaceToken(tokens);
+    matchNewline(tokens);
 
     auto start = currentPos();
     auto name = this->matchIdentifier();
@@ -1371,7 +1393,6 @@ void Tokeniser::matchSubroutine(std::vector<Token> &tokens) {
     // No prototype/signature/attributes.
     if (peek() == '{') {
         start = currentPos();
-        start = currentPos();
         this->nextChar();
         tokens.emplace_back(Token(TokenType::LBracket, start, "{"));
         return;
@@ -1379,7 +1400,7 @@ void Tokeniser::matchSubroutine(std::vector<Token> &tokens) {
 
     // Next token is a '(' (for signature or proto) or ':' (for attributes)
     // If not then we are done, return
-    if (!(peek() == '(' || peek() ==  ':')) return;
+    if (!(peek() == '(' || peek() == ':')) return;
 
     // Try to match some attributes
     auto attributesMatched = matchAttributes(tokens);
@@ -1431,7 +1452,7 @@ void Tokeniser::secondPassHash(std::vector<Token> &tokens, int &i) {
     i++;
 }
 
-void Tokeniser::addWhitespaceToken(std::vector<Token> tokens) {
+void Tokeniser::addWhitespaceToken(std::vector<Token> &tokens) {
     auto start = currentPos();
     auto whitespace = matchWhitespace();
     if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
@@ -1475,7 +1496,7 @@ void Tokeniser::secondPassHashReref(std::vector<Token> &tokens, int &i) {
 void Tokeniser::secondPass(std::vector<Token> &tokens) {
     if (!doSecondPass) return;
     for (int i = 0; i < (int) tokens.size() - 1; i++) {
-         if (isVariable(tokens[i].type)) {
+        if (isVariable(tokens[i].type)) {
             int prevI = i;
             secondPassHash(tokens, i);
             i = prevI;
@@ -1484,7 +1505,11 @@ void Tokeniser::secondPass(std::vector<Token> &tokens) {
     }
 }
 
-std::string Tokeniser::tokenToStrWithCode(Token token, bool includeLocation) {
+std::string Tokeniser::tokenToStrWithCode(Token token) {
+    return ::tokenToStrWithCode(token, this->program);
+}
+
+std::string tokenToStrWithCode(Token token, const std::string &program) {
     std::string code;
     bool success = false;
 
@@ -1496,11 +1521,11 @@ std::string Tokeniser::tokenToStrWithCode(Token token, bool includeLocation) {
         code = "endPos position not set";
     } else if (token.endPos.position < token.startPos.position) {
         code = "token.endPos.position < token.startPos.position: Invalid positions";
-    } else if (token.endPos.position >= this->program.size()) {
+    } else if (token.endPos.position >= program.size()) {
         code = "End position pos exceeds program size";
     } else {
         success = true;
-        code = this->program.substr(token.startPos.position, (token.endPos.position - token.startPos.position) + 1);
+        code = program.substr(token.startPos.position, (token.endPos.position - token.startPos.position) + 1);
     }
 
     if (!success) {
@@ -1510,8 +1535,9 @@ std::string Tokeniser::tokenToStrWithCode(Token token, bool includeLocation) {
     auto d1 = replace(code, "\n", "\\n");
     code = replace(d1, "\r", "\\r");
 
-    return token.toStr(includeLocation) + " :: `" + code + "`";
+    return token.toStr(true) + " :: `" + code + "`";
 }
+
 
 // Uses heuristic to guess if bracketed expression is a prototype.
 bool Tokeniser::isPrototype() {

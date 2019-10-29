@@ -32,7 +32,7 @@ public:
 
     std::vector<Token> tokenise();
 
-    std::string tokenToStrWithCode(Token token, bool includeLocation = false);
+    std::string tokenToStrWithCode(Token token);
 
 private:
     char nextChar();
@@ -127,7 +127,7 @@ private:
 
     void nextTokens(std::vector<Token> &tokens, bool enableHereDoc = true);
 
-    void matchHereDocBody(std::vector<Token> &tokens, const std::string& hereDocDelim, bool hasTilde);
+    void matchHereDocBody(std::vector<Token> &tokens, const std::string &hereDocDelim, bool hasTilde);
 
     void secondPassHashReref(std::vector<Token> &tokens, int &i);
 
@@ -143,9 +143,14 @@ private:
 
     void matchDereferenceBrackets(std::vector<Token> &tokens);
 
-    void addWhitespaceToken(std::vector<Token> tokens);
+    void addWhitespaceToken(std::vector<Token> &tokens);
+
+    bool matchNewlinesAndWhitespaces(std::vector<Token> &tokens);
 };
 
 std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens);
+
+std::string tokenToStrWithCode(Token token, const std::string& program);
+
 
 #endif //PERLPARSER_TOKENISER_H

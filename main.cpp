@@ -61,18 +61,25 @@ void unitTest(std::string path) {
 
 }
 
-FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing) {
+FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool printTokens=false) {
     auto totalBegin = std::chrono::steady_clock::now();
     Tokeniser tokeniser(readFile(path));
     FileSymbols fileSymbols;
 
     auto begin = std::chrono::steady_clock::now();
-    fileSymbols.tokens = tokeniser.tokenise();
+    auto tokens =  tokeniser.tokenise();
     auto end = std::chrono::steady_clock::now();
     timing.tokenise = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
+    if (printTokens) {
+        for (auto token : tokens) {
+            if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << CONSOLE_DIM;
+            std::cout << tokeniser.tokenToStrWithCode(token) << CONSOLE_CLEAR <<  std::endl;
+        }
+    }
+
     begin = std::chrono::steady_clock::now();
-    auto parseTree = parse(fileSymbols.tokens);
+    auto parseTree = parse(tokens);
     end = std::chrono::steady_clock::now();
     timing.parse = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
@@ -94,8 +101,7 @@ void testFiles() {
     for (auto file : perlFiles) {
         TimeInfo timing{};
         FileSymbols fileSymbols = analysisWithTime(file, timing);
-        int line = fileSymbols.tokens.empty() ? 1 : fileSymbols.tokens[fileSymbols.tokens.size() - 1].endPos.line;
-        std::cout << file << "," << fileSymbols.tokens.size() << "," << line << "," << timing.total << ","
+        std::cout << file  << "," << timing.total << ","
                   << timing.tokenise << "," << timing.parse << "," << timing.analysis << std::endl;
 
         if (auto badNode = findBadSymbolNode(fileSymbols.symbolTree)) {
@@ -109,13 +115,7 @@ void testFiles() {
 
 void debugPrint(const std::string &path) {
     TimeInfo timeInfo{};
-    FileSymbols fileSymbols = analysisWithTime(path, timeInfo);
-
-    // Print out stuff
-    for (const auto &token : fileSymbols.tokens) {
-        if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << CONSOLE_DIM;
-    }
-    std::cout << CONSOLE_CLEAR;
+    FileSymbols fileSymbols = analysisWithTime(path, timeInfo, true);
 
     printFileSymbols(fileSymbols);
 

@@ -160,7 +160,6 @@ struct Subroutine {
 };
 
 struct FileSymbols {
-    std::vector<Token> tokens;
     std::shared_ptr<SymbolNode> symbolTree;
     std::vector<PackageSpan> packages;
     std::vector<Subroutine> subroutines;
