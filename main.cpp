@@ -11,6 +11,13 @@ std::string CONSOLE_DIM = "\e[37m";
 std::string CONSOLE_CLEAR = "\e[0m";
 std::string CONSOLE_RED = "\e[31m";
 
+struct TimeInfo {
+    long long int tokenise;
+    long long int parse;
+    long long int analysis;
+    long long int total;
+};
+
 void printFileTokens(const std::string &file, bool includeLocation) {
     Tokeniser tokeniser(readFile(file));
     auto tokens = tokeniser.tokenise();
@@ -30,24 +37,6 @@ std::shared_ptr<SymbolNode> findBadSymbolNode(std::shared_ptr<SymbolNode> node) 
     }
 
     return nullptr;
-}
-
-void testFiles() {
-    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/1/*");
-    for (auto file : perlFiles) {
-        std::cout << file << std::endl;
-        Tokeniser tokeniser(readFile(file));
-        auto tokens = tokeniser.tokenise();
-        auto parseTree = parse(tokens);
-        FileSymbols fileSymbols;
-        fileSymbols.packages = parsePackages(parseTree);
-        auto symbolTree = buildVariableSymbolTree(parseTree, fileSymbols);
-
-        if (auto badNode = findBadSymbolNode(symbolTree)) {
-            std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED <<  "Bad SymbolNode found at position " << badNode->startPos.toStr() << CONSOLE_CLEAR <<  std::endl;
-            return;
-        }
-    }
 }
 
 void basicOutput(std::string path) {
@@ -71,6 +60,95 @@ void unitTest(std::string path) {
     }
 
 }
+
+FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing) {
+    auto totalBegin = std::chrono::steady_clock::now();
+    Tokeniser tokeniser(readFile(path));
+    FileSymbols fileSymbols;
+
+    auto begin = std::chrono::steady_clock::now();
+    fileSymbols.tokens = tokeniser.tokenise();
+    auto end = std::chrono::steady_clock::now();
+    timing.tokenise = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
+    begin = std::chrono::steady_clock::now();
+    auto parseTree = parse(fileSymbols.tokens);
+    end = std::chrono::steady_clock::now();
+    timing.parse = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
+
+    begin = std::chrono::steady_clock::now();
+    fileSymbols.packages = parsePackages(parseTree);
+    auto symbolTree = buildVariableSymbolTree(parseTree, fileSymbols);
+    end = std::chrono::steady_clock::now();
+    timing.analysis = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+    auto totalEnd = std::chrono::steady_clock::now();
+
+    timing.total = std::chrono::duration_cast<std::chrono::milliseconds>(totalEnd - totalBegin).count();
+    return fileSymbols;
+}
+
+void testFiles() {
+    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/1/*");
+    std::cout << "file,tokens,lines,total_ms,tok_ms,parse_ms,analysis_ms" << std::endl;
+    for (auto file : perlFiles) {
+        TimeInfo timing{};
+        FileSymbols fileSymbols = analysisWithTime(file, timing);
+        int line = fileSymbols.tokens.empty() ? 1 : fileSymbols.tokens[fileSymbols.tokens.size() - 1].endPos.line;
+        std::cout << file << "," << fileSymbols.tokens.size() << "," << line << "," << timing.total << ","
+                  << timing.tokenise << "," << timing.parse << "," << timing.analysis << std::endl;
+
+        if (auto badNode = findBadSymbolNode(fileSymbols.symbolTree)) {
+            std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED << "Bad SymbolNode found at position "
+                      << badNode->startPos.toStr() << CONSOLE_CLEAR << std::endl;
+            return;
+        }
+    }
+}
+
+
+void debugPrint(const std::string &path) {
+    TimeInfo timeInfo{};
+    FileSymbols fileSymbols = analysisWithTime(path, timeInfo);
+
+    // Print out stuff
+    for (const auto &token : fileSymbols.tokens) {
+        if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << CONSOLE_DIM;
+    }
+    std::cout << CONSOLE_CLEAR;
+
+    printFileSymbols(fileSymbols);
+
+    std::cout << CONSOLE_BOLD << std::endl << "Variables at position" << CONSOLE_CLEAR << std::endl;
+    auto pos = FilePos(30, 1);
+    auto map = getSymbolMap(fileSymbols, pos);
+    for (const auto &varItem : map) {
+        std::cout << varItem.second->toStr() << std::endl;
+    }
+
+    std::cout << CONSOLE_BOLD << std::endl << "Variable usages" << CONSOLE_CLEAR << std::endl;
+    for (auto it = fileSymbols.variableUsages.begin(); it != fileSymbols.variableUsages.end(); it++) {
+        std::cout << it->first->toStr() << ": ";
+        for (auto varPos: fileSymbols.variableUsages[it->first]) {
+            std::cout << varPos.toStr() << " ";
+        }
+
+        std::cout << std::endl;
+    }
+
+    std::cout << std::endl << CONSOLE_BOLD << "Timing" << CONSOLE_CLEAR << std::endl;
+    std::cout << "Total: " << timeInfo.total << "ms" << std::endl;
+    std::cout << "Tokenisation: " << timeInfo.tokenise << "ms" << std::endl;
+    std::cout << "Parsing: " << timeInfo.parse << "ms" << std::endl;
+    std::cout << "Var/Sub Analysis: " << timeInfo.analysis << "ms" << std::endl;
+
+    auto badSymbol = findBadSymbolNode(fileSymbols.symbolTree);
+    if (badSymbol != nullptr) {
+        std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED << "Bad SymbolNode found at position "
+                  << badSymbol->startPos.toStr() << CONSOLE_CLEAR << std::endl;
+    }
+}
+
 int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
     if (argc >= 2) file = args[1];
@@ -90,7 +168,6 @@ int main(int argc, char **args) {
         return 0;
     }
 
-
     if (argc == 4) {
         auto pos = FilePos(std::atoi(args[2]), std::atoi(args[3]));
         for (const auto &c : autocomplete(file, pos)) {
@@ -99,68 +176,7 @@ int main(int argc, char **args) {
     } else if (argc > 1 && strncmp(args[1], "test", 4) == 0) {
         printFileTokens(args[2], true);
     } else {
-        Tokeniser tokeniser(readFile(file));
-
-        auto begin = std::chrono::steady_clock::now();
-        auto tokens = tokeniser.tokenise();
-        auto end = std::chrono::steady_clock::now();
-        auto tokeniseTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-
-        for (auto token : tokens) {
-            if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << CONSOLE_DIM;
-            std::cout << tokeniser.tokenToStrWithCode(token, true) << CONSOLE_CLEAR << std::endl;
-        }
-        std::cout << CONSOLE_CLEAR;
-
-        begin = std::chrono::steady_clock::now();
-        auto parseTree = parse(tokens);
-        end = std::chrono::steady_clock::now();
-        auto parseTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-
-//        printParseTree(parseTree);
-
-        FileSymbols fileSymbols;
-        begin = std::chrono::steady_clock::now();
-        fileSymbols.packages = parsePackages(parseTree);
-        end = std::chrono::steady_clock::now();
-        auto packageTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-
-        begin = std::chrono::steady_clock::now();
-        auto symbolTree = buildVariableSymbolTree(parseTree, fileSymbols);
-        end = std::chrono::steady_clock::now();
-        auto variableAnalysisTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-
-        printFileSymbols(fileSymbols);
-
-        std::cout << CONSOLE_BOLD << std::endl << "Variables at position" << CONSOLE_CLEAR << std::endl;
-        auto pos = FilePos(30, 1);
-        auto map = getSymbolMap(fileSymbols, pos);
-        for (const auto &varItem : map) {
-            std::cout << varItem.second->toStr() << std::endl;
-        }
-
-        std::cout << CONSOLE_BOLD << std::endl << "Variable usages" << CONSOLE_CLEAR << std::endl;
-        for (auto it = fileSymbols.variableUsages.begin(); it != fileSymbols.variableUsages.end(); it++) {
-            std::cout << it->first->toStr() << ": ";
-            for (auto varPos: fileSymbols.variableUsages[it->first]) {
-                std::cout << varPos.toStr() << " ";
-            }
-
-            std::cout << std::endl;
-        }
-
-        std::cout << std::endl << CONSOLE_BOLD << "Timing" << CONSOLE_CLEAR << std::endl;
-
-        std::cout << "Tokenisation: " << tokeniseTime << "ms" << std::endl;
-        std::cout << "Parsing: " << parseTime << "ms" << std::endl;
-        std::cout << "Package analysis: " << packageTime << "ms" << std::endl;
-        std::cout << "Var/Sub Analysis: " << variableAnalysisTime << "ms" << std::endl;
-
-        auto badSymbol = findBadSymbolNode(fileSymbols.symbolTree);
-        if (badSymbol != nullptr) {
-            std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED <<  "Bad SymbolNode found at position " << badSymbol->startPos.toStr() << CONSOLE_CLEAR <<  std::endl;
-        }
-
+        debugPrint(file);
     }
 
     return 0;
