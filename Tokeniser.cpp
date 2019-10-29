@@ -134,7 +134,7 @@ bool Tokeniser::isPunctuation(char c) {
 bool Tokeniser::isNameBody(char c) {
     return c >= '!' && c != ';' && c != ',' && c != '>' && c != '<' && c != '-' && c != '.' && c != '{' && c != '}' &&
            c != '(' &&
-           c != ')' && c != '[' && c != ']' && c != ':' && c != '=';
+           c != ')' && c != '[' && c != ']' && c != ':' && c != '=' && c != '"';
 }
 
 std::string Tokeniser::matchStringOption(const std::vector<std::string> &options, bool requireTrailingNonAN) {
@@ -1025,13 +1025,12 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                 }
 
                 return;
-
-            } else {
-                this->nextChar();
-                tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
-                return;
             }
         }
+
+        this->nextChar();
+        tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
+        return;
 
     }
     if (peek == '}') {
