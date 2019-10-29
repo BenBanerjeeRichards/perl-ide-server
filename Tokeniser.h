@@ -140,6 +140,8 @@ private:
     std::string doMatchNormalIdentifier(int &i);
 
     std::string matchIdentifier();
+
+    void matchDereferenceBrackets(std::vector<Token> &tokens);
 };
 
 std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens);

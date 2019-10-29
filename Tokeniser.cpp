@@ -615,7 +615,7 @@ std::string Tokeniser::matchBasicIdentifier(int &i) {
 // https://perldoc.perl.org/perldata.html#Identifier-parsing
 // Matches identifiers with packages
 // No sigil though (so not a variable/glob)
-std::string Tokeniser::doMatchNormalIdentifier(int& i) {
+std::string Tokeniser::doMatchNormalIdentifier(int &i) {
     int initialI = i;
     std::string contents;
     // (?: :: )* '?
@@ -670,7 +670,7 @@ std::string Tokeniser::doMatchNormalIdentifier(int& i) {
 
 std::string Tokeniser::matchIdentifier() {
     int i = 1;
-    auto ident =  doMatchNormalIdentifier(i);
+    auto ident = doMatchNormalIdentifier(i);
     this->advancePositionSameLine(i - 1);
     return ident;
 }
@@ -697,7 +697,7 @@ std::string Tokeniser::matchWhitespace() {
     return this->getWhile(this->isWhitespace);
 }
 
-void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, const std::string& hereDocDelim, bool hasTilde) {
+void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, const std::string &hereDocDelim, bool hasTilde) {
     auto start = currentPos();
     FilePos bodyEnd = currentPos();
     FilePos lineStart;
@@ -714,15 +714,14 @@ void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, const std::string& 
                     auto nonWhitespacePart = line.substr(i, line.size() - i);
                     if (nonWhitespacePart == hereDocDelim) goto done;
                     else break;
-               }
+                }
             }
 
             bodyEnd = currentPos();
             if (this->peek() == '\n') {
                 line += '\n';
                 this->nextChar();
-            }
-            else if (this->peek() == '\r' && this->peek() == '\n') {
+            } else if (this->peek() == '\r' && this->peek() == '\n') {
                 line += "\r\n";
                 this->nextChar();
                 this->nextChar();
@@ -783,6 +782,52 @@ bool Tokeniser::matchNewline(std::vector<Token> &tokens) {
     return false;
 }
 
+// Match {...}, but the middle can be a bare word
+void Tokeniser::matchDereferenceBrackets(std::vector<Token> &tokens) {
+    if (peek() != '{') return;
+    auto start = currentPos();
+    nextChar();
+    tokens.emplace_back(Token(TokenType::HashDerefStart, start, "{"));
+
+    // Next consider whitespace
+    start = currentPos();
+    auto whitespace = matchWhitespace();
+    if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
+
+    // Now see if we can match Name bareword until following }
+    int offset = 1;
+    while (isNameBody(peekAhead(offset))) offset++;
+
+    // Consume any whitespace
+    while (isWhitespace(peekAhead(offset))) offset++;
+    if (peekAhead(offset) == '}') {
+        // Is a name!
+        start = currentPos();
+        auto name = this->matchName();
+        tokens.emplace_back(Token(TokenType::Name, start, name));
+
+        start = currentPos();
+        whitespace = matchWhitespace();
+        if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
+
+        start = currentPos();
+        nextChar();
+        tokens.emplace_back(Token(TokenType::HashDerefEnd, start, "}"));
+        return;
+    }
+
+    // Otherwise just consume tokens (now bareword tokens)
+    while (tokens[tokens.size() - 1].type != TokenType::HashDerefEnd &&
+           tokens[tokens.size() - 1].type != TokenType::RBracket &&
+           tokens[tokens.size() - 1].type != TokenType::EndOfInput) {
+        this->nextTokens(tokens, true);
+    }
+
+    if (tokens[tokens.size() - 1].type == TokenType::RBracket) {
+        tokens[tokens.size() - 1].type = TokenType::HashDerefEnd;
+    }
+}
+
 
 void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // Position before anything is consumed
@@ -833,9 +878,10 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                     if (tokens[i].type == TokenType::Name && hasWhitespace) continue;    // Now allowed with barewords
                     // Now finally we can confirm a valid heredoc.
                     if (tokens[i].type == TokenType::Name) delim = tokens[i].data;
-                    else if (tokens[i].type == TokenType::String) delim = tokens[i].data.substr(1,
-                                                                                                tokens[i].data.size() -
-                                                                                                2);
+                    else if (tokens[i].type == TokenType::String)
+                        delim = tokens[i].data.substr(1,
+                                                      tokens[i].data.size() -
+                                                      2);
                     matchHereDocBody(tokens, delim, hasTilde);
                     break;
                 }
@@ -970,27 +1016,27 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
             }
 
             if (isVariable(prevType) || (prevType == TokenType::Operator && tokens[i].data == "->")) {
-                // So we have something like %x{...}. Contents of brackets can contain unquoted barewords
-                int offset = 2;
-                while (isWhitespace(peekAhead(offset))) offset++;
-                if (isalnum(peekAhead(offset))) {
-                    // got a bareword
-                    nextChar();
+                // So we have something like %x{...} or $x->{...} Contents of brackets can contain unquoted barewords
+                // Note we also want to support multiple bareword seconds
+                while (this->peek() == '{') {
+                    // Match first set
+                    matchDereferenceBrackets(tokens);
+
+                    // Match any following whitespace
                     auto start = currentPos();
-                    tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
-                    auto preWhitespace = this->matchWhitespace();
-                    if (!preWhitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
-                    start = this->currentPos();
-                    auto name = this->matchName();
-                    if (!name.empty()) tokens.emplace_back(Token(TokenType::Name, start, name));
-                    return;
+                    whitespace = this->matchWhitespace();
+                    if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
                 }
+
+                return;
+
+            } else {
+                this->nextChar();
+                tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
+                return;
             }
         }
 
-        this->nextChar();
-        tokens.emplace_back(Token(TokenType::LBracket, startPos, startPos.col));
-        return;
     }
     if (peek == '}') {
         this->nextChar();
@@ -1098,7 +1144,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
 
             if (prevTokenType == TokenType::Name) {
                 // See if it is a direct dereference (e.g ->name)
-                int i = (int)tokens.size() - 1;
+                int i = (int) tokens.size() - 1;
                 while (i > 0) {
                     if (tokens[i].type == TokenType::Whitespace || tokens[i].type == TokenType::Name) {
                         i--;
@@ -1113,7 +1159,8 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
 
             if (isVariable(prevTokenType) || prevTokenType == TokenType::RParen ||
                 prevTokenType == TokenType::NumericLiteral || prevTokenType == TokenType::RBracket ||
-                prevTokenType == TokenType::RSquareBracket || (secondType == TokenType::Operator && secondData == "->")) {
+                prevTokenType == TokenType::RSquareBracket ||
+                (secondType == TokenType::Operator && secondData == "->")) {
                 this->nextChar();
                 tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
                 return;
