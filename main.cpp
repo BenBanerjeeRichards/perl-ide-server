@@ -79,7 +79,9 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
     }
 
     begin = std::chrono::steady_clock::now();
-    auto parseTree = parse(tokens);
+    int partiallyParsed = -1;
+    auto parseTree = parse(tokens, partiallyParsed);
+    fileSymbols.partialParse = partiallyParsed;
     end = std::chrono::steady_clock::now();
     timing.parse = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
@@ -109,6 +111,13 @@ void testFiles() {
                       << badNode->startPos.toStr() << CONSOLE_CLEAR << std::endl;
             return;
         }
+
+        if (fileSymbols.partialParse > -1) {
+            std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED << "Partial parse detected at line" << fileSymbols.partialParse
+                      << CONSOLE_CLEAR << std::endl;
+            return;
+        }
+
     }
 }
 
@@ -123,18 +132,18 @@ void debugPrint(const std::string &path) {
     auto pos = FilePos(30, 1);
     auto map = getSymbolMap(fileSymbols, pos);
     for (const auto &varItem : map) {
-        std::cout << varItem.second->toStr() << std::endl;
+//        std::cout << varItem.second->toStr() << std::endl;
     }
 
-    std::cout << CONSOLE_BOLD << std::endl << "Variable usages" << CONSOLE_CLEAR << std::endl;
-    for (auto it = fileSymbols.variableUsages.begin(); it != fileSymbols.variableUsages.end(); it++) {
-        std::cout << it->first->toStr() << ": ";
-        for (auto varPos: fileSymbols.variableUsages[it->first]) {
-            std::cout << varPos.toStr() << " ";
-        }
-
-        std::cout << std::endl;
-    }
+//    std::cout << CONSOLE_BOLD << std::endl << "Variable usages" << CONSOLE_CLEAR << std::endl;
+//    for (auto it = fileSymbols.variableUsages.begin(); it != fileSymbols.variableUsages.end(); it++) {
+//        std::cout << it->first->toStr() << ": ";
+//        for (auto varPos: fileSymbols.variableUsages[it->first]) {
+//            std::cout << varPos.toStr() << " ";
+//        }
+//
+//        std::cout << std::endl;
+//    }
 
     std::cout << std::endl << CONSOLE_BOLD << "Timing" << CONSOLE_CLEAR << std::endl;
     std::cout << "Total: " << timeInfo.total << "ms" << std::endl;
@@ -146,6 +155,11 @@ void debugPrint(const std::string &path) {
     if (badSymbol != nullptr) {
         std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED << "Bad SymbolNode found at position "
                   << badSymbol->startPos.toStr() << CONSOLE_CLEAR << std::endl;
+    }
+
+    if (fileSymbols.partialParse > -1) {
+        std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED << "Partial parse detected at line" << fileSymbols.partialParse
+                  <<  CONSOLE_CLEAR << std::endl;
     }
 }
 

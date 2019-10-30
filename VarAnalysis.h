@@ -167,6 +167,8 @@ struct FileSymbols {
     // This is a temp measure until packages are fully implemented
     std::vector<std::shared_ptr<Variable>> globals;
 
+    int partialParse;
+
     // Usages of each variable
     // Includes definition.
     std::unordered_map<std::shared_ptr<Variable>, std::vector<FilePos>> variableUsages;

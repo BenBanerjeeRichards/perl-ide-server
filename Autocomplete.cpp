@@ -9,7 +9,8 @@ std::vector<AutocompleteItem> autocomplete(const std::string& filePath, FilePos 
     std::vector<Token> tokens = tokeniser.tokenise();
 
     FileSymbols fileSymbols;
-    auto parseTree = parse(tokens);
+    int partial = -1;
+    auto parseTree = parse(tokens, partial);
     fileSymbols.packages = parsePackages(parseTree);
      buildVariableSymbolTree(parseTree, fileSymbols);
     auto symbolTable = getSymbolMap(fileSymbols, location);

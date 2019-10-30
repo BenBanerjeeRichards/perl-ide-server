@@ -805,7 +805,7 @@ void Tokeniser::matchDereferenceBrackets(std::vector<Token> &tokens) {
     auto start = currentPos();
     nextChar();
     tokens.emplace_back(Token(TokenType::HashDerefStart, start, "{"));
-
+    int derefStartIdx = tokens.size() - 1;
     // Next consider whitespace
     start = currentPos();
     auto whitespace = matchWhitespace();
@@ -834,7 +834,7 @@ void Tokeniser::matchDereferenceBrackets(std::vector<Token> &tokens) {
     }
 
     // Otherwise just consume tokens (now bareword tokens)
-    while (tokens[tokens.size() - 1].type != TokenType::HashDerefEnd &&
+    while (
            tokens[tokens.size() - 1].type != TokenType::RBracket &&
            tokens[tokens.size() - 1].type != TokenType::EndOfInput) {
         this->nextTokens(tokens, true);
@@ -1273,16 +1273,9 @@ bool Tokeniser::matchAttribute(std::vector<Token> &tokens) {
     if (this->peek() == '(') {
         // Attribute has arguments
         this->nextChar();
-        while (this->peek() != ')') {
-            arguments += this->nextChar();
-        }
-
-        this->nextChar();
-
-        if (!arguments.empty()) {
-            arguments = "(" + arguments + ")";
-            tokens.emplace_back(Token(TokenType::AttributeArgs, start, arguments));
-        }
+        auto args = '(' + matchBracketedStringLiteral('(') + ')';
+        nextChar();
+        tokens.emplace_back(Token(TokenType::AttributeArgs, start, args));
     }
 
     return true;

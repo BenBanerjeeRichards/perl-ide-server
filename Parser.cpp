@@ -166,10 +166,16 @@ std::vector<PackageSpan> parsePackages(std::shared_ptr<BlockNode> parent) {
     return packageSpans;
 }
 
-std::shared_ptr<BlockNode> parse(std::vector<Token> tokens) {
+std::shared_ptr<BlockNode> parse(std::vector<Token> tokens, int& incorrectNestingStart) {
+    incorrectNestingStart = -1;
     auto node = std::make_shared<BlockNode>(FilePos(0, 0));
     node->end = tokens[tokens.size() - 1].endPos;
     int tokenIdx = 0;
     doParse(node, tokens, tokenIdx);
+    incorrectNestingStart = tokenIdx < tokens.size() ? tokens[tokens.size() - 1].endPos.line : -1;
+
+    while (tokenIdx < tokens.size()) {
+        doParse(node, tokens, tokenIdx);
+    }
     return node;
 }

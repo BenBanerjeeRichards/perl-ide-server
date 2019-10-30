@@ -10,7 +10,7 @@
 #include "Node.h"
 
 
-std::shared_ptr<BlockNode> parse(std::vector<Token> tokens);
+std::shared_ptr<BlockNode> parse(std::vector<Token> tokens, int&);
 
 std::vector<PackageSpan> parsePackages(std::shared_ptr<BlockNode> parent);
 
