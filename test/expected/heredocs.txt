@@ -1,0 +1,42 @@
+Operator(<<)
+String("")
+Semicolon
+HereDoc(   Hello!\n)
+HereDocEnd
+Name(print)
+Operator(<<)
+Name(OUT)
+Semicolon
+HereDoc(    OUT\n    some OUT\n)
+HereDocEnd(OUT)
+Name(print)
+Operator(<<)
+Name(EOL)
+Semicolon
+HereDoc(    XHello World!\n    Y qw {\n)
+HereDocEnd(EOL)
+Name(print)
+Operator(<<)
+String("    OUT")
+Until
+ArrayVariable(@_)
+LSquareBracket
+NumericLiteral(0)
+RSquareBracket
+Semicolon
+HereDoc(    Hello. Output\n)
+HereDocEnd(    OUT)
+Name(print)
+Operator(<<)
+Operator(~)
+Name(Hello)
+Semicolon
+HereDoc(Hello world!\n)
+HereDocEnd(Hello)
+Name(print)
+Operator(<<)
+String(`EOL`)
+Semicolon
+HereDoc(    XHello World!\n    Y qw {\n)
+HereDocEnd(EOL)
+EndOfInput
