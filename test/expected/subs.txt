@@ -1,0 +1,49 @@
+Sub
+SubName(signatureNoAttribute)
+Signature(($a, $b = 54, $c=5))
+LBracket
+Name(say)
+String("f(...) ")
+Dot
+ScalarVariable($a)
+Semicolon
+Name(say)
+LParen
+ScalarVariable($b)
+RParen
+Semicolon
+RBracket
+Comment(# #Prototype, no attributes)
+Sub
+SubName(protoNoAttribute)
+Prototype(($$@))
+LBracket
+RBracket
+Comment(# Signature with attributes)
+Sub
+SubName(signatureWithAttribute)
+AttributeColon(:)
+Attribute(lvalue)
+AttributeArgs((a,b))
+Attribute(method)
+AttributeColon(:)
+Attribute(test)
+AttributeArgs((34, $fv, tr))
+Signature(($a, $b))
+LBracket
+RBracket
+Sub
+SubName(protoWithAttribute)
+Prototype(($$@[$%]))
+AttributeColon(:)
+Attribute(lvalue)
+LBracket
+RBracket
+Sub
+SubName(f)
+AttributeColon(:)
+Attribute(attr)
+AttributeArgs(('()', '(', ')', '\('))
+LBracket
+RBracket
+EndOfInput

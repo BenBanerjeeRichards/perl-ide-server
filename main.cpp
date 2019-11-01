@@ -4,12 +4,8 @@
 #include "Parser.h"
 #include "VarAnalysis.h"
 #include "Autocomplete.h"
-#include "PerlCommandLine.h"
-
-std::string CONSOLE_BOLD = "\e[1m";
-std::string CONSOLE_DIM = "\e[37m";
-std::string CONSOLE_CLEAR = "\e[0m";
-std::string CONSOLE_RED = "\e[31m";
+#include "IOException.h"
+#include "Test.h"
 
 struct TimeInfo {
     long long int tokenise;
@@ -73,8 +69,8 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 
     if (printTokens) {
         for (auto token : tokens) {
-            if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << CONSOLE_DIM;
-            std::cout << tokeniser.tokenToStrWithCode(token) << CONSOLE_CLEAR <<  std::endl;
+            if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << console::dim;
+            std::cout << tokeniser.tokenToStrWithCode(token) << console::clear <<  std::endl;
         }
     }
 
@@ -98,7 +94,7 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 }
 
 void testFiles() {
-    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/1/*");
+    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/2/*");
     std::cout << "file,tokens,lines,total_ms,tok_ms,parse_ms,analysis_ms" << std::endl;
     for (auto file : perlFiles) {
         TimeInfo timing{};
@@ -107,14 +103,14 @@ void testFiles() {
                   << timing.tokenise << "," << timing.parse << "," << timing.analysis << std::endl;
 
         if (auto badNode = findBadSymbolNode(fileSymbols.symbolTree)) {
-            std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED << "Bad SymbolNode found at position "
-                      << badNode->startPos.toStr() << CONSOLE_CLEAR << std::endl;
+            std::cout << std::endl << console::bold << console::red << "Bad SymbolNode found at position "
+                      << badNode->startPos.toStr() << console::clear << std::endl;
             return;
         }
 
         if (fileSymbols.partialParse > -1) {
-            std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED << "Partial parse detected at line" << fileSymbols.partialParse
-                      << CONSOLE_CLEAR << std::endl;
+            std::cout << std::endl << console::bold << console::red << "Partial parse detected at line" << fileSymbols.partialParse
+                      << console::clear << std::endl;
             return;
         }
 
@@ -128,14 +124,14 @@ void debugPrint(const std::string &path) {
 
     printFileSymbols(fileSymbols);
 
-    std::cout << CONSOLE_BOLD << std::endl << "Variables at position" << CONSOLE_CLEAR << std::endl;
+    std::cout << console::bold << std::endl << "Variables at position" << console::clear << std::endl;
     auto pos = FilePos(30, 1);
     auto map = getSymbolMap(fileSymbols, pos);
     for (const auto &varItem : map) {
 //        std::cout << varItem.second->toStr() << std::endl;
     }
 
-//    std::cout << CONSOLE_BOLD << std::endl << "Variable usages" << CONSOLE_CLEAR << std::endl;
+//    std::cout << console::bold << std::endl << "Variable usages" << console::clear << std::endl;
 //    for (auto it = fileSymbols.variableUsages.begin(); it != fileSymbols.variableUsages.end(); it++) {
 //        std::cout << it->first->toStr() << ": ";
 //        for (auto varPos: fileSymbols.variableUsages[it->first]) {
@@ -145,7 +141,7 @@ void debugPrint(const std::string &path) {
 //        std::cout << std::endl;
 //    }
 
-    std::cout << std::endl << CONSOLE_BOLD << "Timing" << CONSOLE_CLEAR << std::endl;
+    std::cout << std::endl << console::bold << "Timing" << console::clear << std::endl;
     std::cout << "Total: " << timeInfo.total << "ms" << std::endl;
     std::cout << "Tokenisation: " << timeInfo.tokenise << "ms" << std::endl;
     std::cout << "Parsing: " << timeInfo.parse << "ms" << std::endl;
@@ -153,15 +149,16 @@ void debugPrint(const std::string &path) {
 
     auto badSymbol = findBadSymbolNode(fileSymbols.symbolTree);
     if (badSymbol != nullptr) {
-        std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED << "Bad SymbolNode found at position "
-                  << badSymbol->startPos.toStr() << CONSOLE_CLEAR << std::endl;
+        std::cout << std::endl << console::bold << console::red << "Bad SymbolNode found at position "
+                  << badSymbol->startPos.toStr() << console::clear << std::endl;
     }
 
     if (fileSymbols.partialParse > -1) {
-        std::cout << std::endl << CONSOLE_BOLD << CONSOLE_RED << "Partial parse detected at line" << fileSymbols.partialParse
-                  <<  CONSOLE_CLEAR << std::endl;
+        std::cout << std::endl << console::bold << console::red << "Partial parse detected at line" << fileSymbols.partialParse
+                  <<  console::clear << std::endl;
     }
 }
+
 
 int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
@@ -171,6 +168,18 @@ int main(int argc, char **args) {
         testFiles();
         return 0;
     }
+
+    if (argc == 2 && strncmp(args[1], "test", 4) == 0) {
+        runTests();
+        return 0;
+    }
+
+    if (argc == 3 && strncmp(args[1],  "makeTest", 9) == 0) {
+        auto name = std::string(args[2]);
+        makeTest(name);
+        return 0;
+    }
+
 
     if (argc == 3 && strncmp(args[1], "unitTest", 8) == 0) {
         unitTest(std::string(args[2]));

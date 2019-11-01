@@ -134,7 +134,7 @@ bool Tokeniser::isPunctuation(char c) {
 bool Tokeniser::isNameBody(char c) {
     return c >= '!' && c != ';' && c != ',' && c != '>' && c != '<' && c != '-' && c != '.' && c != '{' && c != '}' &&
            c != '(' &&
-           c != ')' && c != '[' && c != ']' && c != ':' && c != '=' && c != '"';
+           c != ')' && c != '[' && c != ']' && c != ':' && c != '=' && c != '"' && c != '/';
 }
 
 std::string Tokeniser::matchStringOption(const std::vector<std::string> &options, bool requireTrailingNonAN) {
@@ -1179,10 +1179,15 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                 }
             }
 
+            // Get next non-whitespace character
+            int offset = 2;
+            while (isWhitespace(peekAhead(offset))) offset++;
+            char nextChar = peekAhead(offset);
+
             if (isVariable(prevTokenType) || prevTokenType == TokenType::RParen ||
                 prevTokenType == TokenType::NumericLiteral || prevTokenType == TokenType::RBracket ||
                 prevTokenType == TokenType::RSquareBracket || prevTokenType == TokenType::HashDerefEnd ||
-                (secondType == TokenType::Operator && secondData == "->")) {
+                (secondType == TokenType::Operator && secondData == "->") || (prevTokenType == TokenType::Name && nextChar == '(')) {
                 this->nextChar();
                 tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
                 return;

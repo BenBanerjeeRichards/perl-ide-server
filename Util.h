@@ -10,6 +10,15 @@
 #include <vector>
 #include "FilePos.h"
 
+namespace console {
+    const std::string bold = "\e[1m";
+    const std::string dim = "\e[37m";
+    const std::string clear = "\e[0m";
+    const std::string red = "\e[31m";
+
+}
+
+
 std::string replace(std::string str, const std::string &what, const std::string &with);
 std::vector<std::string> globglob(const std::string& pattern);
 std::string fileName(const std::string& path);
