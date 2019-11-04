@@ -1005,9 +1005,8 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     if (this->peek() == '$' || this->peek() == '@' || this->peek() == '%') {
         int i = 2;
         while (isWhitespace(this->peekAhead(i))) i++;
-        if (this->peekAhead(i) == '$' || this->peekAhead(i) == '@' || this->peekAhead(i) == '%') {
-            // We have double sigil => deref
-            // TODO check that this could not be valid variable
+        // Dereference can ONLY be of a scalar as references are always scalars
+        if (this->peekAhead(i) == '$') {
             auto pos = this->currentPos();
             auto sigil = this->peek();
             this->nextChar();

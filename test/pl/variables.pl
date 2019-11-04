@@ -28,6 +28,13 @@ ${^HE34LLO};
 ${^Hello};
 ${^_Hell2o};
 
+# Single dereferences
+$$hello;
+
+# Multiple dereferences
+$$$hello;
+%$$hello;
+
 
 # These are not valid and should not be interpreted as variables
 ${Hello};

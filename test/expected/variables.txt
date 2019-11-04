@@ -64,6 +64,19 @@ ScalarVariable(${^Hello})
 Semicolon
 ScalarVariable(${^_Hell2o})
 Semicolon
+Comment(# Single dereferences)
+Deref($)
+ScalarVariable($hello)
+Semicolon
+Comment(# Multiple dereferences)
+Deref($)
+Deref($)
+ScalarVariable($hello)
+Semicolon
+Deref(%)
+Deref($)
+ScalarVariable($hello)
+Semicolon
 Comment(# These are not valid and should not be interpreted as variables)
 Name($)
 LBracket
