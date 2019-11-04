@@ -65,6 +65,11 @@ void Tokeniser::advancePositionSameLine(int i) {
     this->currentCol += i;
 }
 
+/**
+ * Gets and consumes next character from input
+ * Also updates file position, line and column information
+ * @return
+ */
 char Tokeniser::nextChar() {
     if (this->_position == this->program.length() - 1) {
         return EOF;
@@ -81,6 +86,11 @@ char Tokeniser::nextChar() {
     return this->program[this->_position];
 }
 
+/**
+ * Used for lookahead
+ * @param i How far ahead to look. Note peek() = peekAhead(1). i = 0 is last char consumed
+ * @return
+ */
 char Tokeniser::peekAhead(int i) {
     if (this->_position + i > this->program.length() - 1) {
         return EOF;
@@ -131,12 +141,19 @@ bool Tokeniser::isPunctuation(char c) {
 }
 
 // Variable body i.e. variable name after any Sigil and then first char
+// TODO This is not comprehensive
 bool Tokeniser::isNameBody(char c) {
     return c >= '!' && c != ';' && c != ',' && c != '>' && c != '<' && c != '-' && c != '.' && c != '{' && c != '}' &&
            c != '(' &&
            c != ')' && c != '[' && c != ']' && c != ':' && c != '=' && c != '"' && c != '/';
 }
 
+/**
+ * Given a list of possible strings, will try to match that string and consume the input
+ * @param options
+ * @param requireTrailingNonAN - Require a non alpha numeric character to follow the string
+ * @return
+ */
 std::string Tokeniser::matchStringOption(const std::vector<std::string> &options, bool requireTrailingNonAN) {
     for (const std::string &option : options) {
         bool match = true;  // Assume match until proven otherwise
@@ -182,7 +199,12 @@ std::string Tokeniser::matchName() {
     return acc;
 }
 
-std::string Tokeniser::matchStringContainingOnlyLetters(std::string letters) {
+/**
+ * Match any string, but it must contain only the given letters. Each letter given matched zero, one or many times
+ * @param letters
+ * @return
+ */
+std::string Tokeniser::matchStringContainingOnlyLetters(const std::string &letters) {
     std::string str;
     while (letters.find(peek()) != std::string::npos) {
         str += peek();
@@ -192,7 +214,11 @@ std::string Tokeniser::matchStringContainingOnlyLetters(std::string letters) {
     return str;
 }
 
-
+/**
+ * Match a normal string literal
+ * e.g. "Hello", 'Hello', /Hello/ and `hello`
+ * @return
+ */
 std::string Tokeniser::matchString() {
     std::string contents;
     auto doubleStr = matchStringLiteral('"');
@@ -205,6 +231,17 @@ std::string Tokeniser::matchString() {
     return executeString;
 }
 
+/**
+ * Match a string deliminated by any character. e.g. qq HWorld!H uses deliminator of 'H'
+ * IMPORTANT does not support bracket deliminators with matching, use matchBracketedStringLiteral for that
+ * Can support including deliminators in output
+ * @param delim e.g. '"' or 'H'
+ * @param includeDelim If true then current tokenizer state is at the deliminator (i.e. peek() == delim).
+ *                     The output string will include both the start and end deliminator: HWorldW
+ *                     If false, the tokenizer state is one char past the deliminator and will end at the
+ *                     ending deliminator. The delims will not be included in the returned string: world
+ * @return
+ */
 std::string Tokeniser::matchStringLiteral(char delim, bool includeDelim) {
     std::string contents;
     if (this->peek() == delim || !includeDelim) {
@@ -243,6 +280,14 @@ std::string Tokeniser::matchStringLiteral(char delim, bool includeDelim) {
     return contents;
 }
 
+/**
+ * Matches a bracked string literal, e.g. in qq {Hello {}} {Wor\{ld}
+ * Supports matching of the brackets inside
+ * IMPORTANT: The tokeniser state is one past the opening bracket. Yes this is confusing compared to the above functions.
+ * No I don't want to risk changing it until more tests have been written.
+ * @param bracket The starting bracket.
+ * @return
+ */
 std::string Tokeniser::matchBracketedStringLiteral(char bracket) {
     std::string contents;
     char endBracket;
@@ -290,6 +335,11 @@ std::string Tokeniser::matchBracketedStringLiteral(char bracket) {
     return contents;
 }
 
+/**
+ * Match any string that is deliminated, either by brackets or normal deliminators.
+ * Higher level method over above deliminator matching ones that produces tokens
+ * @param tokens
+ */
 void Tokeniser::matchDelimString(std::vector<Token> &tokens) {
     char quoteChar = this->peek();
     auto start = currentPos();
@@ -326,7 +376,12 @@ void Tokeniser::matchDelimString(std::vector<Token> &tokens) {
     }
 }
 
-
+/**
+ * Matches full quote literal, starting from qq, qw, y, tr, ...
+ * Note that this DOES NOT include the normal quotes using //, "", '' or ``
+ * NOTE function returns tokens - this is unconventional and no good reason not just to take reference
+ * @return
+ */
 std::vector<Token> Tokeniser::matchQuoteLiteral() {
     auto start = currentPos();
 
@@ -435,7 +490,10 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
     return tokens;
 }
 
-
+/**
+ * Simple numeric matching. Should be comprehensive for literals, uses regex after quick heuristic
+ * @return
+ */
 std::string Tokeniser::matchNumeric() {
     std::string testString;
     int i = 0;
@@ -459,7 +517,6 @@ std::string Tokeniser::matchNumeric() {
 }
 
 std::string Tokeniser::matchComment() {
-    // TODO this may be too simple and lead to too much being commented - check
     std::string comment;
     if (this->peek() == '#') {
         comment += this->nextChar();
@@ -741,6 +798,11 @@ void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, const std::string &
     tokens.emplace_back(Token(TokenType::HereDocEnd, lineStart, line));
 }
 
+/**
+ * Match string in the format /<string contents>/<modifiers?>
+ * @param tokens
+ * @return true if slash string matched. If false then no input consumed
+ */
 bool Tokeniser::matchSlashString(std::vector<Token> &tokens) {
     auto start = this->currentPos();
     auto string = this->matchString();
@@ -757,6 +819,11 @@ bool Tokeniser::matchSlashString(std::vector<Token> &tokens) {
     return false;
 }
 
+/**
+ * Match new lines + whitespace then add them to the tokens list
+ * @param tokens
+ * @return
+ */
 bool Tokeniser::matchNewlinesAndWhitespaces(std::vector<Token> &tokens) {
     bool matched = true;
     int size = tokens.size();
@@ -777,6 +844,11 @@ bool Tokeniser::matchNewlinesAndWhitespaces(std::vector<Token> &tokens) {
     return size != tokens.size();
 }
 
+/**
+ * Newline matched that takes into account newlines on different systems
+ * @param tokens
+ * @return
+ */
 bool Tokeniser::matchNewline(std::vector<Token> &tokens) {
     auto start = this->currentPos();
     if (this->peek() == '\n') {
@@ -799,7 +871,11 @@ bool Tokeniser::matchNewline(std::vector<Token> &tokens) {
     return false;
 }
 
-// Match {...}, but the middle can be a bare word
+/**
+ * Match dereference `$x->{...}{...}...`
+ * Supports barewords inside the brackets (so keywords/string quote operators are not parsed as such)
+ * @param tokens
+ */
 void Tokeniser::matchDereferenceBrackets(std::vector<Token> &tokens) {
     if (peek() != '{') return;
     auto start = currentPos();
@@ -835,8 +911,8 @@ void Tokeniser::matchDereferenceBrackets(std::vector<Token> &tokens) {
 
     // Otherwise just consume tokens (now bareword tokens)
     while (
-           tokens[tokens.size() - 1].type != TokenType::RBracket &&
-           tokens[tokens.size() - 1].type != TokenType::EndOfInput) {
+            tokens[tokens.size() - 1].type != TokenType::RBracket &&
+            tokens[tokens.size() - 1].type != TokenType::EndOfInput) {
         this->nextTokens(tokens, true);
     }
 
@@ -845,7 +921,14 @@ void Tokeniser::matchDereferenceBrackets(std::vector<Token> &tokens) {
     }
 }
 
-
+/**
+ * Next run of the tokeniser. Produces only as many new tokens as needed to progress input
+ *
+ * A large function that probably doesn't need to be inlined so much as the optmizer can do that, but should be reasonably
+ * straightforward.
+ * @param tokens
+ * @param enableHereDoc Disable here-docs can be useful, though maybe not anymore
+ */
 void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // Position before anything is consumed
     auto startPos = currentPos();
@@ -942,6 +1025,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         return;
     }
 
+    // Handle unary file operators such as -X 'filename'
     if (this->peek() == '-' && !isalnum(peekAhead(3))) {
         auto testChar = this->peekAhead(2);
 
@@ -960,7 +1044,6 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
 
     // Perl has so many operators...
     // Thankfully we don't actually care what the do, just need to recognise them
-    // TODO complete this list
     auto operators = std::vector<std::string>{
             "+=", "++", "+", "--", "-=", "**=", "*=", "**", "*", "!=", "!~", "!", "~", "\\", "==", "=~",
             "//=", "=>", "//", "%=", "%", "x=", "x", ">>=", ">>", ">", ">=", "<=>", "<<=", "<<", "<",
@@ -1153,7 +1236,6 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     // This one is tricky
     // Could be a division (34 / 5) OR a bare regex literal (/354/)/
     // Guess based on previous non-whitespace token
-    // TODO improve this heuristic
     if (this->peek() == '/') {
         auto prevTokenTypeOption = previousNonWhitespaceToken(tokens);
 
@@ -1187,9 +1269,41 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
             if (isVariable(prevTokenType) || prevTokenType == TokenType::RParen ||
                 prevTokenType == TokenType::NumericLiteral || prevTokenType == TokenType::RBracket ||
                 prevTokenType == TokenType::RSquareBracket || prevTokenType == TokenType::HashDerefEnd ||
-                (secondType == TokenType::Operator && secondData == "->") || (prevTokenType == TokenType::Name && nextChar == '(')) {
+                (secondType == TokenType::Operator && secondData == "->")) {
                 this->nextChar();
                 tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
+                return;
+            } else if (prevTokenType == TokenType::Name) {
+                // this is an ambiguity that is impossible to parse at runtime
+                // see  'Perl can not be pared: a formal proof' by Jeffrey Kegler at https://www.perlmonks.org/?node_id=663393
+                // depends on number of arguments of the  functions. So `split /$a/;`(ok) and `time /$a/;`(syntax error)
+                // are parsed very differently by perl
+                //
+                // To guess this we use observations from perl code observed in the wild
+                //      1. Strings are far more common than division. So if we're not sure, prior information tells
+                //         us to pick divide. But...
+                //      2. ...Predicting an operator when actually a string is better than predicting a string when actually
+                //         an operator. In the former, unless the string contains a left bracket, it is unlikely so
+                //         cause issues. The latter will much more likely stringify many lines of perl which WILL LIKELY
+                //         ruin the balance of the scopes
+                //      3. Strings typically start and end on the same physical file line. If there is a matching string
+                //         deliminator (/) on the same line, the effect of wrongly predicting an operator as a string is
+                //         very low.
+                // So simple heuristic: is there a matching / on the line? If yes then match string, otherwise match
+                // operator
+                int i = 2;
+
+                while (peekAhead(i) != '\n' && peekAhead(i) != '\r' && peekAhead(i) != '/') i++;
+                bool isSlashString = peekAhead(i) == '/';
+
+                if (isSlashString) {
+                    this->matchSlashString(tokens);
+                }
+                else {
+                    this->nextChar();
+                    tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
+                }
+
                 return;
             } else {
                 if (this->matchSlashString(tokens)) return;
@@ -1247,6 +1361,10 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     throw TokeniseException(std::string("Remaining code exists"));
 }
 
+/**
+ * Public function that actually does the tokeniseration
+ * @return
+ */
 std::vector<Token> Tokeniser::tokenise() {
     std::vector<Token> tokens;
 
@@ -1309,6 +1427,11 @@ bool Tokeniser::matchAttributes(std::vector<Token> &tokens) {
     return true;
 }
 
+/**
+ * Match prototype. IMPORTANT: This will try to match a prototype regardless, check this makes sense first using
+ * given heuristic (isPrototype).
+ * @return
+ */
 std::string Tokeniser::matchPrototype() {
     std::string proto;
     if (peek() != '(') return proto;
@@ -1326,6 +1449,7 @@ std::string Tokeniser::matchPrototype() {
 }
 
 std::string Tokeniser::matchSignature() {
+    // Straight forward, just match until ending bracket
     std::string signature;
     if (peek() != '(') return signature;
     signature += peek();
@@ -1374,7 +1498,12 @@ bool Tokeniser::matchSignatureTokens(std::vector<Token> &tokens) {
     return true;
 }
 
-
+/**
+ * Matches a subroutine definition `sub name ...`
+ * In perl there is a large range of possibilities, but this method tries to capture them all
+ * ... anonymous, normal, prototypes, signatures, ...
+ * @param tokens
+ */
 void Tokeniser::matchSubroutine(std::vector<Token> &tokens) {
     // Assumes sub keyword has already been matched
     // Try first to match a name i.e. sub <NAME>
@@ -1422,6 +1551,13 @@ void Tokeniser::matchSubroutine(std::vector<Token> &tokens) {
     }
 }
 
+/**
+ * Second pass to replace *Bracket tokens with HashSub* tokens.
+ * This is not too important but if missed then the parser will generate too many scopes (as $x->{...} will get a scope)
+ *  This wastes resources, especially in analysis
+ * @param tokens
+ * @param i
+ */
 void Tokeniser::secondPassHash(std::vector<Token> &tokens, int &i) {
     TokenIterator tokenIterator(tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment,
                                                                TokenType::Whitespace}, i);

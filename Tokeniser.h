@@ -110,7 +110,7 @@ private:
 
     bool matchSignatureTokens(std::vector<Token> &tokens);
 
-    std::string matchStringContainingOnlyLetters(std::string letters);
+    std::string matchStringContainingOnlyLetters(const std::string& letters);
 
 
     bool isPrototype();
