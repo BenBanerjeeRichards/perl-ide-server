@@ -28,6 +28,16 @@ tr {Hello} /World/;
 tr {Hello}/World/;
 tr /Hello/World/;
 
+tr {Hello}#World
+     {World};
+
+tr {Hello}#World
+        # World!
+
+
+
+    {World};
+
 
 tr{Hello}<World>;
 tr{Hello}!World!;

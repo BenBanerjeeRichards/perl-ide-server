@@ -441,11 +441,13 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
     if (isMultipleLiteral) {
 
         if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
-            // If first block is brackets, then allow for whitespace
+            // If first block is brackets, then allow for whitespace and comments
             start = currentPos();
             whitespace = matchWhitespace();
             if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
             matchNewlinesAndWhitespaces(tokens);
+
+
             // Now we can match something new
 
             matchDelimString(tokens);
@@ -839,6 +841,11 @@ bool Tokeniser::matchNewlinesAndWhitespaces(std::vector<Token> &tokens) {
         }
 
         matched = matchNewline(tokens) || matched;
+
+        start = currentPos();
+        auto comment = matchComment();
+        matched = !comment.empty() || matched;
+        if (!comment.empty()) tokens.emplace_back(Token(TokenType::Comment, start, comment));
     }
 
     return size != tokens.size();
