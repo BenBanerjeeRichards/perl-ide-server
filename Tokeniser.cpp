@@ -589,6 +589,14 @@ std::string Tokeniser::matchVariable() {
     if (peekAhead(i) == '$' && peekAhead(i + 1) == '#') {
         // Get first element of the array
         i++;
+
+        // Strange edge case : $# usually used like $#array where array defined as @array
+        // But this will also work with references
+        // my @array = (1, 2, 3);
+        // print $#array;   # Print 2
+        // my $array_ref = \@array;
+        // print $#$array_ref;   # Print 2 also!
+        if (peekAhead(i + 1) == '$') i++;
     }
     i += 1;
 
@@ -1304,8 +1312,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
 
                 if (isSlashString) {
                     this->matchSlashString(tokens);
-                }
-                else {
+                } else {
                     this->nextChar();
                     tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
                 }

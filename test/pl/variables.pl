@@ -35,6 +35,9 @@ $$hello;
 $$$hello;
 %$$hello;
 
+# Use $# for array size
+$#array;
+$#$array_ref;
 
 # These are not valid and should not be interpreted as variables
 ${Hello};

@@ -77,6 +77,11 @@ Deref(%)
 Deref($)
 ScalarVariable($hello)
 Semicolon
+Comment(# Use $# for array size)
+ScalarVariable($#array)
+Semicolon
+ScalarVariable($#$array_ref)
+Semicolon
 Comment(# These are not valid and should not be interpreted as variables)
 Name($)
 LBracket
