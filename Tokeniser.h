@@ -68,7 +68,7 @@ private:
 
     std::string matchBracketedStringLiteral(char bracket);
 
-    std::vector<Token> matchQuoteLiteral();
+    bool matchQuoteLiteral(std::vector<Token> &tokens);
 
     std::string matchString();
 
@@ -145,7 +145,11 @@ private:
 
     void addWhitespaceToken(std::vector<Token> &tokens);
 
-    bool matchNewlinesAndWhitespaces(std::vector<Token> &tokens);
+    bool addNewlineWhitespaceCommentTokens(std::vector<Token> &tokens);
+
+    std::string matchQuoteOperator();
+
+    void backtrack(FilePos pos);
 };
 
 std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens);

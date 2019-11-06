@@ -90,3 +90,21 @@ m/PATTERN/msixpongc;
 q{\\};
 q{\{};
 q{\}};
+
+
+s   # Test
+    # World
+    {^([^\r\n]*)You \s+ should \s+ have \s+ received
+    .*? (write \s+ to | contact .*? Foundation)
+}
+    # Comment!
+
+    # Comment!
+    {x}smix;
+
+say s #WOrld
+    #Hello
+    {Hello}{World};
+
+say qq
+    WHelloW;

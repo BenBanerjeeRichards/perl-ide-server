@@ -99,6 +99,12 @@ char Tokeniser::peekAhead(int i) {
     return this->program[this->_position + i];
 }
 
+void Tokeniser::backtrack(FilePos pos) {
+    this->currentLine = pos.line;
+    this->currentCol = pos.col;
+    this->_position = pos.position - 1;
+}
+
 // Returns null for start of file
 char Tokeniser::prevChar(int i) {
     // So i = 0 gets the same char as peekAhead(0) would except handles start of files correctly
@@ -376,89 +382,77 @@ void Tokeniser::matchDelimString(std::vector<Token> &tokens) {
     }
 }
 
+std::string Tokeniser::matchQuoteOperator() {
+    auto p1 = peek();
+    auto p2 = peekAhead(2);
+
+    if ((p1 == 'q' && p2 == 'q') || (p1 == 'q' && p2 == 'x') || (p1 == 'q' && p2 == 'w') || (p1 == 'q' && p2 == 'r')) {
+        this->nextChar();
+        this->nextChar();
+        return std::string(1, p1) + p2;
+    } else if (p1 == 'q' || p1 == 'm') {
+        this->nextChar();
+        return std::string(1, p1);
+    } else if (p1 == 's' || p1 == 'y') {
+        this->nextChar();
+        return std::string(1, p1);
+    } else if (p1 == 't' && p2 == 'r') {
+        this->nextChar();
+        this->nextChar();
+        return "tr";
+    } else {
+        return "";
+    }
+}
+
+
 /**
  * Matches full quote literal, starting from qq, qw, y, tr, ...
  * Note that this DOES NOT include the normal quotes using //, "", '' or ``
- * NOTE function returns tokens - this is unconventional and no good reason not just to take reference
  * @return
  */
-std::vector<Token> Tokeniser::matchQuoteLiteral() {
-    auto start = currentPos();
+bool Tokeniser::matchQuoteLiteral(std::vector<Token> &tokens) {
+    int tokensSize = tokens.size(); // So we can backtrack to this
+    auto startPos = currentPos();
+    std::string quoteOperator = matchQuoteOperator();
+    if (quoteOperator.empty()) return false;
 
-    auto p1 = peek();
-    auto p2 = peekAhead(2);
-    std::string quoteChars;
+    bool isMultipleLiteral = quoteOperator == "s" || quoteOperator == "y" || quoteOperator == "tr";
+    tokens.emplace_back(Token(TokenType::QuoteIdent, startPos, quoteOperator));
 
-    bool isMultipleLiteral = false;
-    int offset = 1;
+    bool whitespaceEtcMatched = addNewlineWhitespaceCommentTokens(tokens);
 
-    if ((p1 == 'q' && p2 == 'q') || (p1 == 'q' && p2 == 'x') || (p1 == 'q' && p2 == 'w') || (p1 == 'q' && p2 == 'r')) {
-        quoteChars = std::string(1, p1) + p2;
-        offset += 2;
-    } else if (p1 == 'q' || p1 == 'm') {
-        quoteChars = std::string(1, p1);
-        offset++;
-    } else if (p1 == 's' || p1 == 'y') {
-        isMultipleLiteral = true;
-        offset++;
-        quoteChars = std::string(1, p1);
-    } else if (p1 == 't' && p2 == 'r') {
-        quoteChars = "tr";
-        isMultipleLiteral = true;
-        offset += 2;
-    } else {
-        return std::vector<Token>();
-    }
-
-    std::vector<Token> tokens;
-    std::string whitespace;
-    while (isWhitespace(peekAhead(offset))) {
-        whitespace += peekAhead(offset);
-        offset++;
-    }
-
-    auto quoteChar = peekAhead(offset);
+    addNewlineWhitespaceCommentTokens(tokens);
+    auto quoteChar = peek();
 
     if (isalnum(quoteChar)) {
-        if (whitespace.empty()) {
+        if (!whitespaceEtcMatched) {
             // Must have whitespace for alphanumeric quote char
-            return std::vector<Token>();
+            backtrack(startPos);
+            tokens.erase(tokens.begin() + tokensSize, tokens.end());
+            return false;
         }
-    } else if (quoteChar == '_') {
-        // Banned quote characters
-        return std::vector<Token>();
     }
 
-    start = currentPos();
-    auto quoteIdent = this->matchStringOption(std::vector<std::string>{quoteChars});
-    tokens.emplace_back(Token(TokenType::QuoteIdent, start, quoteIdent));
-
-    start = currentPos();
-    whitespace = this->matchWhitespace();
+    auto start = currentPos();
+    auto whitespace = this->matchWhitespace();
     if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
 
     matchDelimString(tokens);
     if (isMultipleLiteral) {
-
         if (quoteChar == '{' || quoteChar == '(' || quoteChar == '<' || quoteChar == '[') {
             // If first block is brackets, then allow for whitespace and comments
             start = currentPos();
             whitespace = matchWhitespace();
             if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
-            matchNewlinesAndWhitespaces(tokens);
-
+            addNewlineWhitespaceCommentTokens(tokens);
 
             // Now we can match something new
-
             matchDelimString(tokens);
         } else {
             // Match more string then followed by ending string
             start = currentPos();
             std::string contents = matchStringLiteral(quoteChar, false);
-            auto pos = currentPos();
-            pos.position -= 1;
-            pos.col = pos.col == 0 ? 0 : pos.col - 1;   // FIXME
-
             if (!contents.empty()) {
                 auto endPos = currentPos();
                 endPos.position -= 1;
@@ -472,24 +466,21 @@ std::vector<Token> Tokeniser::matchQuoteLiteral() {
     // Finally to match ending part of string for certain types
     std::string modifiers;
     start = currentPos();
-    if (p1 == 's') {
+    if (quoteOperator == "s") {
         modifiers = matchStringContainingOnlyLetters("msixpodualngcer");
     }
-    if (p1 == 'm') {
+    if (quoteOperator == "m") {
         modifiers = matchStringContainingOnlyLetters("msixpodualngc");
     }
-    if (p1 == 'q' && p2 == 'r') {
+    if (quoteOperator == "qr") {
         modifiers = matchStringContainingOnlyLetters("msixpodualn");
     }
-    if (p1 == 't' && p2 == 'r') {
-        modifiers = matchStringContainingOnlyLetters("cdsr");
-    }
-    if (p1 == 'y') {
+    if (quoteOperator == "tr" || quoteOperator == "y") {
         modifiers = matchStringContainingOnlyLetters("cdsr");
     }
 
     if (!modifiers.empty()) tokens.emplace_back(Token(TokenType::StringModifiers, start, modifiers));
-    return tokens;
+    return true;
 }
 
 /**
@@ -834,7 +825,7 @@ bool Tokeniser::matchSlashString(std::vector<Token> &tokens) {
  * @param tokens
  * @return
  */
-bool Tokeniser::matchNewlinesAndWhitespaces(std::vector<Token> &tokens) {
+bool Tokeniser::addNewlineWhitespaceCommentTokens(std::vector<Token> &tokens) {
     bool matched = true;
     int size = tokens.size();
     while (matched) {
@@ -1337,11 +1328,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     }
 
     // String literals / quote literals / transliterations / ...
-    auto quoteTokens = matchQuoteLiteral();
-    if (!quoteTokens.empty()) {
-        tokens.insert(tokens.end(), quoteTokens.begin(), quoteTokens.end());
-        return;
-    }
+    if (matchQuoteLiteral(tokens)) return;
 
     // Numeric first
     if (this->peek() == '/') {
