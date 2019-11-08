@@ -6,7 +6,7 @@
 #define PERLPARSER_PERLCOMMANDLINE_H
 
 #include "PerlProject.h"
-#include "lib/pstreams.h"
+#include "../lib/pstreams.h"
 #include "Util.h"
 #include <iostream>
 #include <vector>
