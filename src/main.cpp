@@ -128,18 +128,18 @@ void debugPrint(const std::string &path) {
     auto pos = FilePos(30, 1);
     auto map = getSymbolMap(fileSymbols, pos);
     for (const auto &varItem : map) {
-//        std::cout << varItem.second->toStr() << std::endl;
+        std::cout << varItem.second->toStr() << std::endl;
     }
 
-//    std::cout << console::bold << std::endl << "Variable usages" << console::clear << std::endl;
-//    for (auto it = fileSymbols.variableUsages.begin(); it != fileSymbols.variableUsages.end(); it++) {
-//        std::cout << it->first->toStr() << ": ";
-//        for (auto varPos: fileSymbols.variableUsages[it->first]) {
-//            std::cout << varPos.toStr() << " ";
-//        }
-//
-//        std::cout << std::endl;
-//    }
+    std::cout << console::bold << std::endl << "Variable usages" << console::clear << std::endl;
+    for (auto it = fileSymbols.variableUsages.begin(); it != fileSymbols.variableUsages.end(); it++) {
+        std::cout << it->first->toStr() << ": ";
+        for (auto varPos: fileSymbols.variableUsages[it->first]) {
+            std::cout << varPos.toStr() << " ";
+        }
+
+        std::cout << std::endl;
+    }
 
     std::cout << std::endl << console::bold << "Timing" << console::clear << std::endl;
     std::cout << "Total: " << timeInfo.total << "ms" << std::endl;

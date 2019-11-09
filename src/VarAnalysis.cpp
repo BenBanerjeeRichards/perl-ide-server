@@ -240,7 +240,18 @@ doFindVariableUsages(const std::shared_ptr<SymbolNode>& rootSymbolNode, const st
             if (token.type == TokenType::ScalarVariable || token.type == TokenType::HashVariable ||
                 token.type == TokenType::ArrayVariable) {
                 // First find declaration
-                std::shared_ptr<Variable> declaration = findDeclaration(rootSymbolNode, symbolNode, token.data, token.startPos);
+                // Need to consider context of variale to determine what it's declaration looks lile
+                // e.g. $test refers to a scalar defined like my $test = ..., where as $test[0] refers to my @test = ...
+                std::string canonicalName = token.data;
+                Token accessor = tokenIterator.next();
+                if (token.type == TokenType::ScalarVariable && accessor.type == TokenType::LSquareBracket) {
+                    // Array access
+                    canonicalName = "@" + token.data.substr(1, token.data.size() - 1);
+                } else if (token.type == TokenType::ScalarVariable && accessor.type == TokenType::HashDerefStart) {
+                    canonicalName = "%" + token.data.substr(1, token.data.size() - 1);
+                }
+
+                std::shared_ptr<Variable> declaration = findDeclaration(rootSymbolNode, symbolNode, canonicalName, token.startPos);
                 if (declaration == nullptr) {
 //                    std::cerr <<  token.data << " " << token.startPos.toStr() << " **NO DECL** for variable " << std::endl;
                 } else {
