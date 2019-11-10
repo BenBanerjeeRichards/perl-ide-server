@@ -69,8 +69,8 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 
     if (printTokens) {
         for (auto token : tokens) {
-            if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << console::dim;
-            std::cout << tokeniser.tokenToStrWithCode(token) << console::clear <<  std::endl;
+//            if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << console::dim;
+//            std::cout << tokeniser.tokenToStrWithCode(token) << console::clear <<  std::endl;
         }
     }
 

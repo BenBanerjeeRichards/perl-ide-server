@@ -17,7 +17,7 @@ struct Variable {
     FilePos declaration;
     int id;
 
-    bool operator==(const Variable& other) const {
+    bool operator==(const Variable &other) const {
         return this->id == other.id;
     }
 
@@ -31,9 +31,10 @@ struct Variable {
 };
 
 
-namespace std{
-    template <> struct hash<Variable> {
-        std::size_t operator()(const Variable& var) const {
+namespace std {
+    template<>
+    struct hash<Variable> {
+        std::size_t operator()(const Variable &var) const {
             return std::hash<int>()(var.id);
         }
     };
@@ -66,12 +67,13 @@ public:
         this->declaration = declaration;
         this->package = package;
         this->id = id;
+        this->fullyQualifiedName = name.size() == 0 ? "" : name[0] + package + "::" + name.substr(1, name.size() - 1);
     }
 
     bool isAccessibleAt(const FilePos &pos) override;
 
     std::string toStr() override {
-        return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ")" + name + " (GLOBAL)";
+        return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ") " + fullyQualifiedName + " (GLOBAL)";
     }
 
     std::string getDetail() override {
@@ -79,6 +81,8 @@ public:
     }
 
     std::string package;
+
+    std::string fullyQualifiedName;
 
 private:
     FilePos scopeEnd;
@@ -99,7 +103,8 @@ public:
 
     std::string toStr() override {
         if (name.empty()) return "<NO NAME>";
-        return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ") our " + name[0] + package + "::" + name.substr(1, name.size() -1);
+        return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ") our " + name[0] + package + "::" +
+               name.substr(1, name.size() - 1);
     }
 };
 
@@ -121,7 +126,9 @@ public:
 class SymbolNode {
 public:
     SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode);
-    SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode, std::vector<std::string> parentFeatures);
+
+    SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode,
+               std::vector<std::string> parentFeatures);
 
     // Reference to tokens
     std::shared_ptr<BlockNode> blockNode;
@@ -182,7 +189,7 @@ std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos p
 
 void printSymbolTree(const std::shared_ptr<SymbolNode> &node);
 
-void printFileSymbols(FileSymbols& fileSymbols);
+void printFileSymbols(FileSymbols &fileSymbols);
 
 typedef std::unordered_map<std::string, std::shared_ptr<Variable>> SymbolMap;
 
