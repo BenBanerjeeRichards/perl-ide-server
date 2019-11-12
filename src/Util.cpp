@@ -69,7 +69,38 @@ std::string readFile(const std::string &path) {
 
 // https://stackoverflow.com/a/18427254
 std::string join(const std::vector<std::string> &vec, const char *delim) {
+    if (vec.empty()) return "";
+
     std::stringstream res;
     copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(res, delim));
-    return res.str();
+    std::string resStr = res.str();
+    // Remove ending deliminator
+    return resStr.substr(0, resStr.size() - strlen(delim));
+}
+
+bool endsWith(const std::string& s, const std::string& suffix)
+{
+    return s.size() >= suffix.size() &&
+           s.substr(s.size() - suffix.size()) == suffix;
+}
+
+// https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c
+std::vector<std::string> split(std::string s, const std::string& delimiter) {
+    std::vector<std::string> tokens;
+
+    for (size_t start = 0, end; start < s.length(); start = end + delimiter.length()) {
+        size_t position = s.find(delimiter, start);
+        end = position != std::string::npos ? position : s.length();
+
+        std::string token = s.substr(start, end - start);
+        if (!token.empty()) {
+            tokens.push_back(token);
+        }
+    }
+
+    if ((s.empty() || endsWith(s, delimiter))) {
+        tokens.emplace_back("");
+    }
+
+    return tokens;
 }

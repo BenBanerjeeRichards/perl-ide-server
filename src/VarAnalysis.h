@@ -195,4 +195,32 @@ typedef std::unordered_map<std::string, std::shared_ptr<Variable>> SymbolMap;
 
 SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos);
 
+std::string getCanonicalVariableName(std::string variableName);
+
+class PackageVariableName {
+    // Doesn't include sigil
+    std::string package;
+
+    std::string name;
+
+    std::string sigil;
+
+public:
+
+    PackageVariableName(std::string sigil, std::string package, std::string name);
+
+    std::string getFullName();
+
+    const std::string &getPackage() const;
+
+    const std::string &getName() const;
+
+    const std::string &getSigil() const;
+
+    std::string toStr();
+};
+
+PackageVariableName getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext);
+
+
 #endif //PERLPARSER_VARANALYSIS_H

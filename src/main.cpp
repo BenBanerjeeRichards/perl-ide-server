@@ -162,6 +162,7 @@ void debugPrint(const std::string &path) {
 
 int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
+
     if (argc >= 2) file = args[1];
 
     if (argc == 2 && strncmp(args[1], "strtest", 7) == 0) {

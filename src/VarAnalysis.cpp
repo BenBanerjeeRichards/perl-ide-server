@@ -374,3 +374,108 @@ std::string Subroutine::toStr() {
 
     return str;
 }
+
+
+// Get canonical name for a variable
+// Normalises equivalent variables e.g. $main::x = $main::'x = $main::::x = $main'x = ${main'x} = ${main::x} = ...
+std::string getCanonicalVariableName(std::string variableName) {
+    // First remove brackets if they exist
+    std::string canonical = variableName;
+    if (variableName.size() <= 1 || (variableName[0] != '@' && variableName[0] != '$' && variableName[0] != '%'))
+        return variableName;
+
+    if (variableName[1] == '{' && variableName[variableName.size() - 1] == '}') {
+        canonical = variableName[0] + variableName.substr(2, variableName.size() - 3);
+    }
+
+    // Now replace ' with ::
+    for (int i = 1; i < canonical.size(); i++) {
+        if (canonical[i] == '\'') {
+            canonical = canonical.substr(0, i) + "::" + canonical.substr(i + 1, canonical.size() - i);
+        }
+    }
+
+    // Now replace :::: with ::
+    for (int i = 1; i < (int) canonical.size(); i++) {
+        if (canonical[i] == ':') {
+            int j = 1;
+            while (j < (int) canonical.size()) {
+                if (canonical[i + j] != ':') break;
+                j++;
+            }
+
+            int numDoubleColons = (int) j / 2;
+            if (numDoubleColons > 1) {
+                int deleteFrom = i + 2;
+                int deleteTo = i + numDoubleColons * 2;
+                canonical = canonical.substr(0, deleteFrom) + canonical.substr(deleteTo, canonical.size() - deleteTo);
+            }
+
+            i += 2;
+        }
+    }
+
+    return canonical;
+}
+
+/**
+ * Given a package variable name and current package, returns the fully qualified canonical package reference along
+ * with the package the variable is in. e.g. - examples are (var in code, current package) -> (qualified name, package)
+ *  ($hello, main)           -> ($main::hello, main)
+ *  (${hello}, test)         -> ($test::hello, test)
+ *  ($test::'hello, main)    -> ($test::hello, main)
+ * @param packageVariableName Variable as it appears in the code
+ * @param packageContext Package that the variable was found in
+ */
+PackageVariableName getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext) {
+    auto canonicalName = getCanonicalVariableName(packageVariableName);
+    if (packageVariableName.empty()) {
+        return PackageVariableName("","","");
+    }
+
+    std::string sigil = std::string(1, canonicalName[0]);
+    std::string withoutSigil = canonicalName.substr(1, canonicalName.size() - 1);
+    std::vector<std::string> parts = split(withoutSigil, "::");
+
+    // Remove actual name
+    std::string variableName = parts[parts.size() - 1];
+    parts.pop_back();
+
+    // Join again for package name
+    std::string packageNameFromVariable = parts.empty() ? "" : join(parts, "::");
+
+    if (packageNameFromVariable.empty()) {
+        // variable has no encoded package name - assume current package at location
+        return PackageVariableName(sigil, packageContext, variableName);
+    } else {
+        // package name provided in variable name, use that instead
+        return PackageVariableName(sigil, packageNameFromVariable, variableName);
+    }
+}
+
+PackageVariableName::PackageVariableName(std::string sigil, std::string package, std::string name) {
+    this->sigil = sigil;
+    this->package = package;
+    this->name = name;
+}
+
+std::string PackageVariableName::getFullName() {
+    return sigil + package + "::" + name;
+}
+
+const std::string &PackageVariableName::getPackage() const {
+    return package;
+}
+
+const std::string &PackageVariableName::getName() const {
+    return name;
+}
+
+const std::string &PackageVariableName::getSigil() const {
+    return sigil;
+}
+
+std::string PackageVariableName::toStr() {
+    return this->sigil + "," + this->package + "," + this->name;
+}
+
