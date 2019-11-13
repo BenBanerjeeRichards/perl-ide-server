@@ -9,28 +9,6 @@ bool ScopedVariable::isAccessibleAt(const FilePos &pos) {
 }
 
 
-bool GlobalVariable::isAccessibleAt(const FilePos &pos) {
-    // Globals available everywhere in current file
-    // Even before declaration for now (in future we need to consider packages in other files)
-    return true;
-}
-
-GlobalVariable::GlobalVariable(int id, PackageVariableName variableName, FilePos declaration)
-        : packageVariableName(variableName) {
-    this->name = variableName.getFullName();
-    this->declaration = declaration;
-    this->id = id;
-}
-
-std::string GlobalVariable::toStr() {
-    return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ") " + this->name + " (GLOBAL)";
-}
-
-std::string GlobalVariable::getDetail() {
-    return this->packageVariableName.getPackage();
-}
-
-
 std::shared_ptr<Variable> makeVariable(int id, TokenType type, std::string name, FilePos declaration, FilePos scopeEnd,
                                        const std::vector<PackageSpan> &packages) {
     if (type == TokenType::Our) {
@@ -92,20 +70,17 @@ handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::v
     return variables;
 }
 
-std::shared_ptr<GlobalVariable>
-handleGlobalVariables(const Token &token, const std::vector<PackageSpan> &packages) {
-    std::shared_ptr<GlobalVariable> global = nullptr;
 
+std::optional<GlobalVariable> handleGlobalVariables(const Token &token, const std::vector<PackageSpan> &packages) {
     if (token.type == TokenType::ScalarVariable || token.type == TokenType::HashVariable ||
         token.type == TokenType::ArrayVariable) {
-        // We have something in form $x = ... with no our/local/my/state...
-        // Implies this is a global variable definition IF variable not previously declared
         auto package = findPackageAtPos(packages, token.startPos);
-        auto packagedName = getFullyQualifiedVariableName(token.data, package);
-        global = std::make_shared<GlobalVariable>(1, packagedName, token.startPos);
+        auto globalVariable = getFullyQualifiedVariableName(token.data, package);
+        globalVariable.setFilePos(token.startPos);
+        return std::optional<GlobalVariable>(globalVariable);
     }
 
-    return global;
+    return std::optional<GlobalVariable>();
 }
 
 std::string handleUseFeature(const std::shared_ptr<TokensNode> &tokensNode, int i) {
@@ -259,8 +234,14 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
                                                                         token.startPos);
                 if (declaration == nullptr) {
                     // If there is no previous declaration then treat the variable as a global
-                    if (auto global = handleGlobalVariables(token, fileSymbols.packages)) {
-                        fileSymbols.globals.emplace_back(global);
+                    auto globalOptional = handleGlobalVariables(token, fileSymbols.packages);
+                    if (globalOptional.has_value()) {
+                        GlobalVariable global = globalOptional.value();
+                        if (fileSymbols.globals.count(global.getFullName()) == 0) {
+                            fileSymbols.globals[global.getFullName()] = std::vector<FilePos>{global.getFilePos()};
+                        } else {
+                            fileSymbols.globals[global.getFullName()].emplace_back(global.getFilePos());
+                        }
                     }
                 } else {
                     if (usages.count(declaration) == 0) usages[declaration] = std::vector<FilePos>();
@@ -339,7 +320,11 @@ void printFileSymbols(FileSymbols &fileSymbols) {
 
     std::cout << std::endl << console::bold << "Package variables" << console::clear << std::endl;
     for (auto global : fileSymbols.globals) {
-        std::cout << global->toStr() << std::endl;
+        std::cout << global.first << " ";
+        for (auto decl : global.second) {
+            std::cout << decl.toStr() << " ";
+        }
+        std::cout << std::endl;
     }
 
     std::cout << std::endl << "\e[1mSubroutines\e[0m" << std::endl;
@@ -369,7 +354,7 @@ SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos) {
     // Now add globals
     for (const auto &var: fileSymbols.globals) {
         // Note that scoped variables to take presedence over globals
-        if (!symbolMap.count(var->name)) symbolMap[var->name] = var;
+//        if (!symbolMap.count(var.first)) symbolMap[var.first] = var;
     }
 
     return symbolMap;
@@ -443,10 +428,10 @@ std::string getCanonicalVariableName(std::string variableName) {
  * @param packageVariableName Variable as it appears in the code
  * @param packageContext Package that the variable was found in
  */
-PackageVariableName getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext) {
+GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext) {
     auto canonicalName = getCanonicalVariableName(packageVariableName);
     if (packageVariableName.empty()) {
-        return PackageVariableName("", "", "");
+        return GlobalVariable("", "", "");
     }
 
     std::string sigil = std::string(1, canonicalName[0]);
@@ -462,36 +447,44 @@ PackageVariableName getFullyQualifiedVariableName(std::string packageVariableNam
 
     if (packageNameFromVariable.empty()) {
         // variable has no encoded package name - assume current package at location
-        return PackageVariableName(sigil, packageContext, variableName);
+        return GlobalVariable(sigil, packageContext, variableName);
     } else {
         // package name provided in variable name, use that instead
-        return PackageVariableName(sigil, packageNameFromVariable, variableName);
+        return GlobalVariable(sigil, packageNameFromVariable, variableName);
     }
 }
 
-PackageVariableName::PackageVariableName(std::string sigil, std::string package, std::string name) {
+GlobalVariable::GlobalVariable(std::string sigil, std::string package, std::string name) {
     this->sigil = sigil;
     this->package = package;
     this->name = name;
 }
 
-std::string PackageVariableName::getFullName() {
+std::string GlobalVariable::getFullName() {
     return sigil + package + "::" + name;
 }
 
-const std::string &PackageVariableName::getPackage() const {
+const std::string &GlobalVariable::getPackage() const {
     return package;
 }
 
-const std::string &PackageVariableName::getName() const {
+const std::string &GlobalVariable::getName() const {
     return name;
 }
 
-const std::string &PackageVariableName::getSigil() const {
+const std::string &GlobalVariable::getSigil() const {
     return sigil;
 }
 
-std::string PackageVariableName::toStr() {
+std::string GlobalVariable::toStr() {
     return this->sigil + "," + this->package + "," + this->name;
+}
+
+const FilePos &GlobalVariable::getFilePos() const {
+    return filePos;
+}
+
+void GlobalVariable::setFilePos(const FilePos &filePos) {
+    GlobalVariable::filePos = filePos;
 }
 

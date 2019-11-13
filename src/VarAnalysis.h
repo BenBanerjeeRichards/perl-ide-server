@@ -12,7 +12,7 @@
 #include <utility>
 #include <unordered_map>
 
-class PackageVariableName {
+class GlobalVariable {
     // Doesn't include sigil
     std::string package;
 
@@ -20,9 +20,11 @@ class PackageVariableName {
 
     std::string sigil;
 
+    FilePos filePos;
+
 public:
 
-    PackageVariableName(std::string sigil, std::string package, std::string name);
+    GlobalVariable(std::string sigil, std::string package, std::string name);
 
     std::string getFullName();
 
@@ -31,6 +33,10 @@ public:
     const std::string &getName() const;
 
     const std::string &getSigil() const;
+
+    const FilePos &getFilePos() const;
+
+    void setFilePos(const FilePos &filePos);
 
     std::string toStr();
 };
@@ -83,21 +89,6 @@ private:
     FilePos scopeEnd;
 };
 
-class GlobalVariable : public Variable {
-public:
-    GlobalVariable(int id, PackageVariableName variableName, FilePos declaration);
-
-    bool isAccessibleAt(const FilePos &pos) override;
-
-    std::string toStr() override;
-
-    std::string getDetail() override;
-
-    PackageVariableName packageVariableName;
-
-private:
-    FilePos scopeEnd;
-};
 
 class OurVariable : public ScopedVariable {
 public:
@@ -182,8 +173,11 @@ struct FileSymbols {
     std::vector<PackageSpan> packages;
     std::vector<Subroutine> subroutines;
 
-    // This is a temp measure until packages are fully implemented
-    std::vector<std::shared_ptr<Variable>> globals;
+    // Package globals, map from fully qualified name to usages
+    // Different to lexical variabels as package variables don't have a declaration
+    // This is as they are implicitly declared when they are used
+    // And it is impossible to find a first usage without running the perl code
+    std::unordered_map<std::string, std::vector<FilePos>> globals;
 
     int partialParse;
 
@@ -209,7 +203,7 @@ SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos);
 std::string getCanonicalVariableName(std::string variableName);
 
 
-PackageVariableName getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext);
+GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext);
 
 
 #endif //PERLPARSER_VARANALYSIS_H
