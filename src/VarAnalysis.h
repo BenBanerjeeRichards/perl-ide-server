@@ -22,11 +22,12 @@ class GlobalVariable {
 
     FilePos filePos;
 
+
 public:
 
     GlobalVariable(std::string sigil, std::string package, std::string name);
 
-    std::string getFullName();
+    const std::string getFullName() const;
 
     const std::string &getPackage() const;
 
@@ -39,6 +40,11 @@ public:
     void setFilePos(const FilePos &filePos);
 
     std::string toStr();
+
+    bool operator==(const GlobalVariable &other) const {
+        return this->getFullName() == other.getFullName();
+    }
+
 };
 
 struct Variable {
@@ -68,6 +74,16 @@ namespace std {
         }
     };
 }
+
+namespace std {
+    template<>
+    struct hash<GlobalVariable> {
+        std::size_t operator()(const GlobalVariable &var) const {
+            return std::hash<std::string>()(var.getFullName());
+        }
+    };
+}
+
 
 class ScopedVariable : public Variable {
 public:
@@ -177,7 +193,7 @@ struct FileSymbols {
     // Different to lexical variabels as package variables don't have a declaration
     // This is as they are implicitly declared when they are used
     // And it is impossible to find a first usage without running the perl code
-    std::unordered_map<std::string, std::vector<FilePos>> globals;
+    std::unordered_map<GlobalVariable, std::vector<FilePos>> globals;
 
     int partialParse;
 

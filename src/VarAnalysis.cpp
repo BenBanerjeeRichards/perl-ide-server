@@ -237,10 +237,10 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
                     auto globalOptional = handleGlobalVariables(token, fileSymbols.packages);
                     if (globalOptional.has_value()) {
                         GlobalVariable global = globalOptional.value();
-                        if (fileSymbols.globals.count(global.getFullName()) == 0) {
-                            fileSymbols.globals[global.getFullName()] = std::vector<FilePos>{global.getFilePos()};
+                        if (fileSymbols.globals.count(global) == 0) {
+                            fileSymbols.globals[global] = std::vector<FilePos>{global.getFilePos()};
                         } else {
-                            fileSymbols.globals[global.getFullName()].emplace_back(global.getFilePos());
+                            fileSymbols.globals[global].emplace_back(global.getFilePos());
                         }
                     }
                 } else {
@@ -320,7 +320,7 @@ void printFileSymbols(FileSymbols &fileSymbols) {
 
     std::cout << std::endl << console::bold << "Package variables" << console::clear << std::endl;
     for (auto global : fileSymbols.globals) {
-        std::cout << global.first << " ";
+        std::cout << global.first.getFullName() << " ";
         for (auto decl : global.second) {
             std::cout << decl.toStr() << " ";
         }
@@ -460,7 +460,7 @@ GlobalVariable::GlobalVariable(std::string sigil, std::string package, std::stri
     this->name = name;
 }
 
-std::string GlobalVariable::getFullName() {
+const std::string GlobalVariable::getFullName() const {
     return sigil + package + "::" + name;
 }
 
