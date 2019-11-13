@@ -15,6 +15,21 @@ bool GlobalVariable::isAccessibleAt(const FilePos &pos) {
     return true;
 }
 
+GlobalVariable::GlobalVariable(int id, PackageVariableName variableName, FilePos declaration)
+        : packageVariableName(variableName) {
+    this->name = variableName.getFullName();
+    this->declaration = declaration;
+    this->id = id;
+}
+
+std::string GlobalVariable::toStr() {
+    return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ") " + this->name + " (GLOBAL)";
+}
+
+std::string GlobalVariable::getDetail() {
+    return this->packageVariableName.getPackage();
+}
+
 
 std::shared_ptr<Variable> makeVariable(int id, TokenType type, std::string name, FilePos declaration, FilePos scopeEnd,
                                        const std::vector<PackageSpan> &packages) {
@@ -86,7 +101,8 @@ handleGlobalVariables(const Token &token, const std::vector<PackageSpan> &packag
         // We have something in form $x = ... with no our/local/my/state...
         // Implies this is a global variable definition IF variable not previously declared
         auto package = findPackageAtPos(packages, token.startPos);
-        global = std::make_shared<GlobalVariable>(1, token.data, token.startPos, package);
+        auto packagedName = getFullyQualifiedVariableName(token.data, package);
+        global = std::make_shared<GlobalVariable>(1, packagedName, token.startPos);
     }
 
     return global;
@@ -430,7 +446,7 @@ std::string getCanonicalVariableName(std::string variableName) {
 PackageVariableName getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext) {
     auto canonicalName = getCanonicalVariableName(packageVariableName);
     if (packageVariableName.empty()) {
-        return PackageVariableName("","","");
+        return PackageVariableName("", "", "");
     }
 
     std::string sigil = std::string(1, canonicalName[0]);

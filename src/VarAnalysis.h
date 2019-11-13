@@ -12,6 +12,29 @@
 #include <utility>
 #include <unordered_map>
 
+class PackageVariableName {
+    // Doesn't include sigil
+    std::string package;
+
+    std::string name;
+
+    std::string sigil;
+
+public:
+
+    PackageVariableName(std::string sigil, std::string package, std::string name);
+
+    std::string getFullName();
+
+    const std::string &getPackage() const;
+
+    const std::string &getName() const;
+
+    const std::string &getSigil() const;
+
+    std::string toStr();
+};
+
 struct Variable {
     std::string name;
     FilePos declaration;
@@ -62,27 +85,15 @@ private:
 
 class GlobalVariable : public Variable {
 public:
-    GlobalVariable(int id, const std::string &name, FilePos declaration, const std::string &package) {
-        this->name = name;
-        this->declaration = declaration;
-        this->package = package;
-        this->id = id;
-        this->fullyQualifiedName = name.size() == 0 ? "" : name[0] + package + "::" + name.substr(1, name.size() - 1);
-    }
+    GlobalVariable(int id, PackageVariableName variableName, FilePos declaration);
 
     bool isAccessibleAt(const FilePos &pos) override;
 
-    std::string toStr() override {
-        return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ") " + fullyQualifiedName + " (GLOBAL)";
-    }
+    std::string toStr() override;
 
-    std::string getDetail() override {
-        return this->package;
-    }
+    std::string getDetail() override;
 
-    std::string package;
-
-    std::string fullyQualifiedName;
+    PackageVariableName packageVariableName;
 
 private:
     FilePos scopeEnd;
@@ -197,28 +208,6 @@ SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos);
 
 std::string getCanonicalVariableName(std::string variableName);
 
-class PackageVariableName {
-    // Doesn't include sigil
-    std::string package;
-
-    std::string name;
-
-    std::string sigil;
-
-public:
-
-    PackageVariableName(std::string sigil, std::string package, std::string name);
-
-    std::string getFullName();
-
-    const std::string &getPackage() const;
-
-    const std::string &getName() const;
-
-    const std::string &getSigil() const;
-
-    std::string toStr();
-};
 
 PackageVariableName getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext);
 
