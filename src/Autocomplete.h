@@ -9,14 +9,6 @@
 #include "Parser.h"
 #include "Tokeniser.h"
 
-struct AutocompleteItem {
-
-    AutocompleteItem(const std::string &name, const std::string &detail);
-
-    std::string name;
-    std::string detail;
-};
-
 std::vector<AutocompleteItem> autocomplete(const std::string& filePath, FilePos);
 
 #endif //PERLPARSER_AUTOCOMPLETE_H

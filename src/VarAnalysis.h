@@ -5,6 +5,7 @@
 #ifndef PERLPARSER_VARANALYSIS_H
 #define PERLPARSER_VARANALYSIS_H
 
+#include "AutocompleteItem.h"
 #include "Token.h"
 #include "Util.h"
 #include "Node.h"
@@ -217,6 +218,8 @@ typedef std::unordered_map<std::string, std::shared_ptr<Variable>> SymbolMap;
 SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos);
 
 std::string getCanonicalVariableName(std::string variableName);
+
+std::vector<AutocompleteItem> variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos);
 
 
 GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext);

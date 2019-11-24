@@ -12,16 +12,8 @@ std::vector<AutocompleteItem> autocomplete(const std::string& filePath, FilePos 
     int partial = -1;
     auto parseTree = parse(tokens, partial);
     fileSymbols.packages = parsePackages(parseTree);
-     buildVariableSymbolTree(parseTree, fileSymbols);
-    auto symbolTable = getSymbolMap(fileSymbols, location);
+    buildVariableSymbolTree(parseTree, fileSymbols);
     std::vector<AutocompleteItem> completion;
-
-    completion.reserve(symbolTable.size());
-    for (const auto& var : symbolTable) {
-        completion.emplace_back(AutocompleteItem(var.second->name, var.second->getDetail()));
-    }
-
-    return completion;
+    return variableNamesAtPos(fileSymbols, location);
 }
 
-AutocompleteItem::AutocompleteItem(const std::string &name, const std::string &detail) : name(name), detail(detail) {}

@@ -273,12 +273,10 @@ std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockN
 
 
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos) {
-    // TODO replace with binary search
     for (const auto &package : packages) {
         if (insideRange(package.start, package.end, pos)) return package.packageName;
     }
 
-    std::cerr << "Failed to find package span at pos " << pos.toStr() << std::endl;
     return "main";
 }
 
@@ -350,14 +348,36 @@ void doGetSymbolMap(const std::shared_ptr<SymbolNode> &symbolTree, const FilePos
 SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos) {
     SymbolMap symbolMap;
     doGetSymbolMap(fileSymbols.symbolTree, pos, symbolMap);
+    return symbolMap;
+}
 
-    // Now add globals
-    for (const auto &var: fileSymbols.globals) {
-        // Note that scoped variables to take presedence over globals
-//        if (!symbolMap.count(var.first)) symbolMap[var.first] = var;
+std::vector<AutocompleteItem> variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos) {
+    SymbolMap symbolMap = getSymbolMap(fileSymbols, filePos);
+    std::vector<AutocompleteItem> variables;
+
+    // Now add the globals
+    std::string currentPackage = findPackageAtPos(fileSymbols.packages, filePos);
+    // For globals in the current package, they won't require a fully qualified identifier and so could clash
+    // If there is a clash, then insert the fully qualified identifier, otherwise just insert the name
+    for (const auto &global : fileSymbols.globals) {
+        if (global.first.getPackage() == currentPackage) {
+            if (symbolMap.count(global.first.getName()) == 0) {
+                variables.emplace_back(
+                        AutocompleteItem(global.first.getSigil() + global.first.getName(), global.first.getFullName()));
+            } else {
+                variables.emplace_back(AutocompleteItem(global.first.getFullName(), ""));
+            }
+        } else {
+            variables.emplace_back(AutocompleteItem(global.first.getFullName(), ""));
+        }
     }
 
-    return symbolMap;
+    // Now add the symbol map
+    for (const auto &symbolVal : symbolMap) {
+        variables.emplace_back(AutocompleteItem(symbolVal.first, ""));
+    }
+
+    return variables;
 }
 
 std::string Subroutine::toStr() {
