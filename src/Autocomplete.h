@@ -9,6 +9,6 @@
 #include "Parser.h"
 #include "Tokeniser.h"
 
-std::vector<AutocompleteItem> autocomplete(const std::string& filePath, FilePos);
+std::vector<AutocompleteItem> autocomplete(const std::string &filePath, FilePos, char sigilContext);
 
 #endif //PERLPARSER_AUTOCOMPLETE_H

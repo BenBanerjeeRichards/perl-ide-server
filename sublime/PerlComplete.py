@@ -10,7 +10,7 @@ import json
 PERL_COMPLETE_EXE = "/Users/bbr/IdeaProjects/PerlParser/cmake-build-debug/PerlParser"
 PERL_COMPLETE_SERVER = "http://localhost:1234/"
 
-debug = False
+debug = True
 
 def log_info(msg):
     print("[PerlComplete:INFO] - {}".format(msg))
@@ -18,11 +18,9 @@ def log_info(msg):
 def log_error(msg):
     print("[PerlComplete:ERRO] - {}".format(msg))
 
-
 def log_debug(msg):
     if debug:
         print("[PerlComplete:DEBG] - {}".format(msg))
-
 
 def configure_settings():
     settings = sublime.load_settings("Preferences.sublime-settings")
@@ -41,8 +39,8 @@ def configure_settings():
     sublime.save_settings("Preferences.sublime-settings")
 
 
-def get_completions(file, line, col, word_separators):
-    res = get_request("autocomplete", {"path": file, "line": line, "col": col})
+def get_completions(file, line, col, sigil, word_separators):
+    res = get_request("autocomplete", {"path": file, "line": line, "col": col, "sigil": sigil})
     if not res["success"]:
         return []
 
@@ -53,10 +51,12 @@ def get_completions(file, line, col, word_separators):
         replacement = completion[0]
         if not replacement:
             continue
+
         if replacement[0] == "$":
             replacement = "\\" + replacement
 
         completions.append((completion[0] + "\t" + completion[1], replacement))
+
 
     log_info(completions)
     return completions
@@ -119,8 +119,14 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
         current_path = view.window().active_view().file_name()
         current_pos = view.rowcol(view.sel()[0].begin())
         current_pos = (current_pos[0] + 1, current_pos[1] + 1)
-        return (get_completions(current_path, current_pos[0], current_pos[1], word_separators),
-                sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+        sigil = view.substr(view.line(view.sel()[0]))
+        if sigil:
+            sigil = sigil[-1]
+        else:
+            log_error("Could not retrieve sigil context for completion")
+            return []
 
+        return (get_completions(current_path, current_pos[0], current_pos[1], sigil, word_separators),
+                sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
 configure_settings()

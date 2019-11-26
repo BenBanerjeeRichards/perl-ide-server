@@ -201,7 +201,7 @@ int main(int argc, char **args) {
 
     if (argc == 4) {
         auto pos = FilePos(std::atoi(args[2]), std::atoi(args[3]));
-        for (const auto &c : autocomplete(file, pos)) {
+        for (const auto &c : autocomplete(file, pos, 0)) {
             std::cout << c.name << std::endl << c.detail << std::endl;
         }
     } else if (argc > 1 && strncmp(args[1], "test", 4) == 0) {

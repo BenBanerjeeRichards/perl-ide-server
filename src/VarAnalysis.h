@@ -219,7 +219,8 @@ SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos);
 
 std::string getCanonicalVariableName(std::string variableName);
 
-std::vector<AutocompleteItem> variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos);
+std::vector<AutocompleteItem>
+variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char sigilContext);
 
 
 GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext);

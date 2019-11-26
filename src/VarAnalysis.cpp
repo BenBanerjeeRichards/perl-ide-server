@@ -351,7 +351,19 @@ SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos) {
     return symbolMap;
 }
 
-std::vector<AutocompleteItem> variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos) {
+std::string variableForCompletion(std::string variable, char sigilContext) {
+    if (variable.empty()) return "";
+    if (variable[0] == sigilContext) return variable;
+    std::string variableWithoutSigil = variable.substr(1, variable.size() - 1);
+    if (variable[0] == '@' && sigilContext == '$') return "$" + variableWithoutSigil;
+    if (variable[0] == '%' && sigilContext == '$') return "$" + variableWithoutSigil;
+    if (variable[0] == '%' && sigilContext == '@') return "@" + variableWithoutSigil;
+    return "";
+}
+
+
+std::vector<AutocompleteItem>
+variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char sigilContext) {
     SymbolMap symbolMap = getSymbolMap(fileSymbols, filePos);
     std::vector<AutocompleteItem> variables;
 
@@ -362,19 +374,31 @@ std::vector<AutocompleteItem> variableNamesAtPos(const FileSymbols &fileSymbols,
     for (const auto &global : fileSymbols.globals) {
         if (global.first.getPackage() == currentPackage) {
             if (symbolMap.count(global.first.getName()) == 0) {
-                variables.emplace_back(
-                        AutocompleteItem(global.first.getSigil() + global.first.getName(), global.first.getFullName()));
+                auto variableName = variableForCompletion(global.first.getSigil() + global.first.getName(),
+                                                          sigilContext);
+                if (!variableName.empty()) {
+                    variables.emplace_back(AutocompleteItem(variableName, global.first.getFullName()));
+                }
             } else {
-                variables.emplace_back(AutocompleteItem(global.first.getFullName(), ""));
+                auto variableName = variableForCompletion(global.first.getFullName(), sigilContext);
+                if (!variableName.empty()) {
+                    variables.emplace_back(AutocompleteItem(variableName, ""));
+                }
             }
         } else {
-            variables.emplace_back(AutocompleteItem(global.first.getFullName(), ""));
+            auto variableName = variableForCompletion(global.first.getFullName(), sigilContext);
+            if (!variableName.empty()) {
+                variables.emplace_back(AutocompleteItem(variableName, ""));
+            }
         }
     }
 
     // Now add the symbol map
     for (const auto &symbolVal : symbolMap) {
-        variables.emplace_back(AutocompleteItem(symbolVal.first, ""));
+        auto variableName = variableForCompletion(symbolVal.first, sigilContext);
+        if (!variableName.empty()) {
+            variables.emplace_back(AutocompleteItem(variableName, ""));
+        }
     }
 
     return variables;

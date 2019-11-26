@@ -4,16 +4,16 @@
 
 #include "Autocomplete.h"
 
-std::vector<AutocompleteItem> autocomplete(const std::string& filePath, FilePos location) {
+std::vector<AutocompleteItem> autocomplete(const std::string &filePath, FilePos location, char sigilContext) {
     Tokeniser tokeniser(readFile(filePath));
     std::vector<Token> tokens = tokeniser.tokenise();
-
     FileSymbols fileSymbols;
     int partial = -1;
     auto parseTree = parse(tokens, partial);
     fileSymbols.packages = parsePackages(parseTree);
     buildVariableSymbolTree(parseTree, fileSymbols);
     std::vector<AutocompleteItem> completion;
-    return variableNamesAtPos(fileSymbols, location);
+
+    return variableNamesAtPos(fileSymbols, location, sigilContext);
 }
 

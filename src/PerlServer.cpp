@@ -52,10 +52,15 @@ void startAndBlock(int port) {
     httplib::Server httpServer;
 
     httpServer.Get("/autocomplete", [](const httplib::Request &req, httplib::Response &res) {
-        if (hasParams(req, res, std::vector<std::string>{"path", "line", "col"})) {
+        if (hasParams(req, res, std::vector<std::string>{"path", "line", "col", "sigil"})) {
             int line = -1;
             int col = -1;
             std::string path = req.params.find("path")->second;
+            std::string sigil = req.params.find("sigil")->second;
+            if (sigil.size() != 1) {
+                sendJson(res, "BAD_PARAM_TYPE", "sigil should be a string of length 1");
+                goto end;
+            }
             if (!getIntParam(req, "line", line)) {
                 sendJson(res, "BAD_PARAM_TYPE", "Expected param line to be an int");
                 goto end;
@@ -67,7 +72,7 @@ void startAndBlock(int port) {
 
             std::vector<AutocompleteItem> completeItems;
             try {
-                completeItems = autocomplete(path, FilePos(line, col));
+                completeItems = autocomplete(path, FilePos(line, col), sigil[0]);
             } catch (IOException &) {
                 sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
                 goto end;
