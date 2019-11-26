@@ -10,22 +10,56 @@ import json
 PERL_COMPLETE_EXE = "/Users/bbr/IdeaProjects/PerlParser/cmake-build-debug/PerlParser"
 PERL_COMPLETE_SERVER = "http://localhost:1234/"
 
+debug = False
 
 def log_info(msg):
     print("[PerlComplete:INFO] - {}".format(msg))
 
-
 def log_error(msg):
-    print("[PerlComplete:ERROR] - {}".format(msg))
+    print("[PerlComplete:ERRO] - {}".format(msg))
 
 
-def get_completions(file, line, col):
+def log_debug(msg):
+    if debug:
+        print("[PerlComplete:DEBG] - {}".format(msg))
+
+
+def configure_settings():
+    settings = sublime.load_settings("Preferences.sublime-settings")
+    auto_complete_triggers = settings.get("auto_complete_triggers")
+
+    found = False
+    for trigger in auto_complete_triggers:
+        if trigger["selector"] == "source.perl":
+            found = True
+            trigger["characters"] = "$%@"
+
+    if not found:
+        auto_complete_triggers.append({"selector": "source.perl", "characters": "$@%"})
+
+    settings.set("auto_complete_triggers", auto_complete_triggers)
+    sublime.save_settings("Preferences.sublime-settings")
+
+
+def get_completions(file, line, col, word_separators):
     res = get_request("autocomplete", {"path": file, "line": line, "col": col})
     if not res["success"]:
         return []
 
-    return res["body"]
+    # Convert (completion, detail) to (completion + "\t" + detail, "")
+    # In sublime the tab deliminates the two parts
+    completions = []
+    for completion in res["body"]:
+        replacement = completion[0]
+        if not replacement:
+            continue
+        if replacement[0] == "$":
+            replacement = "\\" + replacement
 
+        completions.append((completion[0] + "\t" + completion[1], replacement))
+
+    log_info(completions)
+    return completions
 
 def ping():
     try:
@@ -36,7 +70,6 @@ def ping():
         return False
 
     return True
-
 
 def start_server():
     if not ping():
@@ -63,7 +96,7 @@ def get_request(url, params={}, attempts=0):
         log_error("Failed to connect to complete server after 5 attempts")
         return
     try:
-        log_info("Running command url={} params={}".format(url, params))
+        log_debug("Running command url={} params={}".format(url, params))
         res = urllib.request.urlopen("{}{}?{}".format(PERL_COMPLETE_SERVER, url, urllib.parse.urlencode(params)))
         return json.loads(res.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
@@ -76,12 +109,18 @@ def get_request(url, params={}, attempts=0):
 
 class PerlCompletionsListener(sublime_plugin.EventListener):
     def on_query_completions(self, view, prefix, locations):
+        # TODO move this elsewhere
+        view.settings().set("word_separators", "./\\()\"'-,.;<>~!@#$%^&*|+=[]{}`~?")
         # Disable on non-perl files
         if view.settings().get("syntax") != "Packages/Perl/Perl.sublime-syntax":
             return
 
-        loc = locations[0]
+        word_separators = view.settings().get("word_separators")
         current_path = view.window().active_view().file_name()
         current_pos = view.rowcol(view.sel()[0].begin())
         current_pos = (current_pos[0] + 1, current_pos[1] + 1)
-        return get_completions(current_path, current_pos[0], current_pos[1])
+        return (get_completions(current_path, current_pos[0], current_pos[1], word_separators),
+                sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+
+
+configure_settings()
