@@ -8,6 +8,8 @@
 #include "../lib/httplib.h"
 #include "../lib/json.hpp"
 #include "Autocomplete.h"
+#include "IOException.h"
+
 
 using json = nlohmann::json;
 

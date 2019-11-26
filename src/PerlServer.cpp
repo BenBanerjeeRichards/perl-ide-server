@@ -64,7 +64,16 @@ void startAndBlock(int port) {
                 sendJson(res, "BAD_PARAM_TYPE", "Expected param line to be an int");
                 goto end;
             }
-            auto completeItems = autocomplete(path, FilePos(line, col));
+
+            std::vector<AutocompleteItem> completeItems;
+            try {
+                completeItems = autocomplete(path, FilePos(line, col));
+            } catch (IOException &) {
+                sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
+                goto end;
+            } catch (TokeniseException &ex) {
+                sendJson(res, "PARSE_ERROR", "Error occured during tokenization " + ex.reason);
+            }
 
             json response;
             std::vector<std::vector<std::string>> jsonFrom;
@@ -77,8 +86,13 @@ void startAndBlock(int port) {
         }
 
         end:
-        int i;
+        int x;
     });
+
+    httpServer.Get("/ping", [](const httplib::Request &req, httplib::Response &res) {
+        res.set_content("ok", "text/plain");
+    });
+
 
     httpServer.listen("localhost", port);
 }

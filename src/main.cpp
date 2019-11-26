@@ -6,6 +6,7 @@
 #include "Autocomplete.h"
 #include "IOException.h"
 #include "Test.h"
+#include "PerlServer.h"
 
 struct TimeInfo {
     long long int tokenise;
@@ -175,6 +176,12 @@ int main(int argc, char **args) {
         return 0;
     }
 
+    if (argc == 2 && strncmp(args[1], "serve", 6) == 0) {
+        std::cout << "Started server on 1234" << std::endl;
+        startAndBlock(1234);
+        return 0;
+    }
+
     if (argc == 3 && strncmp(args[1],  "makeTest", 9) == 0) {
         auto name = std::string(args[2]);
         makeTest(name);
@@ -202,6 +209,8 @@ int main(int argc, char **args) {
     } else {
         debugPrint(file);
     }
+
+    //startAndBlock(1234);
 
     return 0;
 }
