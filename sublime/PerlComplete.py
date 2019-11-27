@@ -63,6 +63,7 @@ def configure_settings():
 def get_completions(file, context_path, line, col, sigil, word_separators):
     res = get_request("autocomplete", {"path": file, "context": context_path, "line": line, "col": col, "sigil": sigil})
     if not res["success"]:
+        log_error("Completions failed with error - {}:{}".format(res.get("error"), res.get("errorMessage")))
         return []
 
     # Convert (completion, detail) to (completion + "\t" + detail, "")
@@ -181,6 +182,10 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
             completion_cpy = self.completions.copy()
             self.completions = None
             return (completion_cpy, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+
+        if self.completions == []:
+            # Empty list means no completions, don't try to do any more
+            return None
 
         word_separators = view.settings().get("word_separators")
         current_path = view.window().active_view().file_name()

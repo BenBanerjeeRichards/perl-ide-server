@@ -90,10 +90,6 @@ void startAndBlock(int port) {
             }
             response = jsonFrom;
 
-            // TODO remove this sleep code
-            // Here to test slow responses from server
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
-
             sendJson(res, response);
         }
 
