@@ -5,6 +5,8 @@
 #include "PerlServer.h"
 
 #include <utility>
+#include <chrono>
+#include <thread>
 
 void sendJson(httplib::Response &res, json &jsonObject, std::string error = "", std::string errorMessage = "") {
     json response;
@@ -87,6 +89,11 @@ void startAndBlock(int port) {
                 jsonFrom.emplace_back(itemForm);
             }
             response = jsonFrom;
+
+            // TODO remove this sleep code
+            // Here to test slow responses from server
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
             sendJson(res, response);
         }
 

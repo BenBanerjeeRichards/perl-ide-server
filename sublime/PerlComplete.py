@@ -6,6 +6,8 @@ import urllib.error
 import os
 import time
 import json
+import random
+import threading
 
 PERL_COMPLETE_EXE = "/Users/bbr/IdeaProjects/PerlParser/cmake-build-debug/PerlParser"
 PERL_COMPLETE_SERVER = "http://localhost:1234/"
@@ -107,13 +109,44 @@ def get_request(url, params={}, attempts=0):
         return get_request(url, params, attempts + 1)
 
 
+# To python, our autocomplete request is just an IO operation (network operation)
+# So as soon as our thread starts, it will go into blocked state and so GIL will return control to
+# sublime text
+class AutoCompleterThread(threading.Thread):
+    def __init__(self, on_complete, job_id, path, line, col, sigil, word_separators):
+        super(AutoCompleterThread, self).__init__()
+        self.on_complete = on_complete
+        self.job_id = job_id
+
+        self.path = path
+        self.line = line
+        self.col = col
+        self.sigil = sigil
+        self.word_separators = word_separators
+
+    def run(self):
+        completions = get_completions(self.path, self.line, self.col, self.sigil, self.word_separators)
+        self.on_complete(self.job_id, completions)
+
+
 class PerlCompletionsListener(sublime_plugin.EventListener):
+
+    def __init__(self):
+        self.completions = None
+        self.latest_completion_job_id = None
+
     def on_query_completions(self, view, prefix, locations):
         # TODO move this elsewhere
         view.settings().set("word_separators", "./\\()\"'-,.;<>~!@#$%^&*|+=[]{}`~?")
         # Disable on non-perl files
         if view.settings().get("syntax") != "Packages/Perl/Perl.sublime-syntax":
             return
+
+            # We have a result from the autocomplete thread
+        if self.completions:
+            completion_cpy = self.completions.copy()
+            self.completions = None
+            return (completion_cpy, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
         word_separators = view.settings().get("word_separators")
         current_path = view.window().active_view().file_name()
@@ -126,7 +159,36 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
             log_error("Could not retrieve sigil context for completion")
             return []
 
-        return (get_completions(current_path, current_pos[0], current_pos[1], sigil, word_separators),
-                sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+        # if the trigger is not a sigil, don't bother getting completion results
+        if not (sigil == "$" or sigil == '@' or sigil == '%'):
+            return None
+
+        # return (get_completions(current_path, current_pos[0], current_pos[1], sigil, word_separators), sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+        job_id = random.randint(1, 100000)
+        completion_thread = AutoCompleterThread(self.on_completions_done, job_id, current_path, current_pos[0],
+                                                current_pos[1], sigil, word_separators)
+        log_info("Starting autocomplete thread with job id {}".format(job_id))
+        self.latest_completion_job_id = job_id
+        completion_thread.start()
+
+        # TODO at least show default completions
+        return None
+
+    def on_completions_done(self, job_id, completions):
+        log_info("Autocomplete job #{} with completions = {}".format(job_id, completions))
+        if job_id != self.latest_completion_job_id:
+            log_info("Discarding completion result as job is old: job_id = {}, latest_job_id={}".format(job_id,
+                                                                                                        self.latest_completion_job_id))
+
+        self.completions = completions
+        view = sublime.active_window().active_view()
+
+        # Hide existing autocomplete popup and retrigger on_query_completions
+        view.run_command('hide_auto_complete')
+        view.run_command('auto_complete', {
+            'disable_auto_insert': True,
+            'api_completions_only': False,
+            'next_competion_if_showing': False})
+
 
 configure_settings()
