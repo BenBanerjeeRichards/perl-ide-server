@@ -17,7 +17,6 @@ namespace console {
     const std::string dim = "\e[37m";
     const std::string clear = "\e[0m";
     const std::string red = "\e[31m";
-
 }
 
 

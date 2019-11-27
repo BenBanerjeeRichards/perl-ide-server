@@ -5,10 +5,7 @@
 #ifndef PERLPARSER_PERLSERVER_H
 #define PERLPARSER_PERLSERVER_H
 
-#define CPPHTTPLIB_THREAD_POOL_COUNT 2
-
-#include "../lib/httplib.h"
-#include "../lib/json.hpp"
+#include "stdafx.h"
 #include "Autocomplete.h"
 #include "IOException.h"
 

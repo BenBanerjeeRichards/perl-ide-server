@@ -95,7 +95,8 @@ std::string handleUseFeature(const std::shared_ptr<TokensNode> &tokensNode, int 
     return featureNameToken.data;
 }
 
-std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNode, int &i) {
+std::optional<Subroutine>
+handleSub(const std::shared_ptr<TokensNode> &tokensNode, std::vector<PackageSpan> &packages, int &i) {
     Subroutine subroutine;
     auto tokenIter = TokenIterator(tokensNode->tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment,
                                                                               TokenType::Newline}, i);
@@ -118,6 +119,8 @@ std::optional<Subroutine> handleSub(const std::shared_ptr<TokensNode> &tokensNod
         if (nextTok.type == TokenType::Prototype) subroutine.prototype = nextTok.data;
         nextTok = tokenIter.next();
     }
+
+    subroutine.package = findPackageAtPos(packages, subroutine.pos);
 
     return std::optional<Subroutine>(subroutine);
 
@@ -147,14 +150,8 @@ void doFindVariableDeclarations(const std::shared_ptr<BlockNode> &tree, const st
                     }
 
                     i++;
-                } else if (tokenType == TokenType::Assignment && i > 0) {
-                    // Could be a global (package) variable
-//                    if (auto global = handleGlobalVariables(tokensNode, variables, fileSymbols.packages, i, lastId)) {
-//                        fileSymbols.globals.emplace_back(global);
-//                        variables.emplace_back(global->fullyQualifiedName);
-//                    }
                 } else if (tokenType == TokenType::Sub) {
-                    auto sub = handleSub(tokensNode, i);
+                    auto sub = handleSub(tokensNode, fileSymbols.packages, i);
                     if (sub.has_value()) {
                         fileSymbols.subroutines.emplace_back(sub.value());
                         i++;
@@ -407,7 +404,7 @@ variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char 
 std::string Subroutine::toStr() {
     std::string str;
     auto nameStr = name.empty() ? "<ANOM>" : name;
-    str = pos.toStr() + " " + nameStr + "()";
+    str = pos.toStr() + " " + package + "::" + nameStr + "()";
 
     if (!signature.empty()) {
         str += " signature=" + signature;

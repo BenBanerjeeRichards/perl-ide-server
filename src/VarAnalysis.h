@@ -172,6 +172,9 @@ struct Subroutine {
     FilePos nameStart;
     FilePos nameEnd;
 
+    // Package subroutine is declared in
+    std::string package;
+
     // Subroutine name, empty if anonymous
     std::string name;
 
@@ -205,7 +208,6 @@ struct FileSymbols {
 
 
 std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols);
-
 
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
 
