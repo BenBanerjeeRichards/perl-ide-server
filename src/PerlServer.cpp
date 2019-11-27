@@ -74,7 +74,7 @@ void startAndBlock(int port) {
 
             std::vector<AutocompleteItem> completeItems;
             try {
-                completeItems = autocomplete(path, FilePos(line, col), sigil[0]);
+                completeItems = autocompleteVariables(path, FilePos(line, col), sigil[0]);
             } catch (IOException &) {
                 sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
                 goto end;
@@ -96,6 +96,46 @@ void startAndBlock(int port) {
         end:
         int x;
     });
+
+    httpServer.Get("/autocompleteSub", [](const httplib::Request &req, httplib::Response &res) {
+        if (hasParams(req, res, std::vector<std::string>{"path", "line", "col"})) {
+            int line = -1;
+            int col = -1;
+            std::string path = req.params.find("path")->second;
+            if (!getIntParam(req, "line", line)) {
+                sendJson(res, "BAD_PARAM_TYPE", "Expected param line to be an int");
+                goto end;
+            }
+            if (!getIntParam(req, "col", col)) {
+                sendJson(res, "BAD_PARAM_TYPE", "Expected param line to be an int");
+                goto end;
+            }
+
+            std::vector<AutocompleteItem> completeItems;
+            try {
+                completeItems = autocompleteSubs(path, FilePos(line, col));
+            } catch (IOException &) {
+                sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
+                goto end;
+            } catch (TokeniseException &ex) {
+                sendJson(res, "PARSE_ERROR", "Error occured during tokenization " + ex.reason);
+            }
+
+            json response;
+            std::vector<std::vector<std::string>> jsonFrom;
+            for (const AutocompleteItem &completeItem : completeItems) {
+                std::vector<std::string> itemForm{completeItem.name, completeItem.detail};
+                jsonFrom.emplace_back(itemForm);
+            }
+            response = jsonFrom;
+
+            sendJson(res, response);
+        }
+
+        end:
+        int x;
+    });
+
 
     httpServer.Get("/ping", [](const httplib::Request &req, httplib::Response &res) {
         res.set_content("ok", "text/plain");

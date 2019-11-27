@@ -13,9 +13,6 @@ import tempfile
 PERL_COMPLETE_EXE = "/Users/bbr/IdeaProjects/PerlParser/cmake-build-debug/PerlParser"
 PERL_COMPLETE_SERVER = "http://localhost:1234/"
 
-# If autocomplete requests take longer than this, switch to async completion
-SYNC_COMPLETE_THRESHHOLD_MS = 20
-
 # Constants for the status bar
 STATUS_KEY = "perl_complete"
 STATUS_READY = "PerlComplete ✔"
@@ -23,6 +20,9 @@ STATUS_LOADING = "PerlComplete ..."
 STATUS_ON_LOAD = "PerlComplete"
 
 debug = True
+
+COMPLETE_SUB = "autocompleteSub"
+COMPLETE_VAR = "autocomplete"
 
 
 def log_info(msg):
@@ -60,8 +60,8 @@ def configure_settings():
     sublime.save_settings("Preferences.sublime-settings")
 
 
-def get_completions(file, context_path, line, col, sigil, word_separators):
-    res = get_request("autocomplete", {"path": file, "context": context_path, "line": line, "col": col, "sigil": sigil})
+def get_completions(complete_type, params, word_separators):
+    res = get_request(complete_type, params)
     if not res["success"]:
         log_error("Completions failed with error - {}:{}".format(res.get("error"), res.get("errorMessage")))
         return []
@@ -142,20 +142,17 @@ def write_buffer_to_file(view):
 # So as soon as our thread starts, it will go into blocked state and so GIL will return control to
 # sublime text
 class AutoCompleterThread(threading.Thread):
-    def __init__(self, on_complete, job_id, path, context_path, line, col, sigil, word_separators):
+    def __init__(self, on_complete, job_id, complete_type, complete_params, word_separators):
         super(AutoCompleterThread, self).__init__()
         self.on_complete = on_complete
         self.job_id = job_id
 
-        self.path = path
-        self.context = context_path
-        self.line = line
-        self.col = col
-        self.sigil = sigil
+        self.complete_params = complete_params
+        self.complete_type = complete_type
         self.word_separators = word_separators
 
     def run(self):
-        completions = get_completions(self.path, self.context, self.line, self.col, self.sigil, self.word_separators)
+        completions = get_completions(self.complete_type, self.complete_params, self.word_separators)
         self.on_complete(self.job_id, completions)
 
 
@@ -194,27 +191,26 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
         current_pos = view.rowcol(view.sel()[0].begin())
         current_pos = (current_pos[0] + 1, current_pos[1] + 1)
         sigil = view.substr(view.line(view.sel()[0]))
-        if sigil:
-            sigil = sigil[-1]
-        else:
-            log_error("Could not retrieve sigil context for completion")
-            return []
 
-        # if the trigger is not a sigil, don't bother getting completion results
-        if not (sigil == "$" or sigil == '@' or sigil == '%'):
-            return None
+        autocomplete_method = COMPLETE_VAR
+        complete_params = {"line": current_pos[0], "col": current_pos[1], "path": file_data_path,
+                           "context": current_path}
+
+        if not sigil or not (sigil[-1] == "$" or sigil[-1] == '@' or sigil[-1] == '%'):
+            complete_method = COMPLETE_SUB
+        else:
+            complete_params["sigil"] = sigil[-1]
+            complete_method = COMPLETE_VAR
 
         set_status(view, STATUS_LOADING)
-
-        # return (get_completions(current_path, current_pos[0], current_pos[1], sigil, word_separators), sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+        log_info(complete_method)
         job_id = random.randint(1, 100000)
-        completion_thread = AutoCompleterThread(self.on_completions_done, job_id, file_data_path, current_path,
-                                                current_pos[0], current_pos[1], sigil, word_separators)
+        completion_thread = AutoCompleterThread(self.on_completions_done, job_id, complete_method, complete_params,
+                                                word_separators)
         log_info("Starting autocomplete thread with job id {}".format(job_id))
         self.latest_completion_job_id = job_id
         completion_thread.start()
 
-        # TODO at least show default completions
         return None
 
     def on_load(self, view):
