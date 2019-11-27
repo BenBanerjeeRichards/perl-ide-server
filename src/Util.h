@@ -8,6 +8,7 @@
 #include <string>
 #include <glob.h>
 #include <vector>
+#include <iterator>
 #include "FilePos.h"
 
 namespace console {
