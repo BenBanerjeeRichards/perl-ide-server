@@ -6,6 +6,7 @@
 #define PERLPARSER_UTIL_H
 
 #include <string>
+#include <string.h>
 #include <glob.h>
 #include <vector>
 #include <iterator>
