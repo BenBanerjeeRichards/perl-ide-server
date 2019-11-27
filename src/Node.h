@@ -8,6 +8,7 @@
 #include "FilePos.h"
 #include "Token.h"
 #include "Util.h"
+#include <memory>
 #include <vector>
 
 struct Node {
