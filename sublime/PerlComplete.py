@@ -8,6 +8,7 @@ import time
 import json
 import random
 import threading
+import tempfile
 
 PERL_COMPLETE_EXE = "/Users/bbr/IdeaProjects/PerlParser/cmake-build-debug/PerlParser"
 PERL_COMPLETE_SERVER = "http://localhost:1234/"
@@ -23,11 +24,14 @@ STATUS_ON_LOAD = "PerlComplete"
 
 debug = True
 
+
 def log_info(msg):
     print("[PerlComplete:INFO] - {}".format(msg))
 
+
 def log_error(msg):
     print("[PerlComplete:ERRO] - {}".format(msg))
+
 
 def log_debug(msg):
     if debug:
@@ -37,6 +41,7 @@ def log_debug(msg):
 def set_status(view, status):
     view.set_status(STATUS_KEY, "")
     view.set_status(STATUS_KEY, status)
+
 
 def configure_settings():
     settings = sublime.load_settings("Preferences.sublime-settings")
@@ -55,8 +60,8 @@ def configure_settings():
     sublime.save_settings("Preferences.sublime-settings")
 
 
-def get_completions(file, line, col, sigil, word_separators):
-    res = get_request("autocomplete", {"path": file, "line": line, "col": col, "sigil": sigil})
+def get_completions(file, context_path, line, col, sigil, word_separators):
+    res = get_request("autocomplete", {"path": file, "context": context_path, "line": line, "col": col, "sigil": sigil})
     if not res["success"]:
         return []
 
@@ -73,9 +78,9 @@ def get_completions(file, line, col, sigil, word_separators):
 
         completions.append((completion[0] + "\t" + completion[1], replacement))
 
-
     log_info(completions)
     return completions
+
 
 def ping():
     try:
@@ -86,6 +91,7 @@ def ping():
         return False
 
     return True
+
 
 def start_server():
     if not ping():
@@ -122,23 +128,33 @@ def get_request(url, params={}, attempts=0):
         start_server()
         return get_request(url, params, attempts + 1)
 
+
+def write_buffer_to_file(view):
+    path = tempfile.gettempdir() + "/PerlComplete.pl"
+    with open(path, "w+", encoding="utf-8") as f:
+        f.write(view.substr(sublime.Region(0, view.size())))
+
+    return path
+
+
 # To python, our autocomplete request is just an IO operation (network operation)
 # So as soon as our thread starts, it will go into blocked state and so GIL will return control to
 # sublime text
 class AutoCompleterThread(threading.Thread):
-    def __init__(self, on_complete, job_id, path, line, col, sigil, word_separators):
+    def __init__(self, on_complete, job_id, path, context_path, line, col, sigil, word_separators):
         super(AutoCompleterThread, self).__init__()
         self.on_complete = on_complete
         self.job_id = job_id
 
         self.path = path
+        self.context = context_path
         self.line = line
         self.col = col
         self.sigil = sigil
         self.word_separators = word_separators
 
     def run(self):
-        completions = get_completions(self.path, self.line, self.col, self.sigil, self.word_separators)
+        completions = get_completions(self.path, self.context, self.line, self.col, self.sigil, self.word_separators)
         self.on_complete(self.job_id, completions)
 
 
@@ -150,7 +166,6 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
 
         # If autocomplete for a specific file
         self.use_async = True
-
 
     def on_query_completions(self, view, prefix, locations):
         # TODO move this elsewhere
@@ -169,6 +184,8 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
 
         word_separators = view.settings().get("word_separators")
         current_path = view.window().active_view().file_name()
+        # Write current (unsaved) file to a file
+        file_data_path = write_buffer_to_file(view)
         current_pos = view.rowcol(view.sel()[0].begin())
         current_pos = (current_pos[0] + 1, current_pos[1] + 1)
         sigil = view.substr(view.line(view.sel()[0]))
@@ -186,8 +203,8 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
 
         # return (get_completions(current_path, current_pos[0], current_pos[1], sigil, word_separators), sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
         job_id = random.randint(1, 100000)
-        completion_thread = AutoCompleterThread(self.on_completions_done, job_id, current_path, current_pos[0],
-                                                current_pos[1], sigil, word_separators)
+        completion_thread = AutoCompleterThread(self.on_completions_done, job_id, file_data_path, current_path,
+                                                current_pos[0], current_pos[1], sigil, word_separators)
         log_info("Starting autocomplete thread with job id {}".format(job_id))
         self.latest_completion_job_id = job_id
         completion_thread.start()
@@ -207,12 +224,12 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
             if ping():
                 set_status(view, STATUS_READY)
 
-
     def on_completions_done(self, job_id, completions):
         log_info("Autocomplete job #{} with completions = {}".format(job_id, completions))
         if job_id != self.latest_completion_job_id:
             log_info("Discarding completion result as job is old: job_id = {}, latest_job_id={}".format(job_id,
                                                                                                         self.latest_completion_job_id))
+            return
 
         self.completions = completions
         view = sublime.active_window().active_view()
