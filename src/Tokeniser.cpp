@@ -497,7 +497,7 @@ std::string Tokeniser::matchNumeric() {
     }
     if (testString.empty()) return "";
     // Do quick check before we use expensive regex
-    if (!isnumber(testString[0]) && testString[0] != '+' && testString[0] != '-') return "";
+    if (!isdigit(testString[0]) && testString[0] != '+' && testString[0] != '-') return "";
 
     std::smatch regexMatch;
 
@@ -623,10 +623,10 @@ std::string Tokeniser::matchVariable() {
             }
         }
 
-        if (isnumber(this->peekAhead(i))) {
+        if (isdigit(this->peekAhead(i))) {
             // Numeric variable
             i += 1;
-            while (isnumber(this->peekAhead(i))) i += 1;
+            while (isdigit(this->peekAhead(i))) i += 1;
             goto done;
         }
 
@@ -664,7 +664,7 @@ std::string Tokeniser::matchVariable() {
 // TODO can normal regex be faster?
 std::string Tokeniser::matchBasicIdentifier(int &i) {
     // First char can't be a number
-    if (isnumber(this->peekAhead(i))) return "";
+    if (isdigit(this->peekAhead(i))) return "";
     // Now we can just match alpha numerics
     std::string contents;
     while (isNameBody(this->peekAhead(i))) contents += this->peekAhead(i++);
