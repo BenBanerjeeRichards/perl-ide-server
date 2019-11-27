@@ -12,6 +12,15 @@ import threading
 PERL_COMPLETE_EXE = "/Users/bbr/IdeaProjects/PerlParser/cmake-build-debug/PerlParser"
 PERL_COMPLETE_SERVER = "http://localhost:1234/"
 
+# If autocomplete requests take longer than this, switch to async completion
+SYNC_COMPLETE_THRESHHOLD_MS = 20
+
+# Constants for the status bar
+STATUS_KEY = "perl_complete"
+STATUS_READY = "PerlComplete ✔"
+STATUS_LOADING = "PerlComplete ..."
+STATUS_ON_LOAD = "PerlComplete"
+
 debug = True
 
 def log_info(msg):
@@ -23,6 +32,11 @@ def log_error(msg):
 def log_debug(msg):
     if debug:
         print("[PerlComplete:DEBG] - {}".format(msg))
+
+
+def set_status(view, status):
+    view.set_status(STATUS_KEY, "")
+    view.set_status(STATUS_KEY, status)
 
 def configure_settings():
     settings = sublime.load_settings("Preferences.sublime-settings")
@@ -108,7 +122,6 @@ def get_request(url, params={}, attempts=0):
         start_server()
         return get_request(url, params, attempts + 1)
 
-
 # To python, our autocomplete request is just an IO operation (network operation)
 # So as soon as our thread starts, it will go into blocked state and so GIL will return control to
 # sublime text
@@ -135,15 +148,21 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
         self.completions = None
         self.latest_completion_job_id = None
 
+        # If autocomplete for a specific file
+        self.use_async = True
+
+
     def on_query_completions(self, view, prefix, locations):
         # TODO move this elsewhere
         view.settings().set("word_separators", "./\\()\"'-,.;<>~!@#$%^&*|+=[]{}`~?")
         # Disable on non-perl files
         if view.settings().get("syntax") != "Packages/Perl/Perl.sublime-syntax":
+            set_status(view, "")
             return
 
             # We have a result from the autocomplete thread
         if self.completions:
+            set_status(view, STATUS_READY)
             completion_cpy = self.completions.copy()
             self.completions = None
             return (completion_cpy, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
@@ -163,6 +182,8 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
         if not (sigil == "$" or sigil == '@' or sigil == '%'):
             return None
 
+        set_status(view, STATUS_LOADING)
+
         # return (get_completions(current_path, current_pos[0], current_pos[1], sigil, word_separators), sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
         job_id = random.randint(1, 100000)
         completion_thread = AutoCompleterThread(self.on_completions_done, job_id, current_path, current_pos[0],
@@ -173,6 +194,19 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
 
         # TODO at least show default completions
         return None
+
+    def on_load(self, view):
+        set_status(view, "")
+
+        if view.settings().get("syntax") != "Packages/Perl/Perl.sublime-syntax":
+            return
+        else:
+            set_status(view, STATUS_ON_LOAD)
+            log_info("Loaded perl file, checking server")
+            start_server()
+            if ping():
+                set_status(view, STATUS_READY)
+
 
     def on_completions_done(self, job_id, completions):
         log_info("Autocomplete job #{} with completions = {}".format(job_id, completions))
