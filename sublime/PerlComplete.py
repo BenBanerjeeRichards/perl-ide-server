@@ -21,9 +21,10 @@ STATUS_ON_LOAD = "PerlComplete"
 
 debug = True
 
-COMPLETE_SUB = "autocompleteSub"
-COMPLETE_VAR = "autocomplete"
+COMPLETE_SUB = "autocomplete-sub"
+COMPLETE_VAR = "autocomplete-var"
 
+POST_ATTEMPTS = 5
 
 def log_info(msg):
     print("[PerlComplete:INFO] - {}".format(msg))
@@ -59,9 +60,8 @@ def configure_settings():
     settings.set("auto_complete_triggers", auto_complete_triggers)
     sublime.save_settings("Preferences.sublime-settings")
 
-
 def get_completions(complete_type, params, word_separators):
-    res = get_request(complete_type, params)
+    res = post_request(complete_type, params)
     if not res["success"]:
         log_error("Completions failed with error - {}:{}".format(res.get("error"), res.get("errorMessage")))
         return []
@@ -114,20 +114,29 @@ def start_server():
         log_info("Server already running")
 
 
-def get_request(url, params={}, attempts=0):
-    if attempts > 5:
+def post_request(method, params, attempts=0):
+    if attempts > POST_ATTEMPTS:
         log_error("Failed to connect to complete server after 5 attempts")
         return
     try:
-        log_debug("Running command url={} params={}".format(url, params))
-        res = urllib.request.urlopen("{}{}?{}".format(PERL_COMPLETE_SERVER, url, urllib.parse.urlencode(params)))
+        log_debug("Running command methos={} params={}".format(method, params))
+        post_data = {
+            "method": method,
+            "params": params
+        }
+
+        req = urllib.request.Request(PERL_COMPLETE_SERVER)
+        req.add_header('Content-Type', 'application/json; charset=utf-8')
+        post_json = json.dumps(post_data).encode("utf-8")
+        req.add_header('Content-Length', len(post_json))
+        res = urllib.request.urlopen(req, post_json)
         return json.loads(res.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         return json.loads(e.read().decode("utf-8"))
     except urllib.error.URLError as e:
         log_error("Failed to connect to CompleteServer - starting and retrying: {}".format(e))
         start_server()
-        return get_request(url, params, attempts + 1)
+        return post_request(url, params, attempts + 1)
 
 
 def write_buffer_to_file(view):
@@ -173,7 +182,7 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
             set_status(view, "")
             return
 
-            # We have a result from the autocomplete thread
+        # We have a result from the autocomplete thread
         if self.completions:
             set_status(view, STATUS_READY)
             completion_cpy = self.completions.copy()
@@ -182,6 +191,7 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
 
         if self.completions == []:
             # Empty list means no completions, don't try to do any more
+            self.completions = None
             return None
 
         word_separators = view.settings().get("word_separators")
@@ -203,7 +213,6 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
             complete_method = COMPLETE_VAR
 
         set_status(view, STATUS_LOADING)
-        log_info(complete_method)
         job_id = random.randint(1, 100000)
         completion_thread = AutoCompleterThread(self.on_completions_done, job_id, complete_method, complete_params,
                                                 word_separators)

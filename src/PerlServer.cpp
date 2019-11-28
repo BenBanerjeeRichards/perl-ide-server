@@ -28,58 +28,50 @@ void sendJson(httplib::Response &res, std::string error = "", std::string errorM
     sendJson(res, null, std::move(error), std::move(errorMessage));
 }
 
-bool hasParams(const httplib::Request &req, httplib::Response &res, const std::vector<std::string> &requiredParams) {
-    for (const auto &requiredParam: requiredParams) {
-        if (req.params.count(requiredParam) == 0) {
-            json empty;
-            sendJson(res, empty, "MISSING_PARAM", "Required parameter `" + requiredParam + "` not found");
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool getIntParam(const httplib::Request &req, const std::string &name, int &value) {
-    try {
-        value = std::stoi(req.params.find(name)->second);
-    } catch (std::invalid_argument &) {
-        return false;
-    }
-
-    return true;
-}
-
 void startAndBlock(int port) {
     httplib::Server httpServer;
 
-    httpServer.Get("/autocomplete", [](const httplib::Request &req, httplib::Response &res) {
-        if (hasParams(req, res, std::vector<std::string>{"path", "line", "col", "sigil"})) {
-            int line = -1;
-            int col = -1;
-            std::string path = req.params.find("path")->second;
-            std::string sigil = req.params.find("sigil")->second;
-            if (sigil.size() != 1) {
-                sendJson(res, "BAD_PARAM_TYPE", "sigil should be a string of length 1");
-                goto end;
+    httpServer.Post("/", [](const httplib::Request &req, httplib::Response &res) {
+        json reqJson;
+        try {
+            reqJson = json::parse(req.body);
+        } catch (json::exception &ex) {
+            sendJson(res, "BAD_JSON", "Failed to parse json request");
+            return;
+        }
+
+        if (!reqJson.contains("method")) {
+            sendJson(res, "NO_METHOD", "No method provided");
+            return;
+        }
+
+        if (reqJson["method"] == "autocomplete-var") {
+            if (!reqJson.contains("params") || !reqJson["params"].contains("path") ||
+                !reqJson["params"].contains("sigil")) {
+                sendJson(res, "BAD_PARAMS", "Bad parameters");
+                return;
             }
-            if (!getIntParam(req, "line", line)) {
-                sendJson(res, "BAD_PARAM_TYPE", "Expected param line to be an int");
-                goto end;
-            }
-            if (!getIntParam(req, "col", col)) {
-                sendJson(res, "BAD_PARAM_TYPE", "Expected param line to be an int");
-                goto end;
+
+            json params = reqJson["params"];
+            int line, col;
+            try {
+                line = params["line"];
+                col = params["col"];
+            } catch (json::exception &) {
+                sendJson(res, "BAD_PARAMS", "Bad Params");
+                return;
             }
 
             std::vector<AutocompleteItem> completeItems;
             try {
-                completeItems = autocompleteVariables(path, FilePos(line, col), sigil[0]);
+                completeItems = autocompleteVariables(params["path"], FilePos(line, col),
+                                                      std::string(params["sigil"])[0]);
             } catch (IOException &) {
-                sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
-                goto end;
+                sendJson(res, "PATH_NOT_FOUND", "File " + std::string(params["path"]) + " not found");
+                return;
             } catch (TokeniseException &ex) {
                 sendJson(res, "PARSE_ERROR", "Error occured during tokenization " + ex.reason);
+                return;
             }
 
             json response;
@@ -89,26 +81,17 @@ void startAndBlock(int port) {
                 jsonFrom.emplace_back(itemForm);
             }
             response = jsonFrom;
-
             sendJson(res, response);
-        }
-
-        end:
-        int x;
-    });
-
-    httpServer.Get("/autocompleteSub", [](const httplib::Request &req, httplib::Response &res) {
-        if (hasParams(req, res, std::vector<std::string>{"path", "line", "col"})) {
-            int line = -1;
-            int col = -1;
-            std::string path = req.params.find("path")->second;
-            if (!getIntParam(req, "line", line)) {
-                sendJson(res, "BAD_PARAM_TYPE", "Expected param line to be an int");
-                goto end;
-            }
-            if (!getIntParam(req, "col", col)) {
-                sendJson(res, "BAD_PARAM_TYPE", "Expected param line to be an int");
-                goto end;
+        } else if (reqJson["method"] == "autocomplete-sub") {
+            json params = reqJson["params"];
+            std::string path = params["path"];
+            int line, col;
+            try {
+                line = params["line"];
+                col = params["col"];
+            } catch (json::exception &) {
+                sendJson(res, "BAD_PARAMS", "Bad Params 2");
+                return;
             }
 
             std::vector<AutocompleteItem> completeItems;
@@ -116,9 +99,10 @@ void startAndBlock(int port) {
                 completeItems = autocompleteSubs(path, FilePos(line, col));
             } catch (IOException &) {
                 sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
-                goto end;
+                return;
             } catch (TokeniseException &ex) {
                 sendJson(res, "PARSE_ERROR", "Error occured during tokenization " + ex.reason);
+                return;
             }
 
             json response;
@@ -130,12 +114,11 @@ void startAndBlock(int port) {
             response = jsonFrom;
 
             sendJson(res, response);
+        } else {
+            sendJson(res, "UNKNOWN_METHOD", "Method " + std::string(reqJson["method"]) + " not supported");
+            return;
         }
-
-        end:
-        int x;
     });
-
 
     httpServer.Get("/ping", [](const httplib::Request &req, httplib::Response &res) {
         res.set_content("ok", "text/plain");
