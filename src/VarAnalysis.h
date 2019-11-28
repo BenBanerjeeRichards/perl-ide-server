@@ -50,7 +50,11 @@ public:
 
 struct Variable {
     std::string name;
+
+    // Start and end point of variable location
     FilePos declaration;
+    FilePos symbolEnd;
+
     int id;
 
     bool operator==(const Variable &other) const {
@@ -88,11 +92,12 @@ namespace std {
 
 class ScopedVariable : public Variable {
 public:
-    ScopedVariable(int id, const std::string &name, FilePos declaration, FilePos scopeEnd) {
+    ScopedVariable(int id, const std::string &name, FilePos declaration, FilePos symbolEnd, FilePos scopeEnd) {
         this->name = name;
         this->declaration = declaration;
         this->scopeEnd = scopeEnd;
         this->id = id;
+        this->symbolEnd = symbolEnd;
     }
 
     bool isAccessibleAt(const FilePos &pos) override;
@@ -109,8 +114,9 @@ private:
 
 class OurVariable : public ScopedVariable {
 public:
-    OurVariable(int id, const std::string &name, FilePos declaration, FilePos scopeEnd, const std::string &package)
-            : ScopedVariable(id, name, declaration, scopeEnd) {
+    OurVariable(int id, const std::string &name, FilePos declaration, FilePos symbolEnd, FilePos scopeEnd,
+                const std::string &package)
+            : ScopedVariable(id, name, declaration, symbolEnd, scopeEnd) {
         this->package = package;
     }
 
@@ -133,8 +139,8 @@ public:
 // So instead we treat them as scoped variables and ban renames on them when possible
 class LocalVariable : public ScopedVariable {
 public:
-    LocalVariable(int id, const std::string &name, FilePos declaration, FilePos scopeEnd)
-            : ScopedVariable(id, name, declaration, scopeEnd) {
+    LocalVariable(int id, const std::string &name, FilePos declaration, FilePos symbolEnd, FilePos scopeEnd)
+            : ScopedVariable(id, name, declaration, symbolEnd, scopeEnd) {
     }
 
     std::string toStr() override {
@@ -204,6 +210,10 @@ struct FileSymbols {
     // Usages of each variable
     // Includes definition.
     std::unordered_map<std::shared_ptr<Variable>, std::vector<FilePos>> variableUsages;
+
+    // Source code, split into lines
+    // Allows us to go from (line, column) -> Source code
+    std::vector<std::string> sourceCode;
 };
 
 
@@ -227,5 +237,8 @@ variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char 
 
 GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext);
 
+namespace variable {
+    std::vector<FilePos> findVariableUsages(FileSymbols &fileSymbols, FilePos location);
+}
 
 #endif //PERLPARSER_VARANALYSIS_H

@@ -3,7 +3,6 @@
 #include "Tokeniser.h"
 #include "Parser.h"
 #include "VarAnalysis.h"
-#include "Autocomplete.h"
 #include "IOException.h"
 #include "Test.h"
 #include "PerlServer.h"
@@ -200,7 +199,7 @@ int main(int argc, char **args) {
     }
     if (argc == 5 && strncmp(args[1], "sub", 4) == 0) {
         auto pos = FilePos(std::atoi(args[3]), std::atoi(args[4]));
-        auto vars = autocompleteSubs(args[2], pos);
+        auto vars = analysis::autocompleteSubs(args[2], pos);
         for (auto completion : vars) {
             std::cout << completion.name + " - " + completion.detail << std::endl;
         }
@@ -209,7 +208,7 @@ int main(int argc, char **args) {
 
     if (argc == 4) {
         auto pos = FilePos(std::atoi(args[2]), std::atoi(args[3]));
-        for (const auto &c : autocompleteVariables(file, pos, 0)) {
+        for (const auto &c : analysis::autocompleteVariables(file, pos, 0)) {
             std::cout << c.name << std::endl << c.detail << std::endl;
         }
     } else if (argc > 1 && strncmp(args[1], "test", 4) == 0) {

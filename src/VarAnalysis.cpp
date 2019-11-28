@@ -9,15 +9,16 @@ bool ScopedVariable::isAccessibleAt(const FilePos &pos) {
 }
 
 
-std::shared_ptr<Variable> makeVariable(int id, TokenType type, std::string name, FilePos declaration, FilePos scopeEnd,
-                                       const std::vector<PackageSpan> &packages) {
+std::shared_ptr<Variable>
+makeVariable(int id, TokenType type, std::string name, FilePos declaration, FilePos symbolEnd, FilePos scopeEnd,
+             const std::vector<PackageSpan> &packages) {
     if (type == TokenType::Our) {
         auto package = findPackageAtPos(packages, declaration);
-        return std::make_shared<OurVariable>(id, name, declaration, scopeEnd, package);
+        return std::make_shared<OurVariable>(id, name, declaration, symbolEnd, scopeEnd, package);
     } else if (type == TokenType::My || type == TokenType::State) {
-        return std::make_shared<ScopedVariable>(id, name, declaration, scopeEnd);
+        return std::make_shared<ScopedVariable>(id, name, declaration, symbolEnd, scopeEnd);
     } else if (type == TokenType::Local) {
-        return std::make_shared<LocalVariable>(id, name, declaration, scopeEnd);
+        return std::make_shared<LocalVariable>(id, name, declaration, symbolEnd, scopeEnd);
     }
 
     return nullptr;
@@ -36,7 +37,8 @@ handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::v
     if (nextToken.type == TokenType::ScalarVariable || nextToken.type == TokenType::HashVariable ||
         nextToken.type == TokenType::ArrayVariable) {
         // We've got a definition!
-        if (auto var = makeVariable(id, tokenType, nextToken.data, nextToken.startPos, parentEnd, packages)) {
+        if (auto var = makeVariable(id, tokenType, nextToken.data, nextToken.startPos, nextToken.endPos, parentEnd,
+                                    packages)) {
             variables.emplace_back(var);
             id++;
         }
@@ -56,7 +58,8 @@ handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::v
             if (nextToken.type == TokenType::ScalarVariable || nextToken.type == TokenType::HashVariable ||
                 nextToken.type == TokenType::ArrayVariable) {
                 // Variable!
-                if (auto var = makeVariable(id, tokenType, nextToken.data, nextToken.startPos, parentEnd, packages)) {
+                if (auto var = makeVariable(id, tokenType, nextToken.data, nextToken.startPos, nextToken.endPos,
+                                            parentEnd, packages)) {
                     variables.emplace_back(var);
                     id++;
                 }
@@ -493,6 +496,25 @@ GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, st
         // package name provided in variable name, use that instead
         return GlobalVariable(sigil, packageNameFromVariable, variableName);
     }
+}
+
+/**
+ * Find usages for the variable located at the given location
+ *
+ * @param fileSymbols
+ * @param location
+ * @return list of usages in the current file
+ */
+std::vector<FilePos> variable::findVariableUsages(FileSymbols &fileSymbols, FilePos location) {
+    for (auto variable : fileSymbols.variableUsages) {
+        if (insideRange(variable.first->declaration, variable.first->symbolEnd, location)) {
+            // Found variable
+            return variable.second;
+        }
+    }
+
+    // None found
+    return std::vector<FilePos>();
 }
 
 GlobalVariable::GlobalVariable(std::string sigil, std::string package, std::string name) {

@@ -64,8 +64,8 @@ void startAndBlock(int port) {
 
             std::vector<AutocompleteItem> completeItems;
             try {
-                completeItems = autocompleteVariables(params["path"], FilePos(line, col),
-                                                      std::string(params["sigil"])[0]);
+                completeItems = analysis::autocompleteVariables(params["path"], FilePos(line, col),
+                                                                std::string(params["sigil"])[0]);
             } catch (IOException &) {
                 sendJson(res, "PATH_NOT_FOUND", "File " + std::string(params["path"]) + " not found");
                 return;
@@ -96,7 +96,7 @@ void startAndBlock(int port) {
 
             std::vector<AutocompleteItem> completeItems;
             try {
-                completeItems = autocompleteSubs(path, FilePos(line, col));
+                completeItems = analysis::autocompleteSubs(path, FilePos(line, col));
             } catch (IOException &) {
                 sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
                 return;
@@ -112,8 +112,28 @@ void startAndBlock(int port) {
                 jsonFrom.emplace_back(itemForm);
             }
             response = jsonFrom;
-
             sendJson(res, response);
+        } else if (reqJson["method"] == "find-usages") {
+            try {
+                auto params = reqJson["params"];
+                std::string path = params["path"];
+                std::string context = params["context"];
+                int line = params["line"];
+                int col = params["col"];
+
+                std::vector<std::vector<std::string>> jsonFrom;
+                for (auto usage : analysis::findVariableUsages(path, FilePos(line, col))) {
+                    std::vector<std::string> item{context, std::to_string(usage.line), std::to_string(usage.col),
+                                                  usage.sourceLine};
+                    jsonFrom.emplace_back(item);
+                }
+
+                json response = jsonFrom;
+                sendJson(res, response);
+            } catch (json::exception &) {
+                sendJson(res, "BAD_PARAMS", "Bad Params");
+                return;
+            }
         } else {
             sendJson(res, "UNKNOWN_METHOD", "Method " + std::string(reqJson["method"]) + " not supported");
             return;

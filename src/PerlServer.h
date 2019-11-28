@@ -6,9 +6,8 @@
 #define PERLPARSER_PERLSERVER_H
 
 #include "stdafx.h"
-#include "Autocomplete.h"
 #include "IOException.h"
-
+#include "FileAnalysis.h"
 
 using json = nlohmann::json;
 
