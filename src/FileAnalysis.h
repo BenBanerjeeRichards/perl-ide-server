@@ -28,7 +28,7 @@ namespace analysis {
 
     std::vector<AutocompleteItem> autocompleteSubs(const std::string &filePath, FilePos location);
 
-    std::map<std::string, std::vector<FilePos>> findVariableUsages(const std::string &filePath, FilePos location);
+    std::vector<FilePos> findVariableUsages(const std::string &filePath, FilePos location);
 }
 
 

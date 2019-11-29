@@ -121,17 +121,16 @@ void startAndBlock(int port) {
                 int line = params["line"];
                 int col = params["col"];
 
+                // TODO expand search to multiple files
                 std::map<std::string, std::vector<std::vector<int>>> jsonFrom;
-                for (auto usage : analysis::findVariableUsages(path, FilePos(line, col))) {
-                    std::vector<std::vector<int>> fileLocations;
-                    for (auto pos : usage.second) {
-                        auto posList = std::vector<int>{pos.line, pos.col};
-                        fileLocations.emplace_back(posList);
-                    }
-
-                    jsonFrom[usage.first] = fileLocations;
+                std::vector<std::vector<int>> fileLocations;
+                for (auto pos : analysis::findVariableUsages(path, FilePos(line, col))) {
+                    auto posList = std::vector<int>{pos.line, pos.col};
+                    fileLocations.emplace_back(posList);
                 }
 
+                std::sort(fileLocations.begin(), fileLocations.end());
+                jsonFrom[context] = fileLocations;
                 json response = jsonFrom;
                 sendJson(res, response);
             } catch (json::exception &) {

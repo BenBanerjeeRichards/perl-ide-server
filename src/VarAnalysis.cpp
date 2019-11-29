@@ -511,9 +511,20 @@ std::vector<FilePos> variable::findVariableUsages(FileSymbols &fileSymbols, File
             // Found variable
             return variable.second;
         }
+
+        // Now check every usage as well, as find-usages can be used on the usage as well as the declaration
+        for (auto usage : variable.second) {
+            FilePos end = usage;
+            end.col += variable.first->name.size();
+            end.position += variable.first->name.size();
+            if (insideRange(usage, end, location)) {
+                return variable.second;
+            }
+        }
     }
 
     // None found
+    std::cout << "FindUsages - No symbol found at location " << location.toStr() << std::endl;
     return std::vector<FilePos>();
 }
 

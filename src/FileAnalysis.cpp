@@ -50,15 +50,9 @@ std::vector<AutocompleteItem> analysis::autocompleteSubs(const std::string &file
     return completions;
 }
 
-std::map<std::string, std::vector<FilePos>>
-analysis::findVariableUsages(const std::string &filePath, FilePos location) {
+std::vector<FilePos> analysis::findVariableUsages(const std::string &filePath, FilePos location) {
     FileSymbols fileSymbols = getFileSymbols(filePath);
-
-    // In the future this will support finding usages across multiple files
-    std::vector<FilePos> usages = variable::findVariableUsages(fileSymbols, location);
-    std::map<std::string, std::vector<FilePos>> res;
-    res[filePath] = usages;
-    return res;
+    return variable::findVariableUsages(fileSymbols, location);
 }
 
 analysis::SymbolUsage::SymbolUsage(int line, int col, const std::string &sourceLine) : line(line), col(col),

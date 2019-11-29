@@ -26,6 +26,9 @@ COMPLETE_VAR = "autocomplete-var"
 
 POST_ATTEMPTS = 5
 
+# Number of lines difference to split groups in find UX
+USAGE_GROUP_THRESHHOLD = 5
+
 def log_info(msg):
     print("[PerlComplete:INFO] - {}".format(msg))
 
@@ -83,6 +86,21 @@ def get_completions(complete_type, params, word_separators):
     return completions
 
 
+def find_usages(path, context_path, line, col):
+    res = post_request("find-usages", {
+        "line": line,
+        "col": col,
+        "path": path,
+        "context": context_path
+    })
+
+    if not res["success"]:
+        log_error("Find usages failed with error - {}:{}".format(res.get("error"), res.get("errorMessage")))
+        return []
+
+    return res
+
+
 def ping():
     try:
         urllib.request.urlopen(PERL_COMPLETE_SERVER + "ping").read()
@@ -119,7 +137,7 @@ def post_request(method, params, attempts=0):
         log_error("Failed to connect to complete server after 5 attempts")
         return
     try:
-        log_debug("Running command methos={} params={}".format(method, params))
+        log_debug("Running command method={} params={}".format(method, params))
         post_data = {
             "method": method,
             "params": params
@@ -136,7 +154,7 @@ def post_request(method, params, attempts=0):
     except urllib.error.URLError as e:
         log_error("Failed to connect to CompleteServer - starting and retrying: {}".format(e))
         start_server()
-        return post_request(url, params, attempts + 1)
+        return post_request(method, params, attempts + 1)
 
 
 def write_buffer_to_file(view):
@@ -146,6 +164,106 @@ def write_buffer_to_file(view):
 
     return path
 
+
+def current_view_is_perl():
+    current_view = sublime.active_window().active_view()
+    return current_view.settings().get("syntax") == "Packages/Perl/Perl.sublime-syntax"
+
+
+def update_menu():
+    # If current view is a perl file, then show the Find Usages in the context menu
+    file_path_context = os.path.abspath(os.path.join(os.path.dirname(__file__), "Context.sublime-menu"))
+
+    menu = []
+    if current_view_is_perl():
+        menu = [{"caption": "-"}, {"caption": "Find Usages", "command": "find_usages"}, {"caption": "-"}, ]
+
+    with open(file_path_context, "w+") as f:
+        f.write(json.dumps(menu))
+
+
+def get_source_line(view, line_regions, line):
+    if line >= len(line_regions):
+        return None
+
+    return view.substr(line_regions[line - 1])
+
+
+def show_output_panel(name: str, contents: str):
+    win = sublime.active_window()
+    panel = win.create_output_panel(name)
+    panel.set_syntax_file("Packages/Default/Find Results.hidden-tmLanguage")
+    panel.settings().set("result_file_regex", "^([^\\s]+\\.\\w+):?(\\d+)?")
+    panel.settings().set("result_line_regex", "  (\\d+):")
+    win.run_command('show_panel', {"panel": "output." + name})
+    panel.run_command("append", {"characters": contents})
+
+
+def group_usages(usages):
+    result_map = {}
+    for file in usages:
+        prev_line = None
+        groups = []
+
+        for pos in usages[file]:
+            line = pos[0]
+            if prev_line is not None and line - prev_line < USAGE_GROUP_THRESHHOLD:
+                groups[-1].append(line)
+            else:
+                groups.append([line])
+            prev_line = line
+
+        result_map[file] = groups
+    return result_map
+
+
+def build_usage_panel_contents(usage_groups):
+    contents = ""
+
+    # Load lines for current view
+    view = sublime.active_window().active_view()
+    region_lines = view.split_by_newlines(sublime.Region(0, view.size()))
+
+    for file in usage_groups:
+        contents += "{}:\n".format(file)
+
+        # If file == currently loaded file, use buffer
+        #  Otherwise, read file from disk to split lines
+        lines = None
+        if file is not None and file != view.file_name():
+            if not os.exists(file):
+                log_errror("Find usages: File {} does not exist".format(file))
+                continue
+
+            lines = open(file).read().splitlines()
+
+        for group in usage_groups[file]:
+            # Figure out what lines to list
+            lines_to_show = []
+            if group[0] > 2:
+                lines_to_show.append(group[0] - 2)
+
+            if group[0] > 1:
+                lines_to_show.append(group[0] - 1)
+
+            # Now include every line in the group
+            for i in range(group[0], group[-1] + 1):
+                lines_to_show.append(i)
+
+            # Now we can add the group to the file
+            contents += "  .. \n"
+
+            for line in lines_to_show:
+                source_line = ""
+                if lines is not None:
+                    source_line = lines[line]
+                else:
+                    source_line = get_source_line(view, region_lines, line)
+
+                colon = ":  " if line in group else "   "
+                contents += "  {}{}{}\n".format(line, colon, source_line)
+
+    return contents
 
 # To python, our autocomplete request is just an IO operation (network operation)
 # So as soon as our thread starts, it will go into blocked state and so GIL will return control to
@@ -222,10 +340,11 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
 
         return None
 
-    def on_load(self, view):
+    def on_activated(self, view):
+        update_menu()
         set_status(view, "")
 
-        if view.settings().get("syntax") != "Packages/Perl/Perl.sublime-syntax":
+        if not current_view_is_perl():
             return
         else:
             set_status(view, STATUS_ON_LOAD)
@@ -233,6 +352,7 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
             start_server()
             if ping():
                 set_status(view, STATUS_READY)
+
 
     def on_completions_done(self, job_id, completions):
         log_info("Autocomplete job #{} with completions = {}".format(job_id, completions))
@@ -252,4 +372,20 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
             'next_competion_if_showing': False})
 
 
+class FindUsagesCommand(sublime_plugin.TextCommand):
+    def run(self, edit):
+        view = sublime.active_window().active_view()
+        current_pos = view.rowcol(view.sel()[0].begin())
+        file_data_path = write_buffer_to_file(view)
+        current_path = view.window().active_view().file_name()
+
+        usages = find_usages(file_data_path, current_path, current_pos[0] + 1, current_pos[1] + 1).get("body")
+        if not usages:
+            return
+
+        usage_groups = group_usages(usages)
+        log_debug("Found usages - {}".format(usage_groups))
+        show_output_panel("usages", build_usage_panel_contents(usage_groups))
+
 configure_settings()
+update_menu()
