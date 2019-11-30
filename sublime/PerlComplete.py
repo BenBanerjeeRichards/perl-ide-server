@@ -28,6 +28,7 @@ POST_ATTEMPTS = 5
 
 # Number of lines difference to split groups in find UX
 USAGE_GROUP_THRESHHOLD = 5
+USAGES_PANEL_NAME = "usages"
 
 def log_info(msg):
     print("[PerlComplete:INFO] - {}".format(msg))
@@ -84,7 +85,6 @@ def get_completions(complete_type, params, word_separators):
 
     log_info(completions)
     return completions
-
 
 def find_usages(path, context_path, line, col):
     res = post_request("find-usages", {
@@ -164,7 +164,6 @@ def write_buffer_to_file(view):
 
     return path
 
-
 def current_view_is_perl():
     current_view = sublime.active_window().active_view()
     return current_view.settings().get("syntax") == "Packages/Perl/Perl.sublime-syntax"
@@ -181,13 +180,11 @@ def update_menu():
     with open(file_path_context, "w+") as f:
         f.write(json.dumps(menu))
 
-
 def get_source_line(view, line_regions, line):
     if line >= len(line_regions):
         return None
 
     return view.substr(line_regions[line - 1])
-
 
 def show_output_panel(name: str, contents: str):
     win = sublime.active_window()
@@ -197,7 +194,6 @@ def show_output_panel(name: str, contents: str):
     panel.settings().set("result_line_regex", "  (\\d+):")
     win.run_command('show_panel', {"panel": "output." + name})
     panel.run_command("append", {"characters": contents})
-
 
 def group_usages(usages):
     result_map = {}
@@ -216,52 +212,63 @@ def group_usages(usages):
         result_map[file] = groups
     return result_map
 
-
 def build_usage_panel_contents(usage_groups):
     contents = ""
 
-    # Load lines for current view
     view = sublime.active_window().active_view()
-    region_lines = view.split_by_newlines(sublime.Region(0, view.size()))
 
     for file in usage_groups:
         contents += "{}:\n".format(file)
 
         # If file == currently loaded file, use buffer
         #  Otherwise, read file from disk to split lines
-        lines = None
-        if file is not None and file != view.file_name():
-            if not os.exists(file):
-                log_errror("Find usages: File {} does not exist".format(file))
-                continue
+        lines = []
+        path = file
+        if file == view.file_name():
+            path = tempfile.gettempdir() + "/PerlComplete.pl"
 
-            lines = open(file).read().splitlines()
+        if not os.path.exists(path):
+            log_errror("Find usages: File {} does not exist".format(file))
+            continue
+        else:
+            lines = open(path, encoding="utf-8").read().splitlines()
+
+        # Find largest line number in group so we can align the sidebar line numbers
+        line_num_digits = len(str(usage_groups[file][-1][-1]))
 
         for group in usage_groups[file]:
             # Figure out what lines to list
             lines_to_show = []
-            if group[0] > 2:
+            if group[0] > 2 and group[0] - 2 not in lines_to_show:
                 lines_to_show.append(group[0] - 2)
 
-            if group[0] > 1:
+            if group[0] > 1 and group[0] - 1 not in lines_to_show:
                 lines_to_show.append(group[0] - 1)
 
             # Now include every line in the group
             for i in range(group[0], group[-1] + 1):
-                lines_to_show.append(i)
+                if i not in lines_to_show:
+                    lines_to_show.append(i)
+
+            # Finally add some context lines after the match
+            if group[-1] + 1 < len(lines) and group[-1] + 1 not in lines_to_show:
+                lines_to_show.append(group[-1] + 1)
+            if group[-1] + 2 < len(lines) and group[-1] + 2 not in lines_to_show:
+                lines_to_show.append(group[-1] + 2)
+
 
             # Now we can add the group to the file
-            contents += "  .. \n"
+            contents += "  {} \n".format("." * line_num_digits)
 
             for line in lines_to_show:
-                source_line = ""
-                if lines is not None:
-                    source_line = lines[line]
-                else:
-                    source_line = get_source_line(view, region_lines, line)
-
-                colon = ":  " if line in group else "   "
-                contents += "  {}{}{}\n".format(line, colon, source_line)
+                # If the line number length is less than the largest line number length, additional padding is needed
+                # to ensure all lines are aligned
+                padding_size = 2 + (line_num_digits - len(str(line)))
+                padding_size += (0 if line in group else 1)
+                padding = " " * padding_size;
+                source_line = lines[line - 1]
+                colon = ":" if line in group else ""
+                contents += "  {}{}{}{}\n".format(line, colon, padding, source_line)
 
     return contents
 
@@ -379,13 +386,37 @@ class FindUsagesCommand(sublime_plugin.TextCommand):
         file_data_path = write_buffer_to_file(view)
         current_path = view.window().active_view().file_name()
 
-        usages = find_usages(file_data_path, current_path, current_pos[0] + 1, current_pos[1] + 1).get("body")
-        if not usages:
-            return
+        find_usage_thread = FindUsageThread(on_usages_complete, file_data_path, current_path, current_pos[0] + 1,
+                                            current_pos[1] + 1)
+        show_output_panel(USAGES_PANEL_NAME, "Finding usages...")
 
-        usage_groups = group_usages(usages)
-        log_debug("Found usages - {}".format(usage_groups))
-        show_output_panel("usages", build_usage_panel_contents(usage_groups))
+        find_usage_thread.start()
+
+
+def on_usages_complete(usages):
+    if not usages or not usages.get("success"):
+        log_error("Failed to get usages - error returned")
+        return
+
+    usage_groups = group_usages(usages.get("body"))
+    log_debug("Found usages - {}".format(usage_groups))
+    show_output_panel(USAGES_PANEL_NAME, build_usage_panel_contents(usage_groups))
+
+
+class FindUsageThread(threading.Thread):
+
+    def __init__(self, on_complete, path, context_path, line, col):
+        super(FindUsageThread, self).__init__()
+        self.path = path
+        self.context_path = context_path
+        self.line = line
+        self.col = col
+        self.on_complete = on_complete
+
+    def run(self):
+        self.on_complete(find_usages(self.path, self.context_path, self.line, self.col))
+
+
 
 configure_settings()
 update_menu()
