@@ -51,6 +51,7 @@ def set_status(view, status):
 def configure_settings():
     settings = sublime.load_settings("Preferences.sublime-settings")
     auto_complete_triggers = settings.get("auto_complete_triggers")
+    auto_complete_triggers = [] if auto_complete_triggers is None else auto_complete_triggers
 
     found = False
     for trigger in auto_complete_triggers:
@@ -96,9 +97,32 @@ def find_usages(path, context_path, line, col):
 
     if not res["success"]:
         log_error("Find usages failed with error - {}:{}".format(res.get("error"), res.get("errorMessage")))
-        return []
+        return None
 
-    return res
+    if "body" not in res:
+        log_error("Bad JSON for find_usages: no body")
+        return None
+
+    return res["body"]
+
+
+def find_declaration(path, context_path, line, col):
+    res = post_request("find-declaration", {
+        "line": line,
+        "col": col,
+        "path": path,
+        "context": context_path
+    })
+
+    if not res["success"]:
+        log_error("Find declaration failed with error - {}:{}".format(res.get("error"), res.get("errorMessage")))
+        return None
+
+    if "body" not in res:
+        log_error("Bad JSON for find_declaration: no body")
+        return None
+
+    return res["body"]
 
 
 def ping():
@@ -175,7 +199,8 @@ def update_menu():
 
     menu = []
     if current_view_is_perl():
-        menu = [{"caption": "-"}, {"caption": "Find Usages", "command": "find_usages"}, {"caption": "-"}, ]
+        menu = [{"caption": "-"}, {"caption": "Find Usages", "command": "find_usages"},
+                {"caption": "Goto Declaration", "command": "goto_declaration"}, {"caption": "-"}, ]
 
     with open(file_path_context, "w+") as f:
         f.write(json.dumps(menu))
@@ -212,8 +237,14 @@ def group_usages(usages):
         result_map[file] = groups
     return result_map
 
-def build_usage_panel_contents(usage_groups):
-    contents = ""
+
+def build_usage_panel_contents(usage_groups, num_usages=0):
+    log_info("build_usage_panel_contents len={}".format(len(usage_groups)))
+    if len(usage_groups) == 0:
+        log_info("Found no usages - showing to user")
+        return "No usages found\n"
+
+    contents = "Found {} usage{}\n".format(num_usages, "s" if num_usages > 1 else "")
 
     view = sublime.active_window().active_view()
 
@@ -380,27 +411,38 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
 
 
 class FindUsagesCommand(sublime_plugin.TextCommand):
-    def run(self, edit):
-        view = sublime.active_window().active_view()
-        current_pos = view.rowcol(view.sel()[0].begin())
-        file_data_path = write_buffer_to_file(view)
-        current_path = view.window().active_view().file_name()
+    def run(self, edit, event=None):
+        point = self.view.sel()[0].begin() if event is None else self.view.window_to_text((event["x"], event["y"]))
+
+        current_pos = self.view.rowcol(point)
+        file_data_path = write_buffer_to_file(self.view)
+        current_path = self.view.window().active_view().file_name()
 
         find_usage_thread = FindUsageThread(on_usages_complete, file_data_path, current_path, current_pos[0] + 1,
                                             current_pos[1] + 1)
+
         show_output_panel(USAGES_PANEL_NAME, "Finding usages...")
 
         find_usage_thread.start()
 
+    def want_event(self):
+        # Force sublime to get event from click
+        # This allows us to get right click location
+        return True
+
 
 def on_usages_complete(usages):
-    if not usages or not usages.get("success"):
+    if usages is None:
         log_error("Failed to get usages - error returned")
         return
 
-    usage_groups = group_usages(usages.get("body"))
+    usage_groups = group_usages(usages)
+    num_usages = 0
+    for file in usages:
+        num_usages += len(usages[file])
+
     log_debug("Found usages - {}".format(usage_groups))
-    show_output_panel(USAGES_PANEL_NAME, build_usage_panel_contents(usage_groups))
+    show_output_panel(USAGES_PANEL_NAME, build_usage_panel_contents(usage_groups, num_usages))
 
 
 class FindUsageThread(threading.Thread):
@@ -415,6 +457,62 @@ class FindUsageThread(threading.Thread):
 
     def run(self):
         self.on_complete(find_usages(self.path, self.context_path, self.line, self.col))
+
+
+class GotoDeclarationCommand(sublime_plugin.TextCommand):
+    def run(self, edit, event=None):
+        point = self.view.sel()[0].begin() if event is None else self.view.window_to_text((event["x"], event["y"]))
+        current_pos = self.view.rowcol(point)
+        file_data_path = write_buffer_to_file(self.view)
+        current_path = self.view.window().active_view().file_name()
+
+        find_decl_thread = GotoDeclarationThread(on_find_declaration_complete, file_data_path, current_path,
+                                                 current_pos[0] + 1, current_pos[1] + 1)
+
+        find_decl_thread.start()
+
+    def want_event(self):
+        # Force sublime to get event from click
+        # This allows us to get right click location
+        return True
+
+
+class MoveCursorCommand(sublime_plugin.TextCommand):
+    def run(self, edit, line, col):
+        # if not args or not "line" in args or not "col" in args:
+        #     log_error("Bad or no args provided to MoveCursorCommand - args={}".format(args))
+        #     return
+
+        # Do the movement
+        del_point = self.view.text_point(line - 1, col - 1)
+        log_debug("Moving cursor to {}".format(del_point))
+        self.view.sel().clear()
+        self.view.sel().add(sublime.Region(del_point))
+
+
+class GotoDeclarationThread(threading.Thread):
+
+    def __init__(self, on_complete, path, context_path, line, col):
+        super(GotoDeclarationThread, self).__init__()
+        self.path = path
+        self.context_path = context_path
+        self.line = line
+        self.col = col
+        self.on_complete = on_complete
+
+    def run(self):
+        self.on_complete(find_declaration(self.path, self.context_path, self.line, self.col))
+
+
+def on_find_declaration_complete(declaration):
+    log_info("Declaration returned {}".format(declaration))
+    view = sublime.active_window().active_view()
+
+    if declaration is not None and declaration["exists"]:
+        sublime.active_window().run_command("move_cursor", {"line": declaration["line"], "col": declaration["col"]})
+    else:
+        view.show_popup("Declaration not found")
+
 
 
 

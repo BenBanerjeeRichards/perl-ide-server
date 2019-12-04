@@ -130,13 +130,34 @@ void startAndBlock(int port) {
                 }
 
                 std::sort(fileLocations.begin(), fileLocations.end());
-                jsonFrom[context] = fileLocations;
+                if (!fileLocations.empty()) jsonFrom[context] = fileLocations;
                 json response = jsonFrom;
                 sendJson(res, response);
             } catch (json::exception &) {
                 sendJson(res, "BAD_PARAMS", "Bad Params");
                 return;
             }
+        } else if (reqJson["method"] == "find-declaration") {
+            auto params = reqJson["params"];
+            std::string path = params["path"];
+            std::string context = params["context"];
+            int line = params["line"];
+            int col = params["col"];
+
+            // TODO expand search to multiple files
+            json response;
+            auto maybeDecl = analysis::findVariableDeclaration(path, FilePos(line, col));
+            if (!maybeDecl.has_value()) {
+                response["exists"] = false;
+            } else {
+                response["exists"] = true;
+                response["file"] = context;
+                response["line"] = maybeDecl.value().line;
+                response["col"] = maybeDecl.value().col;
+            }
+
+            sendJson(res, response);
+
         } else {
             sendJson(res, "UNKNOWN_METHOD", "Method " + std::string(reqJson["method"]) + " not supported");
             return;

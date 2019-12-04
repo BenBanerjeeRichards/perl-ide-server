@@ -8,6 +8,7 @@
 #include "stdafx.h"
 #include "IOException.h"
 #include "FileAnalysis.h"
+#include "../lib/json.hpp"
 
 using json = nlohmann::json;
 

@@ -29,7 +29,8 @@ namespace analysis {
     std::vector<AutocompleteItem> autocompleteSubs(const std::string &filePath, FilePos location);
 
     std::vector<FilePos> findVariableUsages(const std::string &filePath, FilePos location);
-}
 
+    std::optional<FilePos> findVariableDeclaration(const std::string &filePath, FilePos location);
+}
 
 #endif //PERLPARSE_FILEANALYSIS_H

@@ -237,8 +237,9 @@ variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char 
 
 GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext);
 
-namespace variable {
-    std::vector<FilePos> findVariableUsages(FileSymbols &fileSymbols, FilePos location);
-}
+std::vector<FilePos> findVariableUsages(FileSymbols &fileSymbols, FilePos location);
+
+std::optional<FilePos> findVariableDeclaration(FileSymbols &fileSymbols, FilePos location);
+
 
 #endif //PERLPARSER_VARANALYSIS_H

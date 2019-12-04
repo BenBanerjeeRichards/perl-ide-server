@@ -498,18 +498,21 @@ GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, st
     }
 }
 
-/**
- * Find usages for the variable located at the given location
- *
- * @param fileSymbols
- * @param location
- * @return list of usages in the current file
- */
-std::vector<FilePos> variable::findVariableUsages(FileSymbols &fileSymbols, FilePos location) {
-    for (auto variable : fileSymbols.variableUsages) {
+struct VariableDeclarationWithUsages {
+    VariableDeclarationWithUsages(const std::shared_ptr<Variable> &declaration, const std::vector<FilePos> &usages)
+            : declaration(declaration), usages(usages) {}
+
+    std::shared_ptr<Variable> declaration;
+    std::vector<FilePos> usages;
+};
+
+std::optional<VariableDeclarationWithUsages> findVariableAtLocation(FileSymbols &fileSymbols, FilePos location) {
+    for (const auto &variable : fileSymbols.variableUsages) {
         if (insideRange(variable.first->declaration, variable.first->symbolEnd, location)) {
             // Found variable
-            return variable.second;
+
+            return std::optional<VariableDeclarationWithUsages>(
+                    VariableDeclarationWithUsages(variable.first, variable.second));
         }
 
         // Now check every usage as well, as find-usages can be used on the usage as well as the declaration
@@ -518,14 +521,43 @@ std::vector<FilePos> variable::findVariableUsages(FileSymbols &fileSymbols, File
             end.col += variable.first->name.size();
             end.position += variable.first->name.size();
             if (insideRange(usage, end, location)) {
-                return variable.second;
+                return std::optional<VariableDeclarationWithUsages>(
+                        VariableDeclarationWithUsages(variable.first, variable.second));
             }
         }
     }
 
-    // None found
-    std::cout << "FindUsages - No symbol found at location " << location.toStr() << std::endl;
-    return std::vector<FilePos>();
+    return std::optional<VariableDeclarationWithUsages>();
+}
+
+/**
+ * Find usages for the variable located at the given location
+ *
+ * @param fileSymbols
+ * @param location
+ * @return list of usages in the current file
+ */
+std::vector<FilePos> findVariableUsages(FileSymbols &fileSymbols, FilePos location) {
+    auto maybeVariable = findVariableAtLocation(fileSymbols, location);
+    if (!maybeVariable.has_value()) {
+        // None found
+        std::cout << "FindUsages - No symbol found at location " << location.toStr() << std::endl;
+        return std::vector<FilePos>();
+    }
+
+    return maybeVariable.value().usages;
+}
+
+std::optional<FilePos> findVariableDeclaration(FileSymbols &fileSymbols, FilePos location) {
+    auto maybeVariable = findVariableAtLocation(fileSymbols, location);
+    if (!maybeVariable.has_value()) {
+        // None found
+        std::cout << "FindUsages - No symbol found at location " << location.toStr() << std::endl;
+        return std::optional<FilePos>();
+    }
+
+    return std::optional<FilePos>(maybeVariable.value().declaration->declaration);
+
 }
 
 GlobalVariable::GlobalVariable(std::string sigil, std::string package, std::string name) {

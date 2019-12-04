@@ -52,8 +52,14 @@ std::vector<AutocompleteItem> analysis::autocompleteSubs(const std::string &file
 
 std::vector<FilePos> analysis::findVariableUsages(const std::string &filePath, FilePos location) {
     FileSymbols fileSymbols = getFileSymbols(filePath);
-    return variable::findVariableUsages(fileSymbols, location);
+    return findVariableUsages(fileSymbols, location);
 }
+
+std::optional<FilePos> analysis::findVariableDeclaration(const std::string &filePath, FilePos location) {
+    FileSymbols fileSymbols = getFileSymbols(filePath);
+    return findVariableDeclaration(fileSymbols, location);
+}
+
 
 analysis::SymbolUsage::SymbolUsage(int line, int col, const std::string &sourceLine) : line(line), col(col),
                                                                                        sourceLine(sourceLine) {}
