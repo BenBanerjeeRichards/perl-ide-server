@@ -150,6 +150,8 @@ private:
     std::string matchQuoteOperator();
 
     void backtrack(FilePos pos);
+
+    std::string matchVersionString();
 };
 
 std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens);

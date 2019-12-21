@@ -5,6 +5,7 @@
 #include "Tokeniser.h"
 
 static std::regex NUMERIC_REGEX(R"(^(\+|-)?((\d+|_)\.?(\d|_){0,}(e(\+|-)?(\d|_)+?)?|0x[\dabcdefABCDEF]+|0b[01]+|)$)");
+static std::regex VERSION_REGEX(R"(v?\d([_|\.]?\d){0,})");
 
 Tokeniser::Tokeniser(std::string perl, bool doSecondPass) {
     this->program = std::move(perl);
@@ -504,6 +505,30 @@ std::string Tokeniser::matchNumeric() {
     if (std::regex_match(testString, regexMatch, NUMERIC_REGEX)) {
         this->advancePositionSameLine(testString.size());
         return testString;
+    }
+
+    return "";
+}
+
+std::string Tokeniser::matchVersionString() {
+    if (peek() != 'v' && !isdigit(peek())) return "";
+    std::string versionString;
+    int i = 0;
+    if (peek() == 'v') {
+        versionString += 'v';
+        i++;
+    }
+
+    while (isdigit(peekAhead(i + 1)) || peekAhead(i + 1) == '.' || peekAhead(i + 1) == '_') {
+        versionString += peekAhead(i + 1);
+        i += 1;
+    }
+
+    std::smatch regexMatch;
+
+    if (std::regex_match(versionString, regexMatch, VERSION_REGEX)) {
+        this->advancePositionSameLine(versionString.size());
+        return versionString;
     }
 
     return "";
@@ -1216,6 +1241,13 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         tokens.emplace_back(Token(TokenType::NumericLiteral, startPos, numeric));
         return;
     }
+
+    auto versionString = this->matchVersionString();
+    if (!versionString.empty()) {
+        tokens.emplace_back(Token(TokenType::VersionLiteral, startPos, versionString));
+        return;
+    }
+
 
     // Numeric first
     if (this->peek() == '-') {

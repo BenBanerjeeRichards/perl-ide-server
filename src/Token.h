@@ -54,6 +54,7 @@ enum class TokenType {
     Sub,
     Name,
     NumericLiteral,
+    VersionLiteral,
     Pod,
     Comma,
     Local,

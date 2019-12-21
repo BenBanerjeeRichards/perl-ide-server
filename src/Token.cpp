@@ -96,6 +96,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::Sub) return "Sub";
     if (t == TokenType::Name) return "Name";
     if (t == TokenType::NumericLiteral) return "NumericLiteral";
+    if (t == TokenType::VersionLiteral) return "VersionLiteral";
     if (t == TokenType::Pod) return "Pod";
     if (t == TokenType::Comma) return "Comma";
     if (t == TokenType::Package) return "Package";
