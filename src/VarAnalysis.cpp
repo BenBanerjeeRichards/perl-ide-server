@@ -4,10 +4,6 @@
 
 #include "VarAnalysis.h"
 
-bool ScopedVariable::isAccessibleAt(const FilePos &pos) {
-    return insideRange(this->declaration, this->scopeEnd, pos);
-}
-
 
 std::shared_ptr<Variable>
 makeVariable(int id, TokenType type, std::string name, FilePos declaration, FilePos symbolEnd, FilePos scopeEnd,
@@ -218,7 +214,7 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
             if (token.type == TokenType::ScalarVariable || token.type == TokenType::HashVariable ||
                 token.type == TokenType::ArrayVariable) {
                 // First find declaration
-                // Need to consider context of variale to determine what it's declaration looks lile
+                // Need to consider context of variable to determine what it's declaration looks like
                 // e.g. $test refers to a scalar defined like my $test = ..., where as $test[0] refers to my @test = ...
                 std::string canonicalName = token.data;
                 Token accessor = tokenIterator.next();
@@ -278,14 +274,6 @@ std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos p
     }
 
     return "main";
-}
-
-SymbolNode::SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode) :
-        startPos(startPos), endPos(endPos), blockNode(blockNode) {}
-
-SymbolNode::SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode,
-                       std::vector<std::string> parentFeatures)
-        : startPos(startPos), endPos(endPos), blockNode(blockNode), features(parentFeatures) {
 }
 
 void doPrintSymbolTree(const std::shared_ptr<SymbolNode> &node, int level) {
@@ -402,22 +390,6 @@ variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char 
     }
 
     return variables;
-}
-
-std::string Subroutine::toStr() {
-    std::string str;
-    auto nameStr = name.empty() ? "<ANOM>" : name;
-    str = pos.toStr() + " " + package + "::" + nameStr + "()";
-
-    if (!signature.empty()) {
-        str += " signature=" + signature;
-    }
-
-    if (!prototype.empty()) {
-        str += " prototype=" + prototype;
-    }
-
-    return str;
 }
 
 
@@ -558,39 +530,5 @@ std::optional<FilePos> findVariableDeclaration(FileSymbols &fileSymbols, FilePos
 
     return std::optional<FilePos>(maybeVariable.value().declaration->declaration);
 
-}
-
-GlobalVariable::GlobalVariable(std::string sigil, std::string package, std::string name) {
-    this->sigil = sigil;
-    this->package = package;
-    this->name = name;
-}
-
-const std::string GlobalVariable::getFullName() const {
-    return sigil + package + "::" + name;
-}
-
-const std::string &GlobalVariable::getPackage() const {
-    return package;
-}
-
-const std::string &GlobalVariable::getName() const {
-    return name;
-}
-
-const std::string &GlobalVariable::getSigil() const {
-    return sigil;
-}
-
-std::string GlobalVariable::toStr() {
-    return this->sigil + "," + this->package + "," + this->name;
-}
-
-const FilePos &GlobalVariable::getFilePos() const {
-    return filePos;
-}
-
-void GlobalVariable::setFilePos(const FilePos &filePos) {
-    GlobalVariable::filePos = filePos;
 }
 

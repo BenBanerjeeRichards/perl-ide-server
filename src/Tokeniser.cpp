@@ -510,6 +510,17 @@ std::string Tokeniser::matchNumeric() {
     return "";
 }
 
+/**
+ * Parse a version string e.g. v5.4, 5.23.4. Essentially simplier numeric literals but can start with 'v' and have
+ * multiple dots.
+ *
+ * During parsing, it is likely that many version strings will actually parse as numeric literals (e.g. `5.4`). This
+ * is fine as further analysis later on will note the context - version strings can only be used after `require` and
+ * within `use`. Computing context for `use` is complex as `use Module List Version` is possible, so instead we just
+ * do it later. There could be a bug where a non-numeric value is incorrectly identified as a version literal,
+ * but I am yet to find it.
+ * @return Version literal or empty string
+ */
 std::string Tokeniser::matchVersionString() {
     if (peek() != 'v' && !isdigit(peek())) return "";
     std::string versionString;
@@ -1311,7 +1322,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                 tokens.emplace_back(Token(TokenType::Operator, startPos, "/"));
                 return;
             } else if (prevTokenType == TokenType::Name) {
-                // this is an ambiguity that is impossible to parse at runtime
+                // this is an ambiguity that is impossible to parse statically
                 // see  'Perl can not be pared: a formal proof' by Jeffrey Kegler at https://www.perlmonks.org/?node_id=663393
                 // depends on number of arguments of the  functions. So `split /$a/;`(ok) and `time /$a/;`(syntax error)
                 // are parsed very differently by perl

@@ -1,5 +1,7 @@
 ## `use` and `require`
 
+### require
+
 `require` is simple - it just revolves the perl file (against `@INC`) and runs the code. If 'A' requires 'B', A can access all of B's package global symbols through fully qualified names (`<Package>::`).
 
 * Everything must be package qualified unless the packages match - 
@@ -10,6 +12,8 @@
 * With the string syntax, the string can be any perl string - e.g `qq {test.pl}`. 
 * You can do `require $file` - as it is run at runtime. **This analysis is not possible at static phase and so is not supported**. 
 * You can `require <version>` for runtime equivalent for the `use <version>`. 
+
+### use
 
 `use` does everything `require` does*, but then calls `B->import()`. This function could do anything, but typically places some specific symbols from `B::` into the current namespace of `A`.  (\*  = you can only use package names, not file strings. **use is processed statically**). 
 
@@ -24,6 +28,8 @@ use Math::Calc qq{add &sub $variable};
 
 * Some are 'pragmatic' and have specific meaning - they don't refer to a file. e.g. `use feature say`. See below.
 * Version can be included to require perl version
+* `use <Module>` looks up module via file path, but package name doesn't have to match/can contain multiple packages that can each be references
+* Doesn't matter where the use statement is put - position, lexical scope,... As it's handled statically by perl.
 
 ```perl
 use v4.5;
