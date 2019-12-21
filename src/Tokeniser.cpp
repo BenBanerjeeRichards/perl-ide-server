@@ -4,7 +4,7 @@
 
 #include "Tokeniser.h"
 
-static std::regex NUMERIC_REGEX(R"(^(\+|-)?(\d+\.?\d{0,}(e(\+|-)?\d+?)?|0x[\dabcdefABCDEF]+|0b[01]+|)$)");
+static std::regex NUMERIC_REGEX(R"(^(\+|-)?((\d+|_)\.?(\d|_){0,}(e(\+|-)?(\d|_)+?)?|0x[\dabcdefABCDEF]+|0b[01]+|)$)");
 
 Tokeniser::Tokeniser(std::string perl, bool doSecondPass) {
     this->program = std::move(perl);
@@ -491,7 +491,7 @@ std::string Tokeniser::matchNumeric() {
     std::string testString;
     int i = 0;
     while (isalnum(peekAhead(i + 1)) || peekAhead(i + 1) == '.' || peekAhead(i + 1) == '+' ||
-           peekAhead(i + 1) == '-') {
+           peekAhead(i + 1) == '-' || peekAhead(i + 1) == '_') {
         testString += peekAhead(i + 1);
         i += 1;
     }
