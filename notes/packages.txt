@@ -1,0 +1,69 @@
+So package = namespace
+Module = importing code (including namespace)
+
+Scanning for packages is a similar idea to variables. BUT need to keep track of the most specific
+package (we don't hold multiple packages around in an inner scope, only the most specific one).
+
+At that end we also need to keep track of previous packages to be able to go back to them if needed
+
+
+
+package a;
+
+{
+	...
+
+	{
+		package b;
+		...
+		package z;
+		....
+		package b;
+		...
+	}
+
+	// Back in package a here
+}
+
+
+Use a stack
+	When we go into a new scope, push on current package (even if the same as before)
+	When we exit a scope, pop off the top of the stack
+	When a new package is declared, pop off current and push on new 
+		This is not correct. If we don't have old reference to previous package
+		what happens when we go back again - isn't this 
+
+	The current scope at the start of each block is the 
+
+
+package a;
+
+{
+	...
+}
+
+
+
+
+\ * $ @ ; % &
+
+
+If there are attributes, it is ambiguous (to the lexer) whether we have a prototype of signature. This is left up to the parser to look at use 'use feature'.
+
+In fact I don't the tokeniser should try to guess. Of course, if we read attributes then we can just read until { in knowledge there will be nothing after the signature.
+
+The difficult case is a signature without any attributes. to our parser, it could be a protoytype followed by attributes. 
+
+	* One solution: use heuristics to guess if we have a prototype
+
+
+
+
+
+
+
+
+
+
+
+

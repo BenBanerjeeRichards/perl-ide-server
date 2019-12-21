@@ -1,0 +1,68 @@
+globals belong to the package, not specifically the file.
+But right now we could just add them to a File specific globals list
+
+
+-> DO NOT cache usages of variables
+	This is not a common operation and is only used by:
+		1) Rename symbol
+		2) Find usages
+	Done on a single variable it is fast so no need to cache it all
+
+
+	Tokenisation: 2580ms
+Parsing: 158ms
+Package analysis: 13ms
+Var/Sub Analysis: 2759ms
+
+
+When resolving variable usages [lex], current approach is to use findDeclartion to build symbolTable, scanning from top of tree downwards
+
+
+ 	1. Start from the declaration scope.
+ 		Need  a reference to the SymbolNode containing the variable declaration.
+ 		Consider all declarations 
+
+
+ <<Name
+ <<"Name"
+ << "Name"
+ << ~
+
+
+Not all variables have a package. Only e.g.
+
+	$main::a 			# Direct reference to a variable in a package
+
+	use package main;
+	our $a;				# Referene $a in $main::a
+
+
+
+Two types of variable:
+	File variables - restricted to the file that they are in:
+		my variables
+		the our alias (NOT the referenced package name)
+		local
+
+	Package variables
+		Globals (implcicit package variables)
+
+
+RULE: Variable must be declarerd before it is used!
+
+
+Two pass approach?
+	- Pass 1: Only fine declarations
+	- Pass 2: Find usages and attach them to the correct declaration
+
+
+
+
+<VARIABLE><LBRACKET><NAME|STRING><RBRACKET>
+<VARIABLE><LBRACKET>[<NAME|STRING>,?]<RBRACKET>
+
+HashSubStart HashSubEnd
+
+<VARIABLE><LBRACKET><EXPR><RBRACKET>
+
+
