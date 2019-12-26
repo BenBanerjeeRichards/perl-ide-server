@@ -35,9 +35,10 @@ Tokeniser::Tokeniser(std::string perl, bool doSecondPass) {
                                                       KeywordConfig("sub", TokenType::Sub),
                                                       KeywordConfig("package", TokenType::Package),
                                                       KeywordConfig("state", TokenType::State),
-                                                      KeywordConfig("use", TokenType::Use),};
+                                                      KeywordConfig("use", TokenType::Use),
+                                                      KeywordConfig("require", TokenType::Require),};
 
-    // Remove unicode Byte Order Mark (0xEFBBBF) if it exists
+    // Remove any unicode Byte Order Mark (e.g. 0xEFBBBF)
     if (this->program.size() >= 3 && this->program[0] == '\xEF' && this->program[1] == '\xBB' &&
         this->program[2] == '\xBF') {
         this->program = this->program.substr(3, this->program.size() - 3);
@@ -226,16 +227,13 @@ std::string Tokeniser::matchStringContainingOnlyLetters(const std::string &lette
  * e.g. "Hello", 'Hello', /Hello/ and `hello`
  * @return
  */
-std::string Tokeniser::matchString() {
-    std::string contents;
-    auto doubleStr = matchStringLiteral('"');
-    if (!doubleStr.empty()) return doubleStr;
-    auto singleStr = matchStringLiteral('\'');
-    if (!singleStr.empty()) return singleStr;
-    auto regexStr = matchStringLiteral('/');
-    if (!regexStr.empty()) return regexStr;
-    auto executeString = matchStringLiteral('`');
-    return executeString;
+bool Tokeniser::matchSimpleString(std::vector<Token> &tokens) {
+    if (peek() == '"' || peek() == '\'' || peek() == '/' || peek() == '`') {
+        matchDelimString(tokens);
+        return true;
+    }
+
+    return false;
 }
 
 /**
@@ -356,12 +354,10 @@ void Tokeniser::matchDelimString(std::vector<Token> &tokens) {
         tokens.emplace_back(Token(TokenType::StringStart, start, std::string(1, quoteChar)));
         start = currentPos();
         contents = matchBracketedStringLiteral(quoteChar);
-        if (!contents.empty()) {
-            auto endPos = currentPos();
-            endPos.position -= 1;
-            endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
-            tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
-        }
+        auto endPos = currentPos();
+        endPos.position -= 1;
+        endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
+        tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
         start = currentPos();
         auto endChar = peek();
         nextChar();
@@ -370,12 +366,10 @@ void Tokeniser::matchDelimString(std::vector<Token> &tokens) {
         tokens.emplace_back(Token(TokenType::StringStart, start, std::string(1, quoteChar)));
         start = currentPos();
         contents = matchStringLiteral(quoteChar, false);
-        if (!contents.empty()) {
-            auto endPos = currentPos();
-            endPos.position -= 1;
-            endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
-            tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
-        }
+        auto endPos = currentPos();
+        endPos.position -= 1;
+        endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
+        tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
         start = currentPos();
         auto endChar = peek();
         nextChar();
@@ -841,10 +835,8 @@ void Tokeniser::matchHereDocBody(std::vector<Token> &tokens, const std::string &
  * @return true if slash string matched. If false then no input consumed
  */
 bool Tokeniser::matchSlashString(std::vector<Token> &tokens) {
-    auto start = this->currentPos();
-    auto string = this->matchString();
-    if (!string.empty()) {
-        tokens.emplace_back(Token(TokenType::String, start, string));
+    if (peek() != '/') return false;
+    if (this->matchSimpleString(tokens)) {
         auto start = currentPos();
         auto modifiers = this->matchStringContainingOnlyLetters("msixpodualngc");
         if (!modifiers.empty()) {
@@ -1002,7 +994,6 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
             if (tokens[i].type == TokenType::Newline) break;
             if (tokens[i].type == TokenType::Operator && tokens[i].data == "<<") {
                 // got a <<, see if it could be a heredoc
-                int heredocStartIdx = i;
                 bool hasWhitespace = i + 1 < tokens.size() && tokens[i + 1].type == TokenType::Whitespace;
                 if (hasWhitespace) i++;
 
@@ -1013,17 +1004,17 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                 // Now consider if we have ok identifier
                 i++;
                 if (i >= tokens.size() - 1) continue;
-                if (tokens[i].type != TokenType::Name && tokens[i].type != TokenType::String) {
+                if (tokens[i].type != TokenType::Name && tokens[i].type != TokenType::StringStart) {
                     continue;
                 } else {
                     std::string delim;
                     if (tokens[i].type == TokenType::Name && hasWhitespace) continue;    // Now allowed with barewords
                     // Now finally we can confirm a valid heredoc.
-                    if (tokens[i].type == TokenType::Name) delim = tokens[i].data;
-                    else if (tokens[i].type == TokenType::String)
-                        delim = tokens[i].data.substr(1,
-                                                      tokens[i].data.size() -
-                                                      2);
+                    if (tokens[i].type == TokenType::Name) {
+                        delim = tokens[i].data;
+                    } else if (tokens[i].type == TokenType::StringStart) {
+                        delim = tokens[i + 1].data;
+                    }
                     matchHereDocBody(tokens, delim, hasTilde);
                     break;
                 }
@@ -1364,11 +1355,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
         return;
     }
 
-    auto string = this->matchString();
-    if (!string.empty()) {
-        tokens.emplace_back(Token(TokenType::String, startPos, string));
-        return;
-    }
+    if (this->matchSimpleString(tokens)) return;
 
     // String literals / quote literals / transliterations / ...
     if (matchQuoteLiteral(tokens)) return;

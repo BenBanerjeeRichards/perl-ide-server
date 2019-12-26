@@ -1,7 +1,9 @@
 Comment(#!/usr/bin/perl)
 Use
 Name(feature)
-String("say")
+StringStart(")
+String(say)
+StringEnd(")
 Semicolon
 Name(say)
 QuoteIdent(qq)
@@ -195,18 +197,22 @@ StringStart({)
 String(\n    /\*	# Match the opening delimiter.\n        .*?	# Match a minimal number of characters.\n        \*/	# Match the closing delimiter.\n)
 StringEnd(})
 StringStart([)
+String
 StringEnd(])
 StringModifiers(gsx)
 Semicolon
 QuoteIdent(tr)
 StringStart(/)
+String
 StringEnd(/)
 StringEnd(/)
 Semicolon
 QuoteIdent(tr)
 StringStart({)
+String
 StringEnd(})
 StringStart([)
+String
 StringEnd(])
 Semicolon
 My
@@ -275,7 +281,9 @@ String(Pattern)
 StringEnd(})
 StringModifiers(sxx)
 Semicolon
-String(/Hello/)
+StringStart(/)
+String(Hello)
+StringEnd(/)
 StringModifiers(s)
 Semicolon
 QuoteIdent(tr)
@@ -308,7 +316,9 @@ String(PATTERN)
 StringEnd(/)
 StringModifiers(msixpodualngc)
 Semicolon
-String(/PATTERN/)
+StringStart(/)
+String(PATTERN)
+StringEnd(/)
 StringModifiers(msixpodualngc)
 Semicolon
 QuoteIdent(qr)
@@ -323,7 +333,9 @@ String(PATTERN)
 StringEnd(/)
 StringModifiers(msixpongc)
 Semicolon
-String(/PATTERN/)
+StringStart(/)
+String(PATTERN)
+StringEnd(/)
 StringModifiers(msixplngc)
 Semicolon
 QuoteIdent(q)

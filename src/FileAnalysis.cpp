@@ -10,20 +10,10 @@ FileSymbols analysis::getFileSymbols(const std::string &path) {
     std::vector<Token> tokens = tokeniser.tokenise();
     FileSymbols fileSymbols;
 
-    FilePos currLineStart = FilePos(1, 1, 0);
-    for (const auto &token : tokens) {
-        if (token.type == TokenType::Newline) {
-            int startPos = currLineStart.position + 1;
-            int endPos = (token.endPos.position - currLineStart.position) - 1;
-            auto line = program.substr(startPos, endPos);
-            fileSymbols.sourceCode.emplace_back(line);
-            currLineStart = token.endPos;
-        }
-    }
-
     int partial = -1;
     auto parseTree = buildParseTree(tokens, partial);
     fileSymbols.packages = parsePackages(parseTree);
+    parseFirstPass(parseTree, fileSymbols);
     buildVariableSymbolTree(parseTree, fileSymbols);
     return fileSymbols;
 }

@@ -93,6 +93,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::Continue) return "Continue";
     if (t == TokenType::Given) return "Given";
     if (t == TokenType::Use) return "Use";
+    if (t == TokenType::Require) return "Require";
     if (t == TokenType::Sub) return "Sub";
     if (t == TokenType::Name) return "Name";
     if (t == TokenType::NumericLiteral) return "NumericLiteral";
@@ -164,6 +165,32 @@ Token TokenIterator::next() {
 
     return Token(TokenType::EndOfInput, FilePos(0, 0));
 }
+
+std::optional<std::string> TokenIterator::tryGetString() {
+    // TODO this probably should be in a different place
+    int currentI = this->i;
+    Token next = this->next();
+
+    // Standard string literal
+    if (next.type == TokenType::String) return next.data;
+
+    // Quote ident is start of a string
+    if (next.type == TokenType::QuoteIdent) {
+        // Don't support transliteration/subsitution
+        if (next.data == "tr" || next.data == "y") return std::optional<std::string>();
+
+        next = this->next();
+        if (next.type != TokenType::StringStart) return std::optional<std::string>();
+
+        next = this->next();
+        if (next.type == TokenType::String) return next.data;
+    }
+
+    // Failed to find a string - go back to starting location
+    this->i = currentI;
+    return std::optional<std::string>();
+}
+
 
 
 

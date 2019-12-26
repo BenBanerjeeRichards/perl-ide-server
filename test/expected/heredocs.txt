@@ -1,5 +1,7 @@
 Operator(<<)
-String("")
+StringStart(")
+String
+StringEnd(")
 Semicolon
 HereDoc(   Hello!\n)
 HereDocEnd
@@ -17,7 +19,9 @@ HereDoc(    XHello World!\n    Y qw {\n)
 HereDocEnd(EOL)
 Name(print)
 Operator(<<)
-String("    OUT")
+StringStart(")
+String(    OUT)
+StringEnd(")
 Until
 ArrayVariable(@_)
 LSquareBracket
@@ -35,7 +39,9 @@ HereDoc(Hello world!\n)
 HereDocEnd(Hello)
 Name(print)
 Operator(<<)
-String(`EOL`)
+StringStart(`)
+String(EOL)
+StringEnd(`)
 Semicolon
 HereDoc(    XHello World!\n    Y qw {\n)
 HereDocEnd(EOL)

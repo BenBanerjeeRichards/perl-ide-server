@@ -67,15 +67,6 @@ struct Variable {
 
 namespace std {
     template<>
-    struct hash<Variable> {
-        std::size_t operator()(const Variable &var) const {
-            return std::hash<int>()(var.id);
-        }
-    };
-}
-
-namespace std {
-    template<>
     struct hash<GlobalVariable> {
         std::size_t operator()(const GlobalVariable &var) const {
             return std::hash<std::string>()(var.getFullName());

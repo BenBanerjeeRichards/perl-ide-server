@@ -42,7 +42,8 @@ bool runTest(std::string &testFile) {
         std::string actualTokenString = tokens[i].toStr(false);
         if (expectedTokens[i] != actualTokenString) {
             std::cout << console::bold << console::red << "[" << testName << "] FAILED - Mismatched token at "
-                      << tokens[i].endPos.toStr() << console::clear << console::red << std::endl;
+                      << tokens[i].endPos.toStr() << " expected row = " << i + 1 << console::clear << console::red
+                      << std::endl;
 
             std::cout << "\tExpected: " << expectedTokens[i] << std::endl << "\tActual:  " << actualTokenString
                       << console::clear << std::endl;

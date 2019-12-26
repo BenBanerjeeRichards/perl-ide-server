@@ -6,6 +6,7 @@
 #define PERLPARSER_TOKEN_H
 
 #include <vector>
+#include <optional>
 #include "FilePos.h"
 #include "Util.h"
 
@@ -51,6 +52,7 @@ enum class TokenType {
     Continue,
     Given,
     Use,
+    Require,
     Sub,
     Name,
     NumericLiteral,
@@ -115,6 +117,8 @@ public:
     Token next();
 
     int getIndex();
+
+    std::optional<std::string> tryGetString();
 
 private:
     const std::vector<Token> &tokens;

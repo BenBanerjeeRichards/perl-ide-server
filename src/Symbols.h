@@ -14,6 +14,28 @@
 #include "Node.h"
 #include "Package.h"
 
+
+enum class ImportType {
+    Module, Path
+};
+
+enum class ImportMechanism {
+    Use, Require
+};
+
+struct Import {
+    Import(const FilePos &location, ImportType type, ImportMechanism mechanism, const std::string &data,
+           const std::vector<std::string> &exports);
+
+    FilePos location;
+    ImportType type;
+    ImportMechanism mechanism;
+    std::string data;
+    std::vector<std::string> exports;
+
+    std::string toStr();
+};
+
 class SymbolNode {
 public:
     SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode);
@@ -43,6 +65,7 @@ struct FileSymbols {
     std::shared_ptr<SymbolNode> symbolTree;
     std::vector<PackageSpan> packages;
     std::vector<Subroutine> subroutines;
+    std::vector<Import> imports;
 
     // Package globals, map from fully qualified name to usages
     // Different to lexical variabels as package variables don't have a declaration
@@ -55,10 +78,6 @@ struct FileSymbols {
     // Usages of each variable
     // Includes definition.
     std::unordered_map<std::shared_ptr<Variable>, std::vector<FilePos>> variableUsages;
-
-    // Source code, split into lines
-    // Allows us to go from (line, column) -> Source code
-    std::vector<std::string> sourceCode;
 };
 
 

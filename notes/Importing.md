@@ -12,6 +12,7 @@
 * With the string syntax, the string can be any perl string - e.g `qq {test.pl}`. 
 * You can do `require $file` - as it is run at runtime. **This analysis is not possible at static phase and so is not supported**. 
 * You can `require <version>` for runtime equivalent for the `use <version>`. 
+* Require is done at run time, so it does not take effect until it has been run. **We can't support this fully!** - we will simply by simply scanning entire file and treating the same as use. 
 
 ### use
 

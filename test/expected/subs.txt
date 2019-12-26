@@ -3,7 +3,9 @@ SubName(signatureNoAttribute)
 Signature(($a, $b = 54, $c=5))
 LBracket
 Name(say)
-String("f(...) ")
+StringStart(")
+String(f(...) )
+StringEnd(")
 Dot
 ScalarVariable($a)
 Semicolon

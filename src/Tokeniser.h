@@ -70,7 +70,7 @@ private:
 
     bool matchQuoteLiteral(std::vector<Token> &tokens);
 
-    std::string matchString();
+    bool matchSimpleString(std::vector<Token> &tokens);
 
     std::string matchNumeric();
 
