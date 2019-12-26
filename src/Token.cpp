@@ -171,9 +171,6 @@ std::optional<std::string> TokenIterator::tryGetString() {
     int currentI = this->i;
     Token next = this->next();
 
-    // Standard string literal
-    if (next.type == TokenType::String) return next.data;
-
     // Quote ident is start of a string
     if (next.type == TokenType::QuoteIdent) {
         // Don't support transliteration/subsitution
@@ -182,6 +179,11 @@ std::optional<std::string> TokenIterator::tryGetString() {
         next = this->next();
         if (next.type != TokenType::StringStart) return std::optional<std::string>();
 
+        next = this->next();
+        if (next.type == TokenType::String) return next.data;
+    }
+
+    if (next.type == TokenType::StringStart) {
         next = this->next();
         if (next.type == TokenType::String) return next.data;
     }

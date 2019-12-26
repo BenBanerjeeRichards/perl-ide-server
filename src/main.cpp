@@ -7,28 +7,6 @@
 #include "Test.h"
 #include "PerlServer.h"
 
-void doTestIterate(const std::shared_ptr<BlockNode> &parent) {
-    for (int childIdx = 0; childIdx < (int) parent->children.size(); childIdx++) {
-        std::shared_ptr<Node> child = parent->children[childIdx];
-
-        if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
-            doTestIterate(blockNode);
-        }
-
-        if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
-            TokenIterator tokenIterator(tokensNode->tokens,
-                                        std::vector<TokenType>{TokenType::Whitespace, TokenType::Newline,
-                                                               TokenType::Comment});
-            Token next = tokenIterator.next();
-            while (next.type != TokenType::EndOfInput) {
-                if (next.type == TokenType::HereDocEnd) std::cout << "HereDocEnd" << std::endl;
-                next = tokenIterator.next();
-            }
-        }
-
-    }
-}
-
 struct TimeInfo {
     long long int tokenise;
     long long int parse;
@@ -89,26 +67,12 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
     auto end = std::chrono::steady_clock::now();
     timing.tokenise = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
-
-    if (printTokens) {
-        for (auto token : tokens) {
-//            if (token.type == TokenType::Comment || token.type == TokenType::Newline) std::cout << console::dim;
-//            std::cout << tokeniser.tokenToStrWithCode(token) << console::clear <<  std::endl;
-        }
-    }
-
     begin = std::chrono::steady_clock::now();
     int partiallyParsed = -1;
     auto parseTree = buildParseTree(tokens, partiallyParsed);
     fileSymbols.partialParse = partiallyParsed;
     end = std::chrono::steady_clock::now();
     timing.parse = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-
-    begin = std::chrono::steady_clock::now();
-    doTestIterate(parseTree);
-    end = std::chrono::steady_clock::now();
-    std::cout << "TIME = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << std::endl;
-
 
     begin = std::chrono::steady_clock::now();
     parseFirstPass(parseTree, fileSymbols);
@@ -170,6 +134,12 @@ void debugPrint(const std::string &path) {
 
         std::cout << std::endl;
     }
+
+    std::cout << console::bold << std::endl << "Imports" << console::clear << std::endl;
+    for (auto import : fileSymbols.imports) {
+        std::cout << import.toStr() << std::endl;
+    }
+
 
     std::cout << std::endl << console::bold << "Timing" << console::clear << std::endl;
     std::cout << "Total: " << timeInfo.total << "ms" << std::endl;
