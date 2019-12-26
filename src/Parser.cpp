@@ -182,16 +182,6 @@ std::shared_ptr<BlockNode> buildParseTree(std::vector<Token> tokens, int &incorr
     return node;
 }
 
-std::string handleUseFeature(TokenIterator &tokenIter) {
-    if (tokenIter.next().type != TokenType::Use) return "";
-    auto featureKeywordToken = tokenIter.next();
-    if (featureKeywordToken.type != TokenType::Name || featureKeywordToken.data != "feature") return "";
-    auto featureNameToken = tokenIter.next();
-    // TODO support quoted strings (requires tokeniser support)
-    if (featureKeywordToken.type != TokenType::Name) return "";
-    return featureNameToken.data;
-}
-
 Subroutine handleSub(TokenIterator &tokenIter, FilePos subStart, std::vector<PackageSpan> &packages) {
     Subroutine subroutine;
 
@@ -294,7 +284,31 @@ std::optional<Import> handleRequire(TokenIterator &tokenIter, FilePos location) 
 }
 
 std::optional<Import> handleUse(TokenIterator &tokenIter, FilePos location) {
+    Token token = tokenIter.next();
+    std::string moduleName;
+    std::vector<std::string> exportList;
 
+    if (token.type == TokenType::Name) {
+        // Module name
+        moduleName = token.data;
+    } else {
+        return std::optional<Import>();
+    }
+
+    token = tokenIter.next();
+    if (token.type == TokenType::NumericLiteral || token.type == TokenType::VersionLiteral) {
+        token = tokenIter.next();
+    }
+
+    // At this point we have `use Module Version?`
+    // Could have list at the end
+    if (token.type == TokenType::QuoteIdent) token = tokenIter.next();
+    if (token.type == TokenType::StringStart) {
+        token = tokenIter.next();
+        exportList = split(token.data, " ");
+    }
+
+    return Import(location, ImportType::Module, ImportMechanism::Use, moduleName, exportList);
 }
 
 
@@ -331,18 +345,16 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
                 } else if (tokenType == TokenType::Sub) {
                     auto sub = handleSub(tokenIter, token.startPos, fileSymbols.packages);
                     fileSymbols.subroutines.emplace_back(sub);
-//                        token = tokenIter.next();
-                } else if (tokenType == TokenType::Use) {
-                    auto featureName = handleUseFeature(tokenIter);
-                    if (!featureName.empty()) symbolNode->features.emplace_back(featureName);
-//                    token = tokenIter.next();
                 } else if (tokenType == TokenType::Require) {
                     auto import = handleRequire(tokenIter, token.startPos);
                     if (import.has_value()) {
                         fileSymbols.imports.emplace_back(import.value());
                     }
                 } else if (tokenType == TokenType::Use) {
-                    handleUse(tokenIter, token.startPos);
+                    auto import = handleUse(tokenIter, token.startPos);
+                    if (import.has_value()) {
+                        fileSymbols.imports.emplace_back(import.value());
+                    }
                 }
 
                 token = tokenIter.next();
