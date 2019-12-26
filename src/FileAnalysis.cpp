@@ -22,7 +22,7 @@ FileSymbols analysis::getFileSymbols(const std::string &path) {
     }
 
     int partial = -1;
-    auto parseTree = parse(tokens, partial);
+    auto parseTree = buildParseTree(tokens, partial);
     fileSymbols.packages = parsePackages(parseTree);
     buildVariableSymbolTree(parseTree, fileSymbols);
     return fileSymbols;

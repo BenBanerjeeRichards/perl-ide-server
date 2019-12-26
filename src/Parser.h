@@ -7,13 +7,19 @@
 
 #include <utility>
 #include <stack>
+#include <optional>
 #include "Node.h"
+#include "Symbols.h"
+#include "Variable.h"
+#include "Package.h"
 
-
-std::shared_ptr<BlockNode> parse(std::vector<Token> tokens, int&);
+std::shared_ptr<BlockNode> buildParseTree(std::vector<Token> tokens, int &);
 
 std::vector<PackageSpan> parsePackages(std::shared_ptr<BlockNode> parent);
 
 void printParseTree(std::shared_ptr<Node> root);
+
+
+void parseFirstPass(std::shared_ptr<BlockNode> tree, FileSymbols &fileSymbols);
 
 #endif //PERLPARSER_PARSER_H

@@ -7,6 +7,28 @@
 #include "Test.h"
 #include "PerlServer.h"
 
+void doTestIterate(const std::shared_ptr<BlockNode> &parent) {
+    for (int childIdx = 0; childIdx < (int) parent->children.size(); childIdx++) {
+        std::shared_ptr<Node> child = parent->children[childIdx];
+
+        if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
+            doTestIterate(blockNode);
+        }
+
+        if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
+            TokenIterator tokenIterator(tokensNode->tokens,
+                                        std::vector<TokenType>{TokenType::Whitespace, TokenType::Newline,
+                                                               TokenType::Comment});
+            Token next = tokenIterator.next();
+            while (next.type != TokenType::EndOfInput) {
+                if (next.type == TokenType::HereDocEnd) std::cout << "HereDocEnd" << std::endl;
+                next = tokenIterator.next();
+            }
+        }
+
+    }
+}
+
 struct TimeInfo {
     long long int tokenise;
     long long int parse;
@@ -57,15 +79,16 @@ void unitTest(std::string path) {
 
 }
 
-FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool printTokens=false) {
+FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool printTokens = false) {
     auto totalBegin = std::chrono::steady_clock::now();
     Tokeniser tokeniser(readFile(path));
     FileSymbols fileSymbols;
 
     auto begin = std::chrono::steady_clock::now();
-    auto tokens =  tokeniser.tokenise();
+    auto tokens = tokeniser.tokenise();
     auto end = std::chrono::steady_clock::now();
     timing.tokenise = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
 
     if (printTokens) {
         for (auto token : tokens) {
@@ -76,15 +99,21 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 
     begin = std::chrono::steady_clock::now();
     int partiallyParsed = -1;
-    auto parseTree = parse(tokens, partiallyParsed);
+    auto parseTree = buildParseTree(tokens, partiallyParsed);
     fileSymbols.partialParse = partiallyParsed;
     end = std::chrono::steady_clock::now();
     timing.parse = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
+    begin = std::chrono::steady_clock::now();
+    doTestIterate(parseTree);
+    end = std::chrono::steady_clock::now();
+    std::cout << "TIME = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << std::endl;
+
 
     begin = std::chrono::steady_clock::now();
+    parseFirstPass(parseTree, fileSymbols);
     fileSymbols.packages = parsePackages(parseTree);
-    auto symbolTree = buildVariableSymbolTree(parseTree, fileSymbols);
+    buildVariableSymbolTree(parseTree, fileSymbols);
     end = std::chrono::steady_clock::now();
     timing.analysis = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
     auto totalEnd = std::chrono::steady_clock::now();
@@ -99,7 +128,7 @@ void testFiles() {
     for (auto file : perlFiles) {
         TimeInfo timing{};
         FileSymbols fileSymbols = analysisWithTime(file, timing);
-        std::cout << file  << "," << timing.total << ","
+        std::cout << file << "," << timing.total << ","
                   << timing.tokenise << "," << timing.parse << "," << timing.analysis << std::endl;
 
         if (auto badNode = findBadSymbolNode(fileSymbols.symbolTree)) {
@@ -109,7 +138,8 @@ void testFiles() {
         }
 
         if (fileSymbols.partialParse > -1) {
-            std::cout << std::endl << console::bold << console::red << "Partial parse detected at line" << fileSymbols.partialParse
+            std::cout << std::endl << console::bold << console::red << "Partial parse detected at line"
+                      << fileSymbols.partialParse
                       << console::clear << std::endl;
             return;
         }
@@ -154,8 +184,9 @@ void debugPrint(const std::string &path) {
     }
 
     if (fileSymbols.partialParse > -1) {
-        std::cout << std::endl << console::bold << console::red << "Partial parse detected at line" << fileSymbols.partialParse
-                  <<  console::clear << std::endl;
+        std::cout << std::endl << console::bold << console::red << "Partial parse detected at line"
+                  << fileSymbols.partialParse
+                  << console::clear << std::endl;
     }
 }
 
@@ -181,7 +212,7 @@ int main(int argc, char **args) {
         return 0;
     }
 
-    if (argc == 3 && strncmp(args[1],  "makeTest", 9) == 0) {
+    if (argc == 3 && strncmp(args[1], "makeTest", 9) == 0) {
         auto name = std::string(args[2]);
         makeTest(name);
         return 0;
@@ -221,3 +252,4 @@ int main(int argc, char **args) {
 
     return 0;
 }
+

@@ -17,9 +17,8 @@
 #include "Symbols.h"
 
 
-std::shared_ptr<SymbolNode> buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols);
+void buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols);
 
-std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
 
 void printSymbolTree(const std::shared_ptr<SymbolNode> &node);
 

@@ -56,19 +56,5 @@ struct BlockNode : Node {
     }
 };
 
-struct PackageSpan {
-
-    PackageSpan(FilePos start, FilePos end, const std::string &name) {
-        this->start = start;
-        this->end = end;
-        this->packageName = name;
-    }
-
-    FilePos start;
-    FilePos end;
-    std::string packageName;
-};
-
-
 
 #endif //PERLPARSER_NODE_H

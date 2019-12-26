@@ -5,7 +5,7 @@
 #include "Parser.h"
 
 // Returns -1 if there is no next token
-int nextTokenIdx(const std::vector<Token>& tokens, int currentIdx) {
+int nextTokenIdx(const std::vector<Token> &tokens, int currentIdx) {
     while (currentIdx < tokens.size() - 1) {
         currentIdx += 1;
 
@@ -16,7 +16,7 @@ int nextTokenIdx(const std::vector<Token>& tokens, int currentIdx) {
     return -1;
 }
 
-void doParse(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &tokens, int &tokenIdx) {
+void doBuildParseTree(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &tokens, int &tokenIdx) {
     std::vector<Token> tokensAcc;
     while (tokenIdx < tokens.size()) {
         Token token = tokens[tokenIdx];
@@ -31,7 +31,7 @@ void doParse(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &t
             auto child = std::make_shared<BlockNode>(token.startPos);
 
             node->children.emplace_back(child);
-            doParse(child, tokens, tokenIdx);
+            doBuildParseTree(child, tokens, tokenIdx);
         } else if (token.type == TokenType::RBracket) {
             node->children.emplace_back(std::make_shared<TokensNode>(tokensAcc));
             node->end = token.endPos;
@@ -166,16 +166,172 @@ std::vector<PackageSpan> parsePackages(std::shared_ptr<BlockNode> parent) {
     return packageSpans;
 }
 
-std::shared_ptr<BlockNode> parse(std::vector<Token> tokens, int& incorrectNestingStart) {
+std::shared_ptr<BlockNode> buildParseTree(std::vector<Token> tokens, int &incorrectNestingStart) {
     incorrectNestingStart = -1;
     auto node = std::make_shared<BlockNode>(FilePos(0, 0));
     node->end = tokens[tokens.size() - 1].endPos;
     int tokenIdx = 0;
-    doParse(node, tokens, tokenIdx);
+    doBuildParseTree(node, tokens, tokenIdx);
     incorrectNestingStart = tokenIdx < tokens.size() ? tokens[tokens.size() - 1].endPos.line : -1;
 
     while (tokenIdx < tokens.size()) {
-        doParse(node, tokens, tokenIdx);
+        doBuildParseTree(node, tokens, tokenIdx);
     }
     return node;
+}
+
+std::string handleUseFeature(const std::shared_ptr<TokensNode> &tokensNode, int i) {
+    auto tokenIter = TokenIterator(tokensNode->tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment,
+                                                                              TokenType::Newline}, i);
+    if (tokenIter.next().type != TokenType::Use) return "";
+    auto featureKeywordToken = tokenIter.next();
+    if (featureKeywordToken.type != TokenType::Name || featureKeywordToken.data != "feature") return "";
+    auto featureNameToken = tokenIter.next();
+    // TODO support quoted strings (requires tokeniser support)
+    if (featureKeywordToken.type != TokenType::Name) return "";
+    return featureNameToken.data;
+}
+
+std::optional<Subroutine>
+handleSub(const std::shared_ptr<TokensNode> &tokensNode, std::vector<PackageSpan> &packages, int &i) {
+    Subroutine subroutine;
+    auto tokenIter = TokenIterator(tokensNode->tokens, std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment,
+                                                                              TokenType::Newline}, i);
+    auto subToken = tokenIter.next();
+    if (subToken.type != TokenType::Sub) return std::optional<Subroutine>();
+
+    subroutine.pos = subToken.startPos;
+
+    auto nextTok = tokenIter.next();
+    if (nextTok.type == TokenType::SubName) {
+        // If this is not the case then function is unnamed
+        subroutine.name = nextTok.data;
+        subroutine.nameStart = nextTok.startPos;
+        subroutine.nameEnd = nextTok.endPos;
+        nextTok = tokenIter.next();
+    }
+
+    while (nextTok.type != TokenType::LBracket && nextTok.type != TokenType::EndOfInput) {
+        if (nextTok.type == TokenType::Signature) subroutine.signature = nextTok.data;
+        if (nextTok.type == TokenType::Prototype) subroutine.prototype = nextTok.data;
+        nextTok = tokenIter.next();
+    }
+
+    subroutine.package = findPackageAtPos(packages, subroutine.pos);
+
+    return std::optional<Subroutine>(subroutine);
+
+}
+
+std::shared_ptr<Variable>
+makeVariable(int id, TokenType type, std::string name, FilePos declaration, FilePos symbolEnd, FilePos scopeEnd,
+             const std::vector<PackageSpan> &packages) {
+    if (type == TokenType::Our) {
+        auto package = findPackageAtPos(packages, declaration);
+        return std::make_shared<OurVariable>(id, name, declaration, symbolEnd, scopeEnd, package);
+    } else if (type == TokenType::My || type == TokenType::State) {
+        return std::make_shared<ScopedVariable>(id, name, declaration, symbolEnd, scopeEnd);
+    } else if (type == TokenType::Local) {
+        return std::make_shared<LocalVariable>(id, name, declaration, symbolEnd, scopeEnd);
+    }
+
+    return nullptr;
+}
+
+
+std::vector<std::shared_ptr<Variable>>
+handleVariableTokens(const std::shared_ptr<TokensNode> &tokensNode, const std::vector<PackageSpan> &packages, int &i,
+                     FilePos parentEnd, int &id) {
+    std::vector<std::shared_ptr<Variable>> variables;
+    TokenIterator tokensIter(tokensNode->tokens,
+                             std::vector<TokenType>{TokenType::Whitespace, TokenType::Comment, TokenType::Newline}, i);
+
+    auto tokenType = tokensIter.next().type;
+    auto nextToken = tokensIter.next();
+
+    if (nextToken.type == TokenType::ScalarVariable || nextToken.type == TokenType::HashVariable ||
+        nextToken.type == TokenType::ArrayVariable) {
+        // We've got a definition!
+        if (auto var = makeVariable(id, tokenType, nextToken.data, nextToken.startPos, nextToken.endPos, parentEnd,
+                                    packages)) {
+            variables.emplace_back(var);
+            id++;
+        }
+
+        // Finally, if combined assignment then skip past Assignment token to prevent confusion with
+        // package variables below
+        nextToken = tokensNode->tokens[i + 1];
+        while (i < tokensNode->tokens.size() && nextToken.isWhitespaceNewlineOrComment()) {
+            i++;
+            nextToken = tokensNode->tokens[i];
+        }
+
+        if (nextToken.type == TokenType::Assignment) i++;
+    } else if (nextToken.type == TokenType::LParen) {
+        // my ($x, $y) syntax - combined declaration. Consider every variable inside
+        while (nextToken.type != TokenType::RParen && nextToken.type != TokenType::EndOfInput) {
+            if (nextToken.type == TokenType::ScalarVariable || nextToken.type == TokenType::HashVariable ||
+                nextToken.type == TokenType::ArrayVariable) {
+                // Variable!
+                if (auto var = makeVariable(id, tokenType, nextToken.data, nextToken.startPos, nextToken.endPos,
+                                            parentEnd, packages)) {
+                    variables.emplace_back(var);
+                    id++;
+                }
+            }
+            nextToken = tokensIter.next();
+        }
+
+    }
+
+    i = tokensIter.getIndex();
+    return variables;
+}
+
+void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
+                      FileSymbols &fileSymbols, std::vector<std::string> &variables, int lastId) {
+
+    for (const auto &child : tree->children) {
+        if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
+            // Create new child for symbol tree
+            auto symbolChild = std::make_shared<SymbolNode>(blockNode->start, blockNode->end, blockNode,
+                                                            symbolNode->features);
+            symbolNode->children.emplace_back(symbolChild);
+            doParseFirstPass(blockNode, symbolChild, fileSymbols, variables, lastId);
+        }
+
+        if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
+            for (int i = 0; i < (int) tokensNode->tokens.size() - 1; i++) {
+                auto tokenType = tokensNode->tokens[i].type;
+                if (tokenType == TokenType::My || tokenType == TokenType::Our || tokenType == TokenType::Local ||
+                    tokenType == TokenType::State) {
+                    auto newVariables = handleVariableTokens(tokensNode, fileSymbols.packages, i, tree->end, lastId);
+                    for (auto &variable : newVariables) {
+                        symbolNode->variables.emplace_back(variable);
+                        variables.emplace_back(variable->name);
+                    }
+
+                    i++;
+                } else if (tokenType == TokenType::Sub) {
+                    auto sub = handleSub(tokensNode, fileSymbols.packages, i);
+                    if (sub.has_value()) {
+                        fileSymbols.subroutines.emplace_back(sub.value());
+                        i++;
+                    }
+                } else if (tokenType == TokenType::Use) {
+                    auto featureName = handleUseFeature(tokensNode, i);
+                    if (!featureName.empty()) symbolNode->features.emplace_back(featureName);
+                    i += 1;
+                }
+            }
+        }
+    }
+}
+
+void parseFirstPass(std::shared_ptr<BlockNode> tree, FileSymbols &fileSymbols) {
+    std::vector<std::string> variables;
+    auto symbolNode = std::make_shared<SymbolNode>(tree->start, tree->end, tree);
+    doParseFirstPass(tree, symbolNode, fileSymbols, variables, 0);
+    fileSymbols.symbolTree = symbolNode;
+
 }

@@ -12,6 +12,7 @@
 #include "Variable.h"
 #include "Subroutine.h"
 #include "Node.h"
+#include "Package.h"
 
 class SymbolNode {
 public:
