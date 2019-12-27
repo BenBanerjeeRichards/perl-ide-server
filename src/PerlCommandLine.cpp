@@ -4,8 +4,8 @@
 
 #include "PerlCommandLine.h"
 
-RunResult runCommand(const PerlProject &project, const std::string &arguments) {
-    redi::ipstream proc(project.perlPath + " " + arguments, redi::pstreams::pstdout | redi::pstreams::pstderr);
+RunResult runCommand(std::string perlPath, const std::string &arguments) {
+    redi::ipstream proc(perlPath + " " + arguments, redi::pstreams::pstdout | redi::pstreams::pstderr);
     std::string line;
     RunResult res;
 
@@ -22,25 +22,21 @@ RunResult runCommand(const PerlProject &project, const std::string &arguments) {
     return res;
 }
 
-std::vector<std::string> getIncludePaths(PerlProject &project) {
-    if (!project.includePaths.empty()) return project.includePaths;
-
-    auto includeCommandRes = runCommand(project, "-e \"print join('\n', @INC)\"");
+std::vector<std::string> getIncludePaths(const std::string &contextPath) {
+    auto includeCommandRes = runCommand("perl", "-e \"print join('\n', @INC)\"");
 
     // TODO Do proper path expansion
     for (auto & i : includeCommandRes.output) {
         if (i == ".") {
-            i = project.rootDirectory;
+            i = contextPath;
         }
     }
 
-    // Cache results
-    project.includePaths.assign(includeCommandRes.output.begin(),includeCommandRes.output.end());
     return includeCommandRes.output;
 }
 
-std::string resolveModulePath(const PerlProject& project, const std::vector<std::string>& module) {
-    for (auto path : project.includePaths) {
+std::string resolveModulePath(std::vector<std::string> includePaths, const std::vector<std::string> &module) {
+    for (auto path : includePaths) {
         std::string searchPath = path;
         for (const auto& modulePart : module) {
             path += "/" + modulePart;

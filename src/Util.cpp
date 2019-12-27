@@ -104,3 +104,16 @@ std::vector<std::string> split(std::string s, const std::string& delimiter) {
 
     return tokens;
 }
+
+/**
+ * Convert ASCII string to lowercase
+ * @param str
+ * @return
+ */
+std::string toLower(const std::string &str) {
+    // Don't mutate input
+    std::string lowercase = str;
+    std::transform(lowercase.begin(), lowercase.end(), lowercase.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return lowercase;
+}

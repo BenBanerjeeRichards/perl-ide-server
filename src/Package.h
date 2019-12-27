@@ -23,4 +23,6 @@ struct PackageSpan {
 
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
 
+std::vector<std::string> splitPackage(const std::string &package);
+
 #endif //PERLPARSE_PACKAGE_H

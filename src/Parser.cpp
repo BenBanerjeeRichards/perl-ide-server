@@ -4,6 +4,21 @@
 
 #include "Parser.h"
 
+// These are modules that have a special syntaxic meaning in perl e.g. `use warnings` turns on warnings, it does
+// not search for a module called 'warnings'
+std::vector<std::string> PRAGMATIC_MODULES = std::vector<std::string>{"attributes", "autodie", "autodie::exception",
+                                                                      "autodie::exception::system", "autodie::hints",
+                                                                      "autodie::skip", "autouse", "base", "bigint",
+                                                                      "bignum", "bigrat", "blib", "bytes", "charnames",
+                                                                      "constant", "deprecate", "diagnostics",
+                                                                      "encoding", "encoding::warnings", "experimental",
+                                                                      "feature", "fields", "filetest", "if", "integer",
+                                                                      "less", "lib", "locale", "mro", "ok", "open",
+                                                                      "ops", "overload", "overloading", "parent", "re",
+                                                                      "sigtrapsort", "strict", "subs", "threads",
+                                                                      "threads::shared", "utf8", "vars", "version",
+                                                                      "vmsish", "warnings", "warnings::register"};
+
 // Returns -1 if there is no next token
 int nextTokenIdx(const std::vector<Token> &tokens, int currentIdx) {
     while (currentIdx < tokens.size() - 1) {
@@ -289,8 +304,11 @@ std::optional<Import> handleUse(TokenIterator &tokenIter, FilePos location) {
     std::vector<std::string> exportList;
 
     if (token.type == TokenType::Name) {
-        // Module name
-        moduleName = token.data;
+        // Check if module name is pragmatic
+        moduleName = toLower(token.data);
+        for (const auto &pragmatic : PRAGMATIC_MODULES) {
+            if (moduleName == pragmatic) return std::optional<Import>();
+        }
     } else {
         return std::optional<Import>();
     }
@@ -341,7 +359,6 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
                         variables.emplace_back(variable->name);
                     }
 
-                    token = tokenIter.next();
                 } else if (tokenType == TokenType::Sub) {
                     auto sub = handleSub(tokenIter, token.startPos, fileSymbols.packages);
                     fileSymbols.subroutines.emplace_back(sub);
@@ -368,5 +385,4 @@ void parseFirstPass(std::shared_ptr<BlockNode> tree, FileSymbols &fileSymbols) {
     auto symbolNode = std::make_shared<SymbolNode>(tree->start, tree->end, tree);
     doParseFirstPass(tree, symbolNode, fileSymbols, variables, 0);
     fileSymbols.symbolTree = symbolNode;
-
 }

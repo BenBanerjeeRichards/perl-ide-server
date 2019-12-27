@@ -28,4 +28,5 @@ bool insideRange(FilePos start, FilePos end, FilePos pos);
 std::string join(const std::vector<std::string> &vec, const char *delim);
 std::vector<std::string> split(std::string s, const std::string& delimiter);
 
+std::string toLower(const std::string &str);
 #endif //PERLPARSER_UTIL_H

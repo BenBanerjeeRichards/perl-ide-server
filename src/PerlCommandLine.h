@@ -20,11 +20,11 @@ struct RunResult {
     std::string toStr();
 };
 
-RunResult runCommand(const PerlProject &project, const std::string &arguments);
+RunResult runCommand(std::string perlPath, const std::string &arguments);
 
-std::vector<std::string> getIncludePaths(PerlProject &project);
+std::vector<std::string> getIncludePaths(const std::string &contextPath);
 
-std::string resolveModulePath(const PerlProject &project, const std::vector<std::string>& module);
+std::string resolveModulePath(std::vector<std::string> includePaths, const std::vector<std::string> &module);
 
 
 #endif //PERLPARSER_PERLCOMMANDLINE_H

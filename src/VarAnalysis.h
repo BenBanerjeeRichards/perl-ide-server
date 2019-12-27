@@ -34,7 +34,7 @@ std::vector<AutocompleteItem>
 variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char sigilContext);
 
 
-GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext);
+GlobalVariable getFullyQualifiedVariableName(const std::string &packageVariableName, std::string packageContext);
 
 std::vector<FilePos> findVariableUsages(FileSymbols &fileSymbols, FilePos location);
 

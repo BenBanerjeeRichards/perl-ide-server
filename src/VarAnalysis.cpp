@@ -231,8 +231,16 @@ variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char 
 }
 
 
-// Get canonical name for a variable
-// Normalises equivalent variables e.g. $main::x = $main::'x = $main::::x = $main'x = ${main'x} = ${main::x} = ...
+/**
+ * Get's the canonical name for a variale
+ *
+ * If a package is involved, there are many possible ways of writing the same variable name:
+ *  $main::x = $main::'x = $main::::x = $main'x = ${main'x} = ${main::x} = ...
+ * This funtion converts each one of the above into $main::x
+ *
+ * @param variableName The variable name, as it appears in the code
+ * @return The canonical form of the variable
+ */
 std::string getCanonicalVariableName(std::string variableName) {
     // First remove brackets if they exist
     std::string canonical = variableName;
@@ -282,7 +290,7 @@ std::string getCanonicalVariableName(std::string variableName) {
  * @param packageVariableName Variable as it appears in the code
  * @param packageContext Package that the variable was found in
  */
-GlobalVariable getFullyQualifiedVariableName(std::string packageVariableName, std::string packageContext) {
+GlobalVariable getFullyQualifiedVariableName(const std::string &packageVariableName, std::string packageContext) {
     auto canonicalName = getCanonicalVariableName(packageVariableName);
     if (packageVariableName.empty()) {
         return GlobalVariable("", "", "");
