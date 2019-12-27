@@ -7,7 +7,7 @@
 * Everything must be package qualified unless the packages match - 
 * This means that if the packages match in both files, no qualification needed (e.g. if both in package `main`).
 
-* `require 'Math/Calc.pm'` is identical to`require Math::Calc` - difference is just perl does path resolution against `@INC` for you.
+* `require 'Math/Calc.pm'` is identical to`require Math::Calc` - difference is just perl does path resolution against `@INC` for you. **Module syntax in both require and use assume .pm extension**
 
 * With the string syntax, the string can be any perl string - e.g `qq {test.pl}`. 
 * You can do `require $file` - as it is run at runtime. **This analysis is not possible at static phase and so is not supported**. 

@@ -305,7 +305,6 @@ std::optional<Import> handleUse(TokenIterator &tokenIter, FilePos location) {
 
     if (token.type == TokenType::Name) {
         // Check if module name is pragmatic
-        moduleName = toLower(token.data);
         for (const auto &pragmatic : PRAGMATIC_MODULES) {
             if (moduleName == pragmatic) return std::optional<Import>();
         }

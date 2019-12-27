@@ -166,7 +166,7 @@ int main(int argc, char **args) {
     std::cout << join(splitPackage("Main::::Test'Package"), ", ") << std::endl;
     std::cout << join(splitPackage("Main::Test"), ", ") << std::endl;
     auto includePaths = getIncludePaths("/");
-    std::cout << resolveModulePath(includePaths, splitPackage("B")) << std::endl;
+    std::cout << resolveModulePath(includePaths, splitPackage("b")) << std::endl;
     std::string file = "../perl/input.pl";
 
     if (argc >= 2) file = args[1];

@@ -35,18 +35,23 @@ std::vector<std::string> getIncludePaths(const std::string &contextPath) {
     return includeCommandRes.output;
 }
 
-std::string resolveModulePath(std::vector<std::string> includePaths, const std::vector<std::string> &module) {
-    for (auto path : includePaths) {
-        std::string searchPath = path;
-        for (const auto& modulePart : module) {
-            path += "/" + modulePart;
-        }
+std::string resolveModulePath(const std::vector<std::string> &includePaths, const std::vector<std::string> &module) {
+    std::string path;
+    for (const auto &modulePart : module) {
+        path += "/" + modulePart;
+    }
 
-        path += ".pm";
+    path = path.substr(1, path.size() - 1);
+    // Module syntax assumes .pm extension
+    return resolvePath(includePaths, path + ".pm");
+}
 
-        // See if this file exists
-        std::ifstream f(path);
-        if (f.good()) return path;
+std::string resolvePath(const std::vector<std::string> &includePaths, const std::string &path) {
+    for (auto includePath : includePaths) {
+        auto fullPath = includePath + "/" + path;
+
+        std::ifstream f(fullPath);
+        if (f.good()) return fullPath;
     }
 
     return "";
