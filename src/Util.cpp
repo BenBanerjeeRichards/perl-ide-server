@@ -57,6 +57,15 @@ std::string fileName(const std::string &path) {
     return filename;
 }
 
+std::string directoryOf(std::string path) {
+    // Not the best solution but it works
+    auto pathParts = split(path, "/");
+    pathParts.pop_back();   // Remove file name
+    auto joined = join(pathParts, "/");
+    if (path[0] == '/') joined = "/" + joined;
+    return joined;
+}
+
 std::string readFile(const std::string &path) {
     std::ifstream fileStream(path);
     if (!fileStream.is_open()) {
@@ -78,14 +87,13 @@ std::string join(const std::vector<std::string> &vec, const char *delim) {
     return resStr.substr(0, resStr.size() - strlen(delim));
 }
 
-bool endsWith(const std::string& s, const std::string& suffix)
-{
+bool endsWith(const std::string &s, const std::string &suffix) {
     return s.size() >= suffix.size() &&
            s.substr(s.size() - suffix.size()) == suffix;
 }
 
 // https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c
-std::vector<std::string> split(std::string s, const std::string& delimiter) {
+std::vector<std::string> split(std::string s, const std::string &delimiter) {
     std::vector<std::string> tokens;
 
     for (size_t start = 0, end; start < s.length(); start = end + delimiter.length()) {

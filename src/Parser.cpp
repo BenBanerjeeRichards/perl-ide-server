@@ -302,7 +302,7 @@ std::optional<Import> handleUse(TokenIterator &tokenIter, FilePos location) {
     Token token = tokenIter.next();
     std::string moduleName;
     std::vector<std::string> exportList;
-
+    moduleName = token.data;
     if (token.type == TokenType::Name) {
         // Check if module name is pragmatic
         for (const auto &pragmatic : PRAGMATIC_MODULES) {

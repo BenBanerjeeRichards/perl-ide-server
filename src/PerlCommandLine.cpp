@@ -49,7 +49,7 @@ std::string resolveModulePath(const std::vector<std::string> &includePaths, cons
 std::string resolvePath(const std::vector<std::string> &includePaths, const std::string &path) {
     for (auto includePath : includePaths) {
         auto fullPath = includePath + "/" + path;
-
+//        std::cout << "\t" << fullPath << std::endl;
         std::ifstream f(fullPath);
         if (f.good()) return fullPath;
     }

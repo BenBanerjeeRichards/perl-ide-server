@@ -42,6 +42,40 @@ use Math::Calc 12.34 qw{add sub};
 
 
 
+### Handling imports
+
+Now we have the imports parsed and resolved, need to figure out how we will walk through them to parse everything.
+
+This is a recursive process: 
+
+```pseudocode
+FILE_SYMBOLS : List[FileSymbol] = []
+
+function loadSymbols(path) {
+  // Important to prevent infinite recursion in cyclic imports (which are allowed in Perl)
+	if (newPath in FILE_SYMBOLS) return;
+
+	// Get file symbols, specific only to this file
+	FileSymbols fileSymbols = getFileSymbols(path)
+	FILE_SYMBOLS[path] = fileSymbols
+	
+	// Consider imports
+	for (import in fileSymbols.imports) {
+		newPath = resolveImport(import)
+		loadSymbols(importPath)
+	}
+}
+```
+
+Now let's ignore exported methods for now.  We only care about the following in the imported files:
+
+* Sub routines (all package level by default)
+* Package variables (our, explicit $Package::X = ...)
+
+Also note: importing is transitive! So we then collect all package global stuff from every element in `FILE_SYMBOLS` into a symbol table (this includes the ones corresponding to file), and then add the lexical stuff from the file's symbol table. 
+
+There's a clear optimisation here that can be done - no need to process local variables (and definitely not store them in memory), but that's for another day. Also in practise we'll only parse the perl libraries once and cache them in a file (well they'll be rebuild when the module is updated, but that is something else for the future).
+
 ## Pragmatic modules
 
 ```
