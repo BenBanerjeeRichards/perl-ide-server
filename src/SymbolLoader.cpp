@@ -32,6 +32,13 @@ FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath) {
     FileSymbolMap fileSymbolMap;
     doLoadSymbols(path, includes, fileSymbolMap);
 
+    // Replace temp file with context path
+    if (path != contextPath && fileSymbolMap.count(path) > 0) {
+        auto pathValue = fileSymbolMap[path];
+        fileSymbolMap.erase(path);
+        fileSymbolMap[contextPath] = pathValue;
+    }
+
     std::cout << buildGlobalVariablesMap(fileSymbolMap).toStr() << std::endl;
 
     return fileSymbolMap;
@@ -56,14 +63,14 @@ GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap) 
 
 std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath) {
     auto fileSymbolsMap = loadAllFileSymbols(rootPath, contextPath);
-    if (fileSymbolsMap.count(rootPath) == 0) {
+    if (fileSymbolsMap.count(contextPath) == 0) {
         std::cerr << "FileAnalysis failed - could not find symbols for root file with path " << rootPath << std::endl;
         return std::optional<Symbols>();
     }
 
     Symbols symbols;
-    symbols.rootFilePath = rootPath;
-    symbols.rootFileSymbols = fileSymbolsMap[rootPath];
+    symbols.rootFilePath = contextPath;
+    symbols.rootFileSymbols = fileSymbolsMap[contextPath];
     symbols.globalVariablesMap = buildGlobalVariablesMap(fileSymbolsMap);
     return symbols;
 }

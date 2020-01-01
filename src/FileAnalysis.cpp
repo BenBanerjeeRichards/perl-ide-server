@@ -64,12 +64,12 @@ analysis::findVariableUsages(const std::string &filePath, std::string contextPat
         for (auto globalWithFiles : globals) {
             GlobalVariable globalVariable = globalWithFiles.first;
             // This global doesn't appear in the current file, so skip
-            if (globalWithFiles.second.count(filePath) == 0) {
+            if (globalWithFiles.second.count(contextPath) == 0) {
                 continue;
             }
 
             // Now check every usage to see if location is within usage
-            for (Range &usage : globalWithFiles.second[filePath]) {
+            for (Range &usage : globalWithFiles.second[contextPath]) {
                 if (insideRange(usage, location)) {
                     // We've found a global
                     return globals[globalVariable];
