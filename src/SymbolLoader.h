@@ -12,9 +12,11 @@
 #include "PerlCommandLine.h"
 #include "Symbols.h"
 
-typedef std::unordered_map<std::string, FileSymbols> FileSymbolMap;
+FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath);
 
-FileSymbolMap loadSymbols(std::string path);
+GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap);
 
+
+std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath);
 
 #endif //PERLPARSE_SYMBOLLOADER_H

@@ -76,6 +76,30 @@ Also note: importing is transitive! So we then collect all package global stuff 
 
 There's a clear optimisation here that can be done - no need to process local variables (and definitely not store them in memory), but that's for another day. Also in practise we'll only parse the perl libraries once and cache them in a file (well they'll be rebuild when the module is updated, but that is something else for the future).
 
+
+
+#### Data structure for holding symbols from multiple files
+
+As already stated, we need to store package level sub routines and variables from other files, as well as all local symbols from the current file. 
+
+```c++
+// as before
+struct Global {
+  FilePos location;
+  std::string package;
+  std::string name;
+  std::string sigil;
+}
+
+struct Symbols {
+  // Each global with it's usages. usages cross over files
+  map<Global, vector<FilePos>> globals;
+  
+}
+```
+
+
+
 ## Pragmatic modules
 
 ```

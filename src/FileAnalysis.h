@@ -8,7 +8,8 @@
 #include "VarAnalysis.h"
 #include "Tokeniser.h"
 #include "Parser.h"
-
+#include "Symbols.h"
+#include "SymbolLoader.h"
 
 namespace analysis {
 
@@ -18,8 +19,9 @@ namespace analysis {
         std::string sourceLine;
 
         SymbolUsage(int line, int col, const std::string &sourceLine);
-
     };
+
+    typedef std::unordered_map<std::string, std::vector<FilePos>> UsagesMap;
 
     FileSymbols getFileSymbols(const std::string &path);
 
@@ -28,7 +30,8 @@ namespace analysis {
 
     std::vector<AutocompleteItem> autocompleteSubs(const std::string &filePath, FilePos location);
 
-    std::vector<FilePos> findVariableUsages(const std::string &filePath, FilePos location);
+    std::unordered_map<std::string, std::vector<Range>>
+    findVariableUsages(const std::string &filePath, std::string contextPath, FilePos location);
 
     std::optional<FilePos> findVariableDeclaration(const std::string &filePath, FilePos location);
 }

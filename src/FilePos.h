@@ -46,6 +46,17 @@ struct FilePos {
     int position;
 };
 
+struct Range {
+    FilePos from;
+    FilePos to;
+
+    Range(FilePos from, FilePos to);
+
+    Range(FilePos from, int symbolLength);
+
+    std::string toStr();
+};
+
 
 
 #endif //PERLPARSER_FILEPOS_H

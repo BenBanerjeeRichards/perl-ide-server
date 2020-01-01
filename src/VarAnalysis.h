@@ -17,6 +17,14 @@
 #include "Symbols.h"
 
 
+struct VariableDeclarationWithUsages {
+    VariableDeclarationWithUsages(const std::shared_ptr<Variable> &declaration, const std::vector<Range> &usages)
+            : declaration(declaration), usages(usages) {}
+
+    std::shared_ptr<Variable> declaration;
+    std::vector<Range> usages;
+};
+
 void buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols);
 
 
@@ -36,9 +44,10 @@ variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char 
 
 GlobalVariable getFullyQualifiedVariableName(const std::string &packageVariableName, std::string packageContext);
 
-std::vector<FilePos> findVariableUsages(FileSymbols &fileSymbols, FilePos location);
+std::vector<Range> findLocalVariableUsages(FileSymbols &fileSymbols, FilePos location);
 
 std::optional<FilePos> findVariableDeclaration(FileSymbols &fileSymbols, FilePos location);
 
+std::optional<VariableDeclarationWithUsages> findVariableAtLocation(FileSymbols &fileSymbols, FilePos location);
 
 #endif //PERLPARSER_VARANALYSIS_H

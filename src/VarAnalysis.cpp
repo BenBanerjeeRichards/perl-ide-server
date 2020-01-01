@@ -52,7 +52,7 @@ findDeclaration(const std::shared_ptr<SymbolNode> &symbolTree, const std::shared
  */
 void
 doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode> &symbolNode,
-                     std::unordered_map<std::shared_ptr<Variable>, std::vector<FilePos>> &usages) {
+                     std::unordered_map<std::shared_ptr<Variable>, std::vector<Range>> &usages) {
     for (auto &child : symbolNode->blockNode->children) {
         // BlockNode, don't bother will be considered when we consider children of current child node
         std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child);
@@ -86,14 +86,15 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
                     if (globalOptional.has_value()) {
                         GlobalVariable global = globalOptional.value();
                         if (fileSymbols.globals.count(global) == 0) {
-                            fileSymbols.globals[global] = std::vector<FilePos>{global.getFilePos()};
+                            fileSymbols.globals[global] = std::vector<Range>{
+                                    Range(global.getFilePos(), global.getEndPos())};
                         } else {
-                            fileSymbols.globals[global].emplace_back(global.getFilePos());
+                            fileSymbols.globals[global].emplace_back(Range(global.getFilePos(), global.getEndPos()));
                         }
                     }
                 } else {
-                    if (usages.count(declaration) == 0) usages[declaration] = std::vector<FilePos>();
-                    usages[declaration].emplace_back(token.startPos);
+                    if (usages.count(declaration) == 0) usages[declaration] = std::vector<Range>();
+                    usages[declaration].emplace_back(Range(token.startPos, token.endPos));
                 }
 
             }
@@ -109,7 +110,7 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
 }
 
 void buildVariableSymbolTree(const std::shared_ptr<BlockNode> &tree, FileSymbols &fileSymbols) {
-    std::unordered_map<std::shared_ptr<Variable>, std::vector<FilePos>> usages;
+    std::unordered_map<std::shared_ptr<Variable>, std::vector<Range>> usages;
     doFindVariableUsages(fileSymbols, fileSymbols.symbolTree, usages);
     fileSymbols.variableUsages = usages;
 }
@@ -293,7 +294,7 @@ std::string getCanonicalVariableName(std::string variableName) {
 GlobalVariable getFullyQualifiedVariableName(const std::string &packageVariableName, std::string packageContext) {
     auto canonicalName = getCanonicalVariableName(packageVariableName);
     if (packageVariableName.empty()) {
-        return GlobalVariable("", "", "");
+        return GlobalVariable("", "", "", "");
     }
 
     std::string sigil = std::string(1, canonicalName[0]);
@@ -309,20 +310,13 @@ GlobalVariable getFullyQualifiedVariableName(const std::string &packageVariableN
 
     if (packageNameFromVariable.empty()) {
         // variable has no encoded package name - assume current package at location
-        return GlobalVariable(sigil, packageContext, variableName);
+        return GlobalVariable(packageVariableName, sigil, packageContext, variableName);
     } else {
         // package name provided in variable name, use that instead
-        return GlobalVariable(sigil, packageNameFromVariable, variableName);
+        return GlobalVariable(packageVariableName, sigil, packageNameFromVariable, variableName);
     }
 }
 
-struct VariableDeclarationWithUsages {
-    VariableDeclarationWithUsages(const std::shared_ptr<Variable> &declaration, const std::vector<FilePos> &usages)
-            : declaration(declaration), usages(usages) {}
-
-    std::shared_ptr<Variable> declaration;
-    std::vector<FilePos> usages;
-};
 
 std::optional<VariableDeclarationWithUsages> findVariableAtLocation(FileSymbols &fileSymbols, FilePos location) {
     for (const auto &variable : fileSymbols.variableUsages) {
@@ -335,10 +329,7 @@ std::optional<VariableDeclarationWithUsages> findVariableAtLocation(FileSymbols 
 
         // Now check every usage as well, as find-usages can be used on the usage as well as the declaration
         for (auto usage : variable.second) {
-            FilePos end = usage;
-            end.col += variable.first->name.size();
-            end.position += variable.first->name.size();
-            if (insideRange(usage, end, location)) {
+            if (insideRange(usage, location)) {
                 return std::optional<VariableDeclarationWithUsages>(
                         VariableDeclarationWithUsages(variable.first, variable.second));
             }
@@ -355,12 +346,12 @@ std::optional<VariableDeclarationWithUsages> findVariableAtLocation(FileSymbols 
  * @param location
  * @return list of usages in the current file
  */
-std::vector<FilePos> findVariableUsages(FileSymbols &fileSymbols, FilePos location) {
+std::vector<Range> findLocalVariableUsages(FileSymbols &fileSymbols, FilePos location) {
     auto maybeVariable = findVariableAtLocation(fileSymbols, location);
     if (!maybeVariable.has_value()) {
         // None found
         std::cout << "FindUsages - No symbol found at location " << location.toStr() << std::endl;
-        return std::vector<FilePos>();
+        return std::vector<Range>();
     }
 
     return maybeVariable.value().usages;

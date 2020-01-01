@@ -117,20 +117,21 @@ void startAndBlock(int port) {
             try {
                 auto params = reqJson["params"];
                 std::string path = params["path"];
-                std::string context = params["context"];
+                std::string contextPath = params["context"];
                 int line = params["line"];
                 int col = params["col"];
 
-                // TODO expand search to multiple files
                 std::map<std::string, std::vector<std::vector<int>>> jsonFrom;
-                std::vector<std::vector<int>> fileLocations;
-                for (auto pos : analysis::findVariableUsages(path, FilePos(line, col))) {
-                    auto posList = std::vector<int>{pos.line, pos.col};
-                    fileLocations.emplace_back(posList);
+                for (const auto &fileWithUsages : analysis::findVariableUsages(path, contextPath, FilePos(line, col))) {
+                    std::vector<std::vector<int>> fileLocations;
+                    for (const Range &usage : fileWithUsages.second) {
+                        fileLocations.emplace_back(std::vector<int>{usage.from.line, usage.from.col});
+                    }
+
+                    std::sort(fileLocations.begin(), fileLocations.end());
+                    if (!fileLocations.empty()) jsonFrom[fileWithUsages.first] = fileLocations;
                 }
 
-                std::sort(fileLocations.begin(), fileLocations.end());
-                if (!fileLocations.empty()) jsonFrom[context] = fileLocations;
                 json response = jsonFrom;
                 sendJson(res, response);
             } catch (json::exception &) {

@@ -36,9 +36,26 @@ void GlobalVariable::setFilePos(const FilePos &filePos) {
     GlobalVariable::filePos = filePos;
 }
 
+/**
+ * Return the location at the end of the variable in the code
+ * e.g
+ *      unless $x; $Ben::test = 45;
+ *                 ^        ^
+ *      First ^ is filePos, second ^ is endPOs
+ *
+ * @return
+ */
+FilePos GlobalVariable::getEndPos() {
+    FilePos endPos = this->filePos;
+    endPos.col += this->codeName.size();
+    endPos.position += this->codeName.size();
+    return endPos;
+}
 
-GlobalVariable::GlobalVariable(std::string sigil, std::string package, std::string name) {
+
+GlobalVariable::GlobalVariable(std::string codeName, std::string sigil, std::string package, std::string name) {
     this->sigil = sigil;
     this->package = package;
     this->name = name;
+    this->codeName = codeName;
 }

@@ -19,6 +19,10 @@ bool insideRange(FilePos start, FilePos end, FilePos pos) {
     return true;
 }
 
+bool insideRange(Range range, FilePos pos) {
+    return insideRange(range.from, range.to, pos);
+}
+
 std::string replace(std::string str, const std::string &what, const std::string &with) {
     std::string baseString = str;
     while (baseString.find(what) != std::string::npos) {

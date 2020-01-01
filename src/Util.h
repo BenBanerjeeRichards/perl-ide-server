@@ -25,6 +25,8 @@ std::vector<std::string> globglob(const std::string& pattern);
 std::string fileName(const std::string& path);
 std::string readFile(const std::string& path);
 bool insideRange(FilePos start, FilePos end, FilePos pos);
+
+bool insideRange(Range range, FilePos pos);
 std::string join(const std::vector<std::string> &vec, const char *delim);
 std::vector<std::string> split(std::string s, const std::string& delimiter);
 

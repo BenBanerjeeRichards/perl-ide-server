@@ -164,16 +164,10 @@ void debugPrint(const std::string &path) {
 
 
 int main(int argc, char **args) {
-    std::cout << join(splitPackage("Main::::Test'Package"), ", ") << std::endl;
-    std::cout << join(splitPackage("Main::Test"), ", ") << std::endl;
     auto includePaths = getIncludePaths("/");
-    std::cout << resolveModulePath(includePaths, splitPackage("XSLoader")) << std::endl;
-    std::cout << resolveModulePath(includePaths, splitPackage("Math::::BigInt")) << std::endl;
-    std::cout << resolvePath(includePaths, "Math/BigInt.pm") << std::endl;
     std::string file = "../perl/input.pl";
-
-    loadSymbols("/Users/bbr/Documents/PerlInclude/main.pl");
-    return 0;
+//    loadAllFileSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl");
+//    return 0;
 
     if (argc >= 2) file = args[1];
 

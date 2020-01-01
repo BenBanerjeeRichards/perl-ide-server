@@ -34,3 +34,34 @@ std::string Import::toStr() {
     str += "]";
     return str;
 }
+
+void GlobalVariablesMap::addGlobal(GlobalVariable global, std::string path, std::vector<Range> usages) {
+    if (this->globalsMap.count(global) == 0) {
+        this->globalsMap[global] = std::unordered_map<std::string, std::vector<Range>>();
+    }
+
+    if (this->globalsMap[global].count(path) == 0) {
+        this->globalsMap[global][path] = std::vector<Range>();
+    }
+
+    this->globalsMap[global][path].insert(this->globalsMap[global][path].end(), usages.begin(), usages.end());
+}
+
+std::string GlobalVariablesMap::toStr() {
+    std::string str;
+
+    for (const auto &globalMap : this->globalsMap) {
+        str += globalMap.first.getFullName() + "\n";
+
+        for (const auto &pathMap : globalMap.second) {
+            str += "\t" + pathMap.first + ": ";
+
+            for (auto usage : pathMap.second) {
+                str += "(" + usage.toStr() + ") ";
+            }
+            str += "\n";
+        }
+    }
+
+    return str;
+}
