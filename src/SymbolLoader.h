@@ -12,6 +12,7 @@
 #include "PerlCommandLine.h"
 #include "Symbols.h"
 #include "Cache.h"
+#include <chrono>
 
 FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath, Cache &cache);
 GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap);

@@ -4,7 +4,7 @@
 
 #include "FileAnalysis.h"
 
-FileSymbols analysis::getFileSymbols(const std::string &path) {
+FileSymbols analysis::getFileSymbols(const std::string &path, AnalysisDetail analysisDetail) {
     auto program = readFile(path);
     Tokeniser tokeniser(program);
     std::vector<Token> tokens = tokeniser.tokenise();
@@ -13,19 +13,23 @@ FileSymbols analysis::getFileSymbols(const std::string &path) {
     int partial = -1;
     auto parseTree = buildParseTree(tokens, partial);
     fileSymbols.packages = parsePackages(parseTree);
-    parseFirstPass(parseTree, fileSymbols);
-    buildVariableSymbolTree(parseTree, fileSymbols);
+    parseFirstPass(parseTree, fileSymbols, analysisDetail == AnalysisDetail::FULL);
+
+    if (analysisDetail == AnalysisDetail::FULL) {
+        buildVariableSymbolTree(parseTree, fileSymbols);
+    }
+
     return fileSymbols;
 }
 
 std::vector<AutocompleteItem>
 analysis::autocompleteVariables(const std::string &filePath, FilePos location, char sigilContext) {
-    FileSymbols fileSymbols = getFileSymbols(filePath);
+    FileSymbols fileSymbols = getFileSymbols(filePath, AnalysisDetail::FULL);
     return variableNamesAtPos(fileSymbols, location, sigilContext);
 }
 
 std::vector<AutocompleteItem> analysis::autocompleteSubs(const std::string &filePath, FilePos location) {
-    FileSymbols fileSymbols = getFileSymbols(filePath);
+    FileSymbols fileSymbols = getFileSymbols(filePath, AnalysisDetail::FULL);
     std::string currentPackage = findPackageAtPos(fileSymbols.packages, location);
     std::vector<AutocompleteItem> completions;
 
@@ -82,7 +86,7 @@ analysis::findVariableUsages(const std::string &filePath, std::string contextPat
 }
 
 std::optional<FilePos> analysis::findVariableDeclaration(const std::string &filePath, FilePos location) {
-    FileSymbols fileSymbols = getFileSymbols(filePath);
+    FileSymbols fileSymbols = getFileSymbols(filePath, AnalysisDetail::FULL);
     return findVariableDeclaration(fileSymbols, location);
 }
 

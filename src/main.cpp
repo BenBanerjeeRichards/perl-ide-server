@@ -77,7 +77,7 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
     timing.parse = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
     begin = std::chrono::steady_clock::now();
-    parseFirstPass(parseTree, fileSymbols);
+    parseFirstPass(parseTree, fileSymbols, true);
     fileSymbols.packages = parsePackages(parseTree);
     buildVariableSymbolTree(parseTree, fileSymbols);
     end = std::chrono::steady_clock::now();
@@ -167,8 +167,13 @@ int main(int argc, char **args) {
     Cache cache;
     buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
     std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
-    buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
+    std::optional<Symbols> symbols = buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl",
+                                                  "/Users/bbr/Documents/PerlInclude/main.pl", cache);
     std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
+
+
+    std::cout << symbols.value().globalVariablesMap.toStr() << std::endl;
+
 
     return 0;
     auto includePaths = getIncludePaths("/");

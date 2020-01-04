@@ -22,9 +22,18 @@ namespace analysis {
         SymbolUsage(int line, int col, const std::string &sourceLine);
     };
 
+
+    enum class AnalysisDetail {
+        // Do all analysis including local lexical usage
+                FULL,
+        // Only do analysis on stuff that is exported (subroutines and global package variables)
+                PACKAGE_ONLY
+    };
+
+
     typedef std::unordered_map<std::string, std::vector<FilePos>> UsagesMap;
 
-    FileSymbols getFileSymbols(const std::string &path);
+    FileSymbols getFileSymbols(const std::string &path, AnalysisDetail analysisDetail);
 
     std::vector<AutocompleteItem>
     autocompleteVariables(const std::string &filePath, FilePos location, char sigilContext);

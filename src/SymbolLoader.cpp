@@ -7,17 +7,23 @@
 void doLoadSymbols(std::string path, std::vector<std::string> includes, FileSymbolMap &fileSymbolMap, Cache &cache) {
     // Already been processed so done. Probably a cycle somewhere
     if (fileSymbolMap.count(path) > 0) return;
-    std::cout << "Loading symbols in " << path << std::endl;
 
     // Try to load each FileSymbols from cache
+    auto begin = std::chrono::steady_clock::now();
     auto maybeCacheItem = cache.getItem(path);
     FileSymbols fileSymbols;
     if (maybeCacheItem.has_value()) {
         fileSymbols = *maybeCacheItem.value();
     } else {
-        fileSymbols = analysis::getFileSymbols(path);
+        // FIXME
+        auto analysisDetail = isSystemPath(path) ? analysis::AnalysisDetail::PACKAGE_ONLY
+                                                 : analysis::AnalysisDetail::FULL;
+        fileSymbols = analysis::getFileSymbols(path, analysisDetail);
         cache.addItem(path, std::make_shared<FileSymbols>(fileSymbols));
     }
+    auto end = std::chrono::steady_clock::now();
+    std::cout << "[" << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms]"
+              << "Loaded symbols for " << path << std::endl;
 
     fileSymbolMap[path] = fileSymbols;
 
@@ -46,8 +52,6 @@ FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath, Cach
         fileSymbolMap.erase(path);
         fileSymbolMap[contextPath] = pathValue;
     }
-
-    std::cout << buildGlobalVariablesMap(fileSymbolMap).toStr() << std::endl;
 
     return fileSymbolMap;
 }
