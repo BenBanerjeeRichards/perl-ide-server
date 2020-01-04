@@ -8,6 +8,41 @@
 std::optional<GlobalVariable> handleGlobalVariables(const Token &token, const std::vector<PackageSpan> &packages) {
     if (token.type == TokenType::ScalarVariable || token.type == TokenType::HashVariable ||
         token.type == TokenType::ArrayVariable) {
+        // First check if it is a special variable
+        // if it is, ignore it
+        if (token.type == TokenType::ScalarVariable &&
+            std::find(constant::SPECIAL_SCALARS.begin(), constant::SPECIAL_SCALARS.end(), token.data) !=
+            constant::SPECIAL_SCALARS.end()) {
+            return std::optional<GlobalVariable>();
+        }
+        if (token.type == TokenType::ArrayVariable &&
+            std::find(constant::SPECIAL_ARRAYS.begin(), constant::SPECIAL_ARRAYS.end(), token.data) !=
+            constant::SPECIAL_ARRAYS.end()) {
+            return std::optional<GlobalVariable>();
+        }
+        if (token.type == TokenType::HashVariable &&
+            std::find(constant::SPECIAL_HASHES.begin(), constant::SPECIAL_HASHES.end(), token.data) !=
+            constant::SPECIAL_HASHES.end()) {
+            return std::optional<GlobalVariable>();
+        }
+
+        if (token.type == TokenType::ScalarVariable && token.data.size() >= 2) {
+            // Finally check for $<digit> variables
+            auto digitStr = token.data.substr(1, token.data.size() - 1);
+            bool isInt = true;
+
+            for (auto c : digitStr) {
+                if (!isdigit(c)) {
+                    isInt = false;
+                    break;
+                }
+            }
+
+            if (isInt) {
+                return std::optional<GlobalVariable>();
+            }
+        }
+
         auto package = findPackageAtPos(packages, token.startPos);
         auto globalVariable = getFullyQualifiedVariableName(token.data, package);
         globalVariable.setFilePos(token.startPos);

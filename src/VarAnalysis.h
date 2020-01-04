@@ -15,6 +15,7 @@
 #include <utility>
 #include <unordered_map>
 #include "Symbols.h"
+#include "Constants.h"
 
 
 struct VariableDeclarationWithUsages {

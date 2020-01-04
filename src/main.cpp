@@ -167,6 +167,8 @@ int main(int argc, char **args) {
     Cache cache;
     buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
     std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
+    buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
+    std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
 
     return 0;
     auto includePaths = getIncludePaths("/");

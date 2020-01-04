@@ -6,18 +6,6 @@
 
 // These are modules that have a special syntaxic meaning in perl e.g. `use warnings` turns on warnings, it does
 // not search for a module called 'warnings'
-std::vector<std::string> PRAGMATIC_MODULES = std::vector<std::string>{"attributes", "autodie", "autodie::exception",
-                                                                      "autodie::exception::system", "autodie::hints",
-                                                                      "autodie::skip", "autouse", "base", "bigint",
-                                                                      "bignum", "bigrat", "blib", "bytes", "charnames",
-                                                                      "constant", "deprecate", "diagnostics",
-                                                                      "encoding", "encoding::warnings", "experimental",
-                                                                      "feature", "fields", "filetest", "if", "integer",
-                                                                      "less", "lib", "locale", "mro", "ok", "open",
-                                                                      "ops", "overload", "overloading", "parent", "re",
-                                                                      "sigtrapsort", "strict", "subs", "threads",
-                                                                      "threads::shared", "utf8", "vars", "version",
-                                                                      "vmsish", "warnings", "warnings::register"};
 
 // Returns -1 if there is no next token
 int nextTokenIdx(const std::vector<Token> &tokens, int currentIdx) {
@@ -305,7 +293,7 @@ std::optional<Import> handleUse(TokenIterator &tokenIter, FilePos location) {
     moduleName = token.data;
     if (token.type == TokenType::Name) {
         // Check if module name is pragmatic
-        for (const auto &pragmatic : PRAGMATIC_MODULES) {
+        for (const auto &pragmatic : constant::PRAGMATIC_MODULES) {
             if (moduleName == pragmatic) return std::optional<Import>();
         }
     } else {

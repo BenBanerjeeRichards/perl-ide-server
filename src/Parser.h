@@ -12,6 +12,7 @@
 #include "Symbols.h"
 #include "Variable.h"
 #include "Package.h"
+#include "Constants.h"
 
 std::shared_ptr<BlockNode> buildParseTree(std::vector<Token> tokens, int &);
 
