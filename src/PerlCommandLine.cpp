@@ -4,7 +4,26 @@
 
 #include "PerlCommandLine.h"
 
-RunResult runCommand(std::string perlPath, const std::string &arguments) {
+RunResult runCommand(std::string command) {
+    redi::ipstream proc(command, redi::pstreams::pstdout | redi::pstreams::pstderr);
+    std::string line;
+    RunResult res;
+
+    while (std::getline(proc.out(), line)) {
+        res.output.emplace_back(line);
+    }
+    proc.clear();
+
+    // read child's stderr
+    while (std::getline(proc.err(), line)) {
+        res.error.emplace_back(line);
+    }
+
+    return res;
+}
+
+
+RunResult runCommand(const std::string &perlPath, const std::string &arguments) {
     redi::ipstream proc(perlPath + " " + arguments, redi::pstreams::pstdout | redi::pstreams::pstderr);
     std::string line;
     RunResult res;

@@ -4,9 +4,6 @@
 
 #include "PerlServer.h"
 
-#include <utility>
-#include <chrono>
-#include <thread>
 
 void sendJson(httplib::Response &res, json &jsonObject, std::string error = "", std::string errorMessage = "") {
     json response;
@@ -31,7 +28,10 @@ void sendJson(httplib::Response &res, std::string error = "", std::string errorM
 void startAndBlock(int port) {
     httplib::Server httpServer;
 
-    httpServer.Post("/", [](const httplib::Request &req, httplib::Response &res) {
+    // Setup cache
+    Cache cache;
+
+    httpServer.Post("/", [&](const httplib::Request &req, httplib::Response &res) {
         json reqJson;
         try {
             reqJson = json::parse(req.body);
@@ -122,7 +122,8 @@ void startAndBlock(int port) {
                 int col = params["col"];
 
                 std::map<std::string, std::vector<std::vector<int>>> jsonFrom;
-                for (const auto &fileWithUsages : analysis::findVariableUsages(path, contextPath, FilePos(line, col))) {
+                for (const auto &fileWithUsages : analysis::findVariableUsages(path, contextPath, FilePos(line, col),
+                                                                               cache)) {
                     std::vector<std::vector<int>> fileLocations;
                     for (const Range &usage : fileWithUsages.second) {
                         fileLocations.emplace_back(std::vector<int>{usage.from.line, usage.from.col});

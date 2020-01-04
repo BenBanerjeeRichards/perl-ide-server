@@ -11,12 +11,12 @@
 #include "FileAnalysis.h"
 #include "PerlCommandLine.h"
 #include "Symbols.h"
+#include "Cache.h"
 
-FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath);
-
+FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath, Cache &cache);
 GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap);
-
-
 std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath);
+
+std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath, Cache &cache);
 
 #endif //PERLPARSE_SYMBOLLOADER_H

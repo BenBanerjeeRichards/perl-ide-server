@@ -4,12 +4,21 @@
 
 #include "SymbolLoader.h"
 
-void doLoadSymbols(std::string path, std::vector<std::string> includes, FileSymbolMap &fileSymbolMap) {
+void doLoadSymbols(std::string path, std::vector<std::string> includes, FileSymbolMap &fileSymbolMap, Cache &cache) {
     // Already been processed so done. Probably a cycle somewhere
     if (fileSymbolMap.count(path) > 0) return;
     std::cout << "Loading symbols in " << path << std::endl;
 
-    FileSymbols fileSymbols = analysis::getFileSymbols(path);
+    // Try to load each FileSymbols from cache
+    auto maybeCacheItem = cache.getItem(path);
+    FileSymbols fileSymbols;
+    if (maybeCacheItem.has_value()) {
+        fileSymbols = *maybeCacheItem.value();
+    } else {
+        fileSymbols = analysis::getFileSymbols(path);
+        cache.addItem(path, std::make_shared<FileSymbols>(fileSymbols));
+    }
+
     fileSymbolMap[path] = fileSymbols;
 
     for (auto &import : fileSymbols.imports) {
@@ -20,17 +29,16 @@ void doLoadSymbols(std::string path, std::vector<std::string> includes, FileSymb
             std::cerr << "Failed to resolve path against @INC - " << import.data << std::endl;
             continue;
         }
-        doLoadSymbols(path, includes, fileSymbolMap);
+        doLoadSymbols(path, includes, fileSymbolMap, cache);
     }
-
 }
 
-FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath) {
+FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath, Cache &cache) {
     auto context = directoryOf(contextPath);
-    auto includes = getIncludePaths(contextPath);
+    auto includes = getIncludePaths(context);
     includes.emplace_back(context);     // Force search in current directory
     FileSymbolMap fileSymbolMap;
-    doLoadSymbols(path, includes, fileSymbolMap);
+    doLoadSymbols(path, includes, fileSymbolMap, cache);
 
     // Replace temp file with context path
     if (path != contextPath && fileSymbolMap.count(path) > 0) {
@@ -61,8 +69,8 @@ GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap) 
     return globalVariablesMap;
 }
 
-std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath) {
-    auto fileSymbolsMap = loadAllFileSymbols(rootPath, contextPath);
+std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath, Cache &cache) {
+    auto fileSymbolsMap = loadAllFileSymbols(rootPath, contextPath, cache);
     if (fileSymbolsMap.count(contextPath) == 0) {
         std::cerr << "FileAnalysis failed - could not find symbols for root file with path " << rootPath << std::endl;
         return std::optional<Symbols>();
@@ -74,3 +82,9 @@ std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPat
     symbols.globalVariablesMap = buildGlobalVariablesMap(fileSymbolsMap);
     return symbols;
 }
+
+std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath) {
+    Cache cache;
+    return buildSymbols(rootPath, contextPath, cache);
+}
+

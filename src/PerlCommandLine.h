@@ -20,7 +20,9 @@ struct RunResult {
     std::string toStr();
 };
 
-RunResult runCommand(std::string perlPath, const std::string &arguments);
+RunResult runCommand(std::string command);
+
+RunResult runCommand(const std::string &perlPath, const std::string &arguments);
 
 std::vector<std::string> getIncludePaths(const std::string &contextPath);
 

@@ -164,10 +164,13 @@ void debugPrint(const std::string &path) {
 
 
 int main(int argc, char **args) {
+    Cache cache;
+    buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
+    std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
+
+    return 0;
     auto includePaths = getIncludePaths("/");
     std::string file = "../perl/input.pl";
-//    loadAllFileSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl");
-//    return 0;
 
     if (argc >= 2) file = args[1];
 

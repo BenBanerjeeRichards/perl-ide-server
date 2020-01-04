@@ -9,6 +9,9 @@
 #include "FileAnalysis.h"
 #include "../lib/json.hpp"
 #include "../lib/httplib.h"
+#include "Cache.h"
+#include <utility>
+#include <thread>
 
 using json = nlohmann::json;
 

@@ -10,6 +10,7 @@
 #include "Parser.h"
 #include "Symbols.h"
 #include "SymbolLoader.h"
+#include "Cache.h"
 
 namespace analysis {
 
@@ -31,7 +32,7 @@ namespace analysis {
     std::vector<AutocompleteItem> autocompleteSubs(const std::string &filePath, FilePos location);
 
     std::unordered_map<std::string, std::vector<Range>>
-    findVariableUsages(const std::string &filePath, std::string contextPath, FilePos location);
+    findVariableUsages(const std::string &filePath, std::string contextPath, FilePos location, Cache &cache);
 
     std::optional<FilePos> findVariableDeclaration(const std::string &filePath, FilePos location);
 }
