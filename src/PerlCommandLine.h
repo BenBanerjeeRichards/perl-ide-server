@@ -11,6 +11,7 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <optional>
 
 struct RunResult {
     // Each element represents a new line
@@ -26,7 +27,8 @@ RunResult runCommand(const std::string &perlPath, const std::string &arguments);
 
 std::vector<std::string> getIncludePaths(const std::string &contextPath);
 
-std::string resolveModulePath(const std::vector<std::string> &includePaths, const std::vector<std::string> &module);
+std::optional<std::string>
+resolveModulePath(const std::vector<std::string> &includePaths, const std::vector<std::string> &module);
 
-std::string resolvePath(const std::vector<std::string> &includePaths, const std::string &path);
+std::optional<std::string> resolvePath(const std::vector<std::string> &includePaths, const std::string &path);
 #endif //PERLPARSER_PERLCOMMANDLINE_H

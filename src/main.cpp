@@ -165,15 +165,25 @@ void debugPrint(const std::string &path) {
 
 int main(int argc, char **args) {
     Cache cache;
-    buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
-    std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
-    std::optional<Symbols> symbols = buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl",
-                                                  "/Users/bbr/Documents/PerlInclude/main.pl", cache);
-    std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
+    auto graph = loadProjectGraph(std::vector<std::string>{"/Users/bbr/Documents/PerlInclude/main.pl",
+                                                           "/Users/bbr/Documents/PerlInclude/Along.pl",
+                                                           "/Users/bbr/Documents/PerlInclude/Ben.pm"},
+                                  getIncludePaths("/Users/bbr/Documents/PerlInclude"), cache);
 
+    std::cout << projGraphToDot(graph, false) << std::endl;
 
-    std::cout << symbols.value().globalVariablesMap.toStr() << std::endl;
-
+    for (auto path : relatedFiles("/Users/bbr/Documents/PerlInclude/Along.pl", graph)) {
+        std::cout << path << std::endl;
+    }
+//    buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
+//    std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
+//    std::optional<Symbols> symbols = buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl",
+//                                                  "/Users/bbr/Documents/PerlInclude/main.pl", cache);
+//    std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
+//
+//
+//    std::cout << symbols.value().globalVariablesMap.toStr() << std::endl;
+//
 
     return 0;
     auto includePaths = getIncludePaths("/");

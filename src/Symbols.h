@@ -8,6 +8,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <set>
 #include "Util.h"
 #include "Variable.h"
 #include "Subroutine.h"
@@ -123,5 +124,12 @@ struct Symbols {
     std::vector<Subroutine> subroutines;
 };
 
+// Directed graph of files with dependencies
+// We'll store graph in map by path, note the children and parents are keys to the relavent parts of the map
+// This is as the graph is disconnected
+struct PathNode {
+    std::set<std::string> children;
+    std::set<std::string> parents;
+};
 
 #endif //PERLPARSE_SYMBOLS_H

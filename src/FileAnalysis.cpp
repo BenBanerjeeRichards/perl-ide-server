@@ -14,9 +14,13 @@ FileSymbols analysis::getFileSymbols(const std::string &path, AnalysisDetail ana
     auto parseTree = buildParseTree(tokens, partial);
     fileSymbols.packages = parsePackages(parseTree);
     parseFirstPass(parseTree, fileSymbols, analysisDetail == AnalysisDetail::FULL);
+    buildVariableSymbolTree(parseTree, fileSymbols);
 
-    if (analysisDetail == AnalysisDetail::FULL) {
-        buildVariableSymbolTree(parseTree, fileSymbols);
+    // Deallocate symbol tree if doing package analysis
+    // This frees up memory
+    // Note we have to compute it to tell when a variable is global
+    if (analysisDetail == AnalysisDetail::PACKAGE_ONLY) {
+        fileSymbols.symbolTree = std::make_shared<SymbolNode>(SymbolNode(FilePos(1, 1), FilePos(1, 1), nullptr));
     }
 
     return fileSymbols;

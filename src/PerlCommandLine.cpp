@@ -54,7 +54,8 @@ std::vector<std::string> getIncludePaths(const std::string &contextPath) {
     return includeCommandRes.output;
 }
 
-std::string resolveModulePath(const std::vector<std::string> &includePaths, const std::vector<std::string> &module) {
+std::optional<std::string>
+resolveModulePath(const std::vector<std::string> &includePaths, const std::vector<std::string> &module) {
     std::string path;
     for (const auto &modulePart : module) {
         path += "/" + modulePart;
@@ -65,15 +66,14 @@ std::string resolveModulePath(const std::vector<std::string> &includePaths, cons
     return resolvePath(includePaths, path + ".pm");
 }
 
-std::string resolvePath(const std::vector<std::string> &includePaths, const std::string &path) {
-    for (auto includePath : includePaths) {
+std::optional<std::string> resolvePath(const std::vector<std::string> &includePaths, const std::string &path) {
+    for (const auto &includePath : includePaths) {
         auto fullPath = includePath + "/" + path;
-//        std::cout << "\t" << fullPath << std::endl;
         std::ifstream f(fullPath);
         if (f.good()) return fullPath;
     }
 
-    return "";
+    return std::optional<std::string>();
 }
 
 std::string RunResult::toStr() {
