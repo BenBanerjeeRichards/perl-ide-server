@@ -41,13 +41,13 @@ RunResult runCommand(const std::string &perlPath, const std::string &arguments) 
     return res;
 }
 
-std::vector<std::string> getIncludePaths(const std::string &contextPath) {
+std::vector<std::string> getIncludePaths(const std::string &contextDir) {
     auto includeCommandRes = runCommand("perl", "-e \"print join('\n', @INC)\"");
 
     // TODO Do proper path expansion
-    for (auto & i : includeCommandRes.output) {
+    for (auto &i : includeCommandRes.output) {
         if (i == ".") {
-            i = contextPath;
+            i = contextDir;
         }
     }
 

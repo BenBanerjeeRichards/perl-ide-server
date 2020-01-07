@@ -41,7 +41,8 @@ namespace analysis {
     std::vector<AutocompleteItem> autocompleteSubs(const std::string &filePath, FilePos location);
 
     std::unordered_map<std::string, std::vector<Range>>
-    findVariableUsages(const std::string &filePath, std::string contextPath, FilePos location, Cache &cache);
+    findVariableUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+                       std::vector<std::string> projectFiles, Cache &cache);
 
     std::optional<FilePos> findVariableDeclaration(const std::string &filePath, FilePos location);
 }

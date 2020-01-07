@@ -49,9 +49,11 @@ std::vector<AutocompleteItem> analysis::autocompleteSubs(const std::string &file
 }
 
 std::unordered_map<std::string, std::vector<Range>>
-analysis::findVariableUsages(const std::string &filePath, std::string contextPath, FilePos location, Cache &cache) {
+analysis::findVariableUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+                             std::vector<std::string> projectFiles, Cache &cache) {
     std::unordered_map<std::string, std::vector<Range>> usages;
-    auto symbolsMaybe = buildSymbols(filePath, contextPath, cache);
+
+    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache);
     if (!symbolsMaybe.has_value()) {
         return usages;
     }

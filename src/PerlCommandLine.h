@@ -25,7 +25,7 @@ RunResult runCommand(std::string command);
 
 RunResult runCommand(const std::string &perlPath, const std::string &arguments);
 
-std::vector<std::string> getIncludePaths(const std::string &contextPath);
+std::vector<std::string> getIncludePaths(const std::string &contextDir);
 
 std::optional<std::string>
 resolveModulePath(const std::vector<std::string> &includePaths, const std::vector<std::string> &module);

@@ -17,7 +17,9 @@
 #include "Cache.h"
 
 FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath, Cache &cache);
+
 GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap);
+
 std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath);
 
 std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath, Cache &cache);
@@ -30,4 +32,9 @@ std::string projGraphToDot(const std::unordered_map<std::string, PathNode> &grap
 std::set<std::string> pathsConnectedTo(std::string path, std::unordered_map<std::string, PathNode> &importGraph);
 
 std::set<std::string> relatedFiles(std::string path, std::unordered_map<std::string, PathNode> graph);
+
+std::optional<Symbols>
+buildProjectSymbols(const std::string &rootPath, std::string contextPath, std::vector<std::string> projectPaths,
+                    Cache &cache);
+
 #endif //PERLPARSE_SYMBOLLOADER_H

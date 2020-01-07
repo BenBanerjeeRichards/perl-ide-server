@@ -102,6 +102,42 @@ std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPat
     return symbols;
 }
 
+/**
+ * Build all symbols needed to analyse the file `rootFile`
+ * @param rootPath - The file the user is currently editing, saved into a /tmp buffer
+ * @param contextPath - The actual location of `rootPath` (i.e. not the /tmp one, we only use /tmp for the data)
+ * @param projectPaths - The paths of all perl files in the project the user is editing
+ * @param cache
+ * @return
+ */
+std::optional<Symbols>
+buildProjectSymbols(const std::string &rootPath, std::string contextPath, std::vector<std::string> projectPaths,
+                    Cache &cache) {
+    // TODO use root path when building graph too
+    auto projGraph = loadProjectGraph(projectPaths, getIncludePaths(directoryOf(contextPath)), cache);
+    auto files = relatedFiles(contextPath, projGraph);
+
+    FileSymbolMap fileSymbols;
+    for (auto file : files) {
+        // If the current file is in /tmp, load from there but keep key the same
+        std::string path = file == contextPath ? rootPath : file;
+        auto maybeFileSymbols = loadSymbols(path, cache);
+        if (!maybeFileSymbols.has_value()) continue;
+        fileSymbols[file] = maybeFileSymbols.value();
+    }
+
+    if (fileSymbols.count(contextPath) == 0) {
+        std::cerr << "FileAnalysis failed - could not find symbols for root file with path " << rootPath << std::endl;
+        return std::optional<Symbols>();
+    }
+
+    Symbols symbols;
+    symbols.rootFilePath = contextPath;
+    symbols.rootFileSymbols = fileSymbols[contextPath];
+    symbols.globalVariablesMap = buildGlobalVariablesMap(fileSymbols);
+    return symbols;
+}
+
 std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath) {
     Cache cache;
     return buildSymbols(rootPath, contextPath, cache);
@@ -213,9 +249,9 @@ std::set<std::string> pathsConnectedTo(std::string path, std::unordered_map<std:
 void doFindDescendentsOf(std::string currentPath, std::unordered_map<std::string, PathNode> &importGraph,
                          std::set<std::string> &seen) {
     if (importGraph.count(currentPath) == 0) return;
-    if (std::find(seen.begin(), seen.end(), currentPath) != seen.end()) return;
 
     for (const auto &child : importGraph[currentPath].children) {
+        if (std::find(seen.begin(), seen.end(), child) != seen.end()) continue;
         seen.insert(child);
         doFindDescendentsOf(child, importGraph, seen);
     }

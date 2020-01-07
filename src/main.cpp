@@ -164,28 +164,18 @@ void debugPrint(const std::string &path) {
 
 
 int main(int argc, char **args) {
-    Cache cache;
-    auto graph = loadProjectGraph(std::vector<std::string>{"/Users/bbr/Documents/PerlInclude/main.pl",
-                                                           "/Users/bbr/Documents/PerlInclude/Along.pl",
-                                                           "/Users/bbr/Documents/PerlInclude/Ben.pm"},
-                                  getIncludePaths("/Users/bbr/Documents/PerlInclude"), cache);
-
-    std::cout << projGraphToDot(graph, false) << std::endl;
-
-    for (auto path : relatedFiles("/Users/bbr/Documents/PerlInclude/Along.pl", graph)) {
-        std::cout << path << std::endl;
-    }
-//    buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
-//    std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
-//    std::optional<Symbols> symbols = buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl",
-//                                                  "/Users/bbr/Documents/PerlInclude/main.pl", cache);
-//    std::cout << "CACHE: " << std::endl << cache.toStr() << std::endl;
+//    Cache cache;
+//    auto graph = loadProjectGraph(std::vector<std::string>{"/Users/bbr/Documents/PerlInclude/main.pl",
+//                                                           "/Users/bbr/Documents/PerlInclude/Along.pl",
+//                                                           "/Users/bbr/Documents/PerlInclude/Ben.pm"},
+//                                  getIncludePaths("/Users/bbr/Documents/PerlInclude"), cache);
 //
+//    std::cout << projGraphToDot(graph, false) << std::endl;
 //
-//    std::cout << symbols.value().globalVariablesMap.toStr() << std::endl;
+//    for (auto path : relatedFiles("/System/Library/Perl/5.18/Math/BigInt.pm", graph)) {
+//        std::cout << path << std::endl;
 //
-
-    return 0;
+//    return 0;
     auto includePaths = getIncludePaths("/");
     std::string file = "../perl/input.pl";
 
