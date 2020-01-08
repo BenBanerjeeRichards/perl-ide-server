@@ -207,7 +207,6 @@ loadProjectGraph(const std::vector<std::string> &projectFiles, std::vector<std::
         auto children = doBuildGraphWithFile(path, includes, importGraph, cache);
         processedFiles.emplace_back(path);
         for (auto child : children) {
-            std::cout << "Adding to worklist " << child << std::endl;
             workList.push(child);
         }
     }
@@ -219,7 +218,6 @@ loadProjectGraph(const std::vector<std::string> &projectFiles, std::vector<std::
 void doFindPathsConnectedTo(std::string currentPath, std::unordered_map<std::string, PathNode> &importGraph,
                             std::set<std::string> &connectedList) {
     if (importGraph.count(currentPath) == 0) return;
-    if (std::find(connectedList.begin(), connectedList.end(), currentPath) != connectedList.end()) return;
 
     for (auto child : importGraph[currentPath].children) {
         if (std::find(connectedList.begin(), connectedList.end(), child) != connectedList.end()) {
@@ -265,20 +263,8 @@ std::set<std::string> descendentsOf(std::string path, std::unordered_map<std::st
 }
 
 std::set<std::string> relatedFiles(std::string path, std::unordered_map<std::string, PathNode> graph) {
-    auto paths = std::set<std::string>{path};
-
-    // Add pure descendents
-    auto descs = descendentsOf(path, graph);
-    paths.insert(descs.begin(), descs.end());
-
-    if (graph.count(path) != 0) {
-        for (auto parent : graph[path].parents) {
-            auto connected = pathsConnectedTo(parent, graph);
-            paths.insert(connected.begin(), connected.end());
-        }
-    }
-
-    return paths;
+    // TODO can we refine this anymore?
+    return pathsConnectedTo(path, graph);
 }
 
 

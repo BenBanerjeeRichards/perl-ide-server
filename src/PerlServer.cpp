@@ -25,6 +25,127 @@ void sendJson(httplib::Response &res, std::string error = "", std::string errorM
     sendJson(res, null, std::move(error), std::move(errorMessage));
 }
 
+void handleAutocompleteVariable(httplib::Response &res, json params) {
+    if (!params.contains("path") || !params.contains("sigil")) {
+        sendJson(res, "BAD_PARAMS", "Bad parameters");
+        return;
+    }
+
+    int line, col;
+    try {
+        line = params["line"];
+        col = params["col"];
+    } catch (json::exception &) {
+        sendJson(res, "BAD_PARAMS", "Bad Params");
+        return;
+    }
+
+    std::vector<AutocompleteItem> completeItems;
+    try {
+        completeItems = analysis::autocompleteVariables(params["path"], FilePos(line, col),
+                                                        std::string(params["sigil"])[0]);
+    } catch (IOException &) {
+        sendJson(res, "PATH_NOT_FOUND", "File " + std::string(params["path"]) + " not found");
+        return;
+    } catch (TokeniseException &ex) {
+        sendJson(res, "PARSE_ERROR", "Error occured during tokenization " + ex.reason);
+        return;
+    }
+
+    json response;
+    std::vector<std::vector<std::string>> jsonFrom;
+    for (const AutocompleteItem &completeItem : completeItems) {
+        std::vector<std::string> itemForm{completeItem.name, completeItem.detail};
+        jsonFrom.emplace_back(itemForm);
+    }
+    response = jsonFrom;
+    sendJson(res, response);
+}
+
+void handleAutocompleteSubroutine(httplib::Response &res, json params) {
+    std::string path = params["path"];
+    int line, col;
+    try {
+        line = params["line"];
+        col = params["col"];
+    } catch (json::exception &) {
+        sendJson(res, "BAD_PARAMS", "Bad Params 2");
+        return;
+    }
+
+    std::vector<AutocompleteItem> completeItems;
+    try {
+        completeItems = analysis::autocompleteSubs(path, FilePos(line, col));
+    } catch (IOException &) {
+        sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
+        return;
+    } catch (TokeniseException &ex) {
+        sendJson(res, "PARSE_ERROR", "Error occurred during tokenization " + ex.reason);
+        return;
+    }
+
+    json response;
+    std::vector<std::vector<std::string>> jsonFrom;
+    for (const AutocompleteItem &completeItem : completeItems) {
+        std::vector<std::string> itemForm{completeItem.name, completeItem.detail};
+        jsonFrom.emplace_back(itemForm);
+    }
+    response = jsonFrom;
+    sendJson(res, response);
+}
+
+void handleFindUsages(httplib::Response &res, json params, Cache &cache) {
+    try {
+        std::string path = params["path"];
+        std::string contextPath = params["context"];
+        int line = params["line"];
+        int col = params["col"];
+        std::vector<std::string> projectFiles = params["projectFiles"];
+
+        std::map<std::string, std::vector<std::vector<int>>> jsonFrom;
+        for (const auto &fileWithUsages : analysis::findVariableUsages(path, contextPath, FilePos(line, col),
+                                                                       projectFiles, cache)) {
+            std::vector<std::vector<int>> fileLocations;
+            for (const Range &usage : fileWithUsages.second) {
+                fileLocations.emplace_back(std::vector<int>{usage.from.line, usage.from.col});
+            }
+
+            std::sort(fileLocations.begin(), fileLocations.end());
+            if (!fileLocations.empty()) jsonFrom[fileWithUsages.first] = fileLocations;
+        }
+
+        json response = jsonFrom;
+        sendJson(res, response);
+    } catch (json::exception &) {
+        sendJson(res, "BAD_PARAMS", "Bad Params");
+        return;
+    }
+
+}
+
+
+void handleFindDeclaration(httplib::Response &res, json params) {
+    std::string path = params["path"];
+    std::string context = params["context"];
+    int line = params["line"];
+    int col = params["col"];
+
+    // TODO expand search to multiple files
+    json response;
+    auto maybeDecl = analysis::findVariableDeclaration(path, FilePos(line, col));
+    if (!maybeDecl.has_value()) {
+        response["exists"] = false;
+    } else {
+        response["exists"] = true;
+        response["file"] = context;
+        response["line"] = maybeDecl.value().line;
+        response["col"] = maybeDecl.value().col;
+    }
+
+    sendJson(res, response);
+}
+
+
 void startAndBlock(int port) {
     httplib::Server httpServer;
 
@@ -44,123 +165,21 @@ void startAndBlock(int port) {
             sendJson(res, "NO_METHOD", "No method provided");
             return;
         }
+        if (!reqJson.contains("params")) {
+            sendJson(res, "BAD_PARAMS", "No params provided");
+            return;
+        }
+
+        json params = reqJson["params"];
 
         if (reqJson["method"] == "autocomplete-var") {
-            if (!reqJson.contains("params") || !reqJson["params"].contains("path") ||
-                !reqJson["params"].contains("sigil")) {
-                sendJson(res, "BAD_PARAMS", "Bad parameters");
-                return;
-            }
-
-            json params = reqJson["params"];
-            int line, col;
-            try {
-                line = params["line"];
-                col = params["col"];
-            } catch (json::exception &) {
-                sendJson(res, "BAD_PARAMS", "Bad Params");
-                return;
-            }
-
-            std::vector<AutocompleteItem> completeItems;
-            try {
-                completeItems = analysis::autocompleteVariables(params["path"], FilePos(line, col),
-                                                                std::string(params["sigil"])[0]);
-            } catch (IOException &) {
-                sendJson(res, "PATH_NOT_FOUND", "File " + std::string(params["path"]) + " not found");
-                return;
-            } catch (TokeniseException &ex) {
-                sendJson(res, "PARSE_ERROR", "Error occured during tokenization " + ex.reason);
-                return;
-            }
-
-            json response;
-            std::vector<std::vector<std::string>> jsonFrom;
-            for (const AutocompleteItem &completeItem : completeItems) {
-                std::vector<std::string> itemForm{completeItem.name, completeItem.detail};
-                jsonFrom.emplace_back(itemForm);
-            }
-            response = jsonFrom;
-            sendJson(res, response);
+            handleAutocompleteVariable(res, params);
         } else if (reqJson["method"] == "autocomplete-sub") {
-            json params = reqJson["params"];
-            std::string path = params["path"];
-            int line, col;
-            try {
-                line = params["line"];
-                col = params["col"];
-            } catch (json::exception &) {
-                sendJson(res, "BAD_PARAMS", "Bad Params 2");
-                return;
-            }
-
-            std::vector<AutocompleteItem> completeItems;
-            try {
-                completeItems = analysis::autocompleteSubs(path, FilePos(line, col));
-            } catch (IOException &) {
-                sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
-                return;
-            } catch (TokeniseException &ex) {
-                sendJson(res, "PARSE_ERROR", "Error occured during tokenization " + ex.reason);
-                return;
-            }
-
-            json response;
-            std::vector<std::vector<std::string>> jsonFrom;
-            for (const AutocompleteItem &completeItem : completeItems) {
-                std::vector<std::string> itemForm{completeItem.name, completeItem.detail};
-                jsonFrom.emplace_back(itemForm);
-            }
-            response = jsonFrom;
-            sendJson(res, response);
+            handleAutocompleteSubroutine(res, params);
         } else if (reqJson["method"] == "find-usages") {
-            try {
-                auto params = reqJson["params"];
-                std::string path = params["path"];
-                std::string contextPath = params["context"];
-                int line = params["line"];
-                int col = params["col"];
-                std::vector<std::string> projectFiles = params["projectFiles"];
-
-                std::map<std::string, std::vector<std::vector<int>>> jsonFrom;
-                for (const auto &fileWithUsages : analysis::findVariableUsages(path, contextPath, FilePos(line, col),
-                                                                               projectFiles, cache)) {
-                    std::vector<std::vector<int>> fileLocations;
-                    for (const Range &usage : fileWithUsages.second) {
-                        fileLocations.emplace_back(std::vector<int>{usage.from.line, usage.from.col});
-                    }
-
-                    std::sort(fileLocations.begin(), fileLocations.end());
-                    if (!fileLocations.empty()) jsonFrom[fileWithUsages.first] = fileLocations;
-                }
-
-                json response = jsonFrom;
-                sendJson(res, response);
-            } catch (json::exception &) {
-                sendJson(res, "BAD_PARAMS", "Bad Params");
-                return;
-            }
+            handleFindUsages(res, params, cache);
         } else if (reqJson["method"] == "find-declaration") {
-            auto params = reqJson["params"];
-            std::string path = params["path"];
-            std::string context = params["context"];
-            int line = params["line"];
-            int col = params["col"];
-
-            // TODO expand search to multiple files
-            json response;
-            auto maybeDecl = analysis::findVariableDeclaration(path, FilePos(line, col));
-            if (!maybeDecl.has_value()) {
-                response["exists"] = false;
-            } else {
-                response["exists"] = true;
-                response["file"] = context;
-                response["line"] = maybeDecl.value().line;
-                response["col"] = maybeDecl.value().col;
-            }
-
-            sendJson(res, response);
-
+            handleFindDeclaration(res, params);
         } else {
             sendJson(res, "UNKNOWN_METHOD", "Method " + std::string(reqJson["method"]) + " not supported");
             return;
@@ -174,4 +193,5 @@ void startAndBlock(int port) {
 
     httpServer.listen("localhost", port);
 }
+
 
