@@ -20,7 +20,6 @@ std::vector<PackageSpan> parsePackages(std::shared_ptr<BlockNode> parent);
 
 void printParseTree(std::shared_ptr<Node> root);
 
-
-void parseFirstPass(std::shared_ptr<BlockNode> tree, FileSymbols &fileSymbols, bool enableLocals);
+void parseFirstPass(std::shared_ptr<BlockNode> tree, FileSymbols &fileSymbols);
 
 #endif //PERLPARSER_PARSER_H

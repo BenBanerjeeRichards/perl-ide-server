@@ -77,7 +77,7 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
     timing.parse = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
     begin = std::chrono::steady_clock::now();
-    parseFirstPass(parseTree, fileSymbols, true);
+    parseFirstPass(parseTree, fileSymbols);
     fileSymbols.packages = parsePackages(parseTree);
     buildVariableSymbolTree(parseTree, fileSymbols);
     end = std::chrono::steady_clock::now();
@@ -178,6 +178,7 @@ int main(int argc, char **args) {
 //    return 0;
     auto includePaths = getIncludePaths("/");
     std::string file = "../perl/input.pl";
+//    std::string file = "/System/Library/Perl/5.18/Math/BigFloat.pm";
 
     if (argc >= 2) file = args[1];
 

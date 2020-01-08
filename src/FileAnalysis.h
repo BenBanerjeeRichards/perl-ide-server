@@ -23,17 +23,9 @@ namespace analysis {
     };
 
 
-    enum class AnalysisDetail {
-        // Do all analysis including local lexical usage
-                FULL,
-        // Only do analysis on stuff that is exported (subroutines and global package variables)
-                PACKAGE_ONLY
-    };
-
-
     typedef std::unordered_map<std::string, std::vector<FilePos>> UsagesMap;
 
-    FileSymbols getFileSymbols(const std::string &path, AnalysisDetail analysisDetail);
+    FileSymbols getFileSymbols(const std::string &path);
 
     std::vector<AutocompleteItem>
     autocompleteVariables(const std::string &filePath, const std::string &contextPath, FilePos location,

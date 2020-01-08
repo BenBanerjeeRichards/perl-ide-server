@@ -318,7 +318,7 @@ std::optional<Import> handleUse(TokenIterator &tokenIter, FilePos location) {
 
 
 void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
-                      FileSymbols &fileSymbols, std::vector<std::string> &variables, bool enableLocalVariables,
+                      FileSymbols &fileSymbols, std::vector<std::string> &variables,
                       int lastId) {
 
     for (const auto &child : tree->children) {
@@ -327,7 +327,7 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
             auto symbolChild = std::make_shared<SymbolNode>(blockNode->start, blockNode->end, blockNode,
                                                             symbolNode->features);
             symbolNode->children.emplace_back(symbolChild);
-            doParseFirstPass(blockNode, symbolChild, fileSymbols, variables, enableLocalVariables, lastId);
+            doParseFirstPass(blockNode, symbolChild, fileSymbols, variables, lastId);
         }
 
         if (std::shared_ptr<TokensNode> tokensNode = std::dynamic_pointer_cast<TokensNode>(child)) {
@@ -338,9 +338,8 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
 
             while (token.type != TokenType::EndOfInput) {
                 auto tokenType = token.type;
-                if (enableLocalVariables &&
-                    (tokenType == TokenType::My || tokenType == TokenType::Our || tokenType == TokenType::Local ||
-                     tokenType == TokenType::State)) {
+                if (tokenType == TokenType::My || tokenType == TokenType::Our || tokenType == TokenType::Local ||
+                    tokenType == TokenType::State) {
                     auto newVariables = handleVariableTokens(tokenIter, tokenType, fileSymbols.packages, tree->end,
                                                              lastId);
                     for (auto &variable : newVariables) {
@@ -375,9 +374,9 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
  * @param fileSymbols
  * @param enableLocalVariables - If set to false, will skip out local variable declarations. Useful for system files
  */
-void parseFirstPass(std::shared_ptr<BlockNode> tree, FileSymbols &fileSymbols, bool enableLocalVariables) {
+void parseFirstPass(std::shared_ptr<BlockNode> tree, FileSymbols &fileSymbols) {
     std::vector<std::string> variables;
     auto symbolNode = std::make_shared<SymbolNode>(tree->start, tree->end, tree);
-    doParseFirstPass(tree, symbolNode, fileSymbols, variables, enableLocalVariables, 0);
+    doParseFirstPass(tree, symbolNode, fileSymbols, variables, 0);
     fileSymbols.symbolTree = symbolNode;
 }

@@ -39,13 +39,11 @@ void Cache::addItem(std::string path, std::shared_ptr<FileSymbols> fileSymbols) 
 
 std::optional<std::shared_ptr<FileSymbols>> Cache::getItem(std::string path) {
     if (this->cache.count(path) == 0) {
-        std::cout << "Cache miss - " << path << " does not exist in cache" << std::endl;
         return std::optional<std::shared_ptr<FileSymbols>>();
     }
 
     auto cacheItem = this->cache[path];
     if (!cacheItem.isSystemPath && generateMd5Sum(path) != cacheItem.md5) {
-        std::cout << "Cache miss - " << path << " is different to cached version, evicting" << std::endl;
         this->cache.erase(path);
         return std::optional<std::shared_ptr<FileSymbols>>();
     }

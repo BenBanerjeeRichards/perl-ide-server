@@ -15,6 +15,7 @@
 #include "PerlCommandLine.h"
 #include "Symbols.h"
 #include "Cache.h"
+#include "IOException.h"
 
 FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath, Cache &cache);
 

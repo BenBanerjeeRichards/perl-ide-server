@@ -3,7 +3,6 @@
 //
 
 #include "SymbolLoader.h"
-#include "IOException.h"
 
 std::optional<FileSymbols> loadSymbols(std::string path, Cache &cache) {
     // Try to load each FileSymbols from cache
@@ -13,11 +12,8 @@ std::optional<FileSymbols> loadSymbols(std::string path, Cache &cache) {
     if (maybeCacheItem.has_value()) {
         fileSymbols = *maybeCacheItem.value();
     } else {
-        auto analysisDetail = isSystemPath(path) ? analysis::AnalysisDetail::PACKAGE_ONLY
-                                                 : analysis::AnalysisDetail::FULL;
-
         try {
-            fileSymbols = analysis::getFileSymbols(path, analysisDetail);
+            fileSymbols = analysis::getFileSymbols(path);
         } catch (IOException e) {
             std::cerr << "Failed to load symbols - file not found:" << path << std::endl;
             return std::optional<FileSymbols>();
@@ -25,8 +21,8 @@ std::optional<FileSymbols> loadSymbols(std::string path, Cache &cache) {
         cache.addItem(path, std::make_shared<FileSymbols>(fileSymbols));
     }
     auto end = std::chrono::steady_clock::now();
-    std::cout << "[" << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms]"
-              << "Loaded symbols for " << path << std::endl;
+//    std::cout << "[" << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms]"
+//              << "Loaded symbols for " << path << std::endl;
 
     return fileSymbols;
 }
