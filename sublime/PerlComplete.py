@@ -17,6 +17,7 @@ PERL_COMPLETE_SERVER = "http://localhost:1234/"
 STATUS_KEY = "perl_complete"
 STATUS_READY = "PerlComplete ✔"
 STATUS_LOADING = "PerlComplete ..."
+STATUS_INDEXING = "PerlComplete ... [Indexing Project]"
 STATUS_ON_LOAD = "PerlComplete"
 
 debug = True
@@ -65,6 +66,24 @@ def configure_settings():
     settings.set("auto_complete_triggers", auto_complete_triggers)
     sublime.save_settings("Preferences.sublime-settings")
 
+
+def get_project_files():
+    # Get or guess project files
+    if sublime.active_window().project_file_name() is None:
+        # No project loaded
+        current_path = sublime.active_window().active_view().file_name()
+        source_dir = os.path.dirname(current_path)
+        perl_files = []
+        for file in os.listdir(source_dir):
+            if file.endswith(".pl") or file.endswith(".pm"):
+                perl_files.append(source_dir + "/" + file)
+
+        return perl_files
+    else:
+        # TODO project files
+        return []
+
+
 def get_completions(complete_type, params, word_separators):
     res = post_request(complete_type, params)
     if not res["success"]:
@@ -87,12 +106,14 @@ def get_completions(complete_type, params, word_separators):
     log_info(completions)
     return completions
 
-def find_usages(path, context_path, line, col):
+
+def find_usages(path, context_path, project_files, line, col):
     res = post_request("find-usages", {
         "line": line,
         "col": col,
         "path": path,
-        "context": context_path
+        "context": context_path,
+        "projectFiles": project_files
     })
 
     if not res["success"]:
@@ -123,6 +144,11 @@ def find_declaration(path, context_path, line, col):
         return None
 
     return res["body"]
+
+
+def index_project(project_files):
+    res = post_request("index-project", {"projectFiles": project_files})
+    return res
 
 
 def ping():
@@ -251,8 +277,6 @@ def build_usage_panel_contents(usage_groups, num_usages=0):
     for file in usage_groups:
         contents += "{}:\n".format(file)
 
-        # If file == currently loaded file, use buffer
-        #  Otherwise, read file from disk to split lines
         lines = []
         path = file
         if file == view.file_name():
@@ -376,7 +400,7 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
         self.latest_completion_job_id = job_id
         completion_thread.start()
 
-        return None
+        return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
     def on_activated(self, view):
         update_menu()
@@ -391,6 +415,14 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
             if ping():
                 set_status(view, STATUS_READY)
 
+            # Indexing project
+            set_status(view, STATUS_INDEXING)
+            indexer = IndexProjectThread(self.on_index_complete, get_project_files())
+            indexer.start()
+
+    def on_index_complete(self, res):
+        log_info("Indexing complete, res = {}".format(res))
+        set_status(sublime.active_window().active_view(), STATUS_READY)
 
     def on_completions_done(self, job_id, completions):
         log_info("Autocomplete job #{} with completions = {}".format(job_id, completions))
@@ -418,7 +450,8 @@ class FindUsagesCommand(sublime_plugin.TextCommand):
         file_data_path = write_buffer_to_file(self.view)
         current_path = self.view.window().active_view().file_name()
 
-        find_usage_thread = FindUsageThread(on_usages_complete, file_data_path, current_path, current_pos[0] + 1,
+        find_usage_thread = FindUsageThread(on_usages_complete, file_data_path, current_path, get_project_files(),
+                                            current_pos[0] + 1,
                                             current_pos[1] + 1)
 
         show_output_panel(USAGES_PANEL_NAME, "Finding usages...")
@@ -447,16 +480,29 @@ def on_usages_complete(usages):
 
 class FindUsageThread(threading.Thread):
 
-    def __init__(self, on_complete, path, context_path, line, col):
+    def __init__(self, on_complete, path, context_path, project_files, line, col):
         super(FindUsageThread, self).__init__()
         self.path = path
         self.context_path = context_path
         self.line = line
         self.col = col
         self.on_complete = on_complete
+        self.project_files = project_files
 
     def run(self):
-        self.on_complete(find_usages(self.path, self.context_path, self.line, self.col))
+        self.on_complete(find_usages(self.path, self.context_path, self.project_files, self.line, self.col))
+
+
+class IndexProjectThread(threading.Thread):
+
+    def __init__(self, on_complete, project_files):
+        super(IndexProjectThread, self).__init__()
+        self.project_files = project_files
+        self.on_complete = on_complete
+
+    def run(self):
+        log_info("Indexing project...")
+        self.on_complete(index_project(self.project_files))
 
 
 class GotoDeclarationCommand(sublime_plugin.TextCommand):
@@ -477,13 +523,9 @@ class GotoDeclarationCommand(sublime_plugin.TextCommand):
         return True
 
 
+# Command to move cursor to specific position in current view
 class MoveCursorCommand(sublime_plugin.TextCommand):
     def run(self, edit, line, col):
-        # if not args or not "line" in args or not "col" in args:
-        #     log_error("Bad or no args provided to MoveCursorCommand - args={}".format(args))
-        #     return
-
-        # Do the movement
         del_point = self.view.text_point(line - 1, col - 1)
         log_debug("Moving cursor to {}".format(del_point))
         self.view.sel().clear()
@@ -509,10 +551,11 @@ def on_find_declaration_complete(declaration):
     view = sublime.active_window().active_view()
 
     if declaration is not None and declaration["exists"]:
+        # Move the cursor
+        # Have to use event as we can't change cursor position in this thread
         sublime.active_window().run_command("move_cursor", {"line": declaration["line"], "col": declaration["col"]})
     else:
         view.show_popup("Declaration not found")
-
 
 
 

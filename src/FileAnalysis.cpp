@@ -96,6 +96,17 @@ std::optional<FilePos> analysis::findVariableDeclaration(const std::string &file
     return findVariableDeclaration(fileSymbols, location);
 }
 
+/**
+ * Load project files (and their imports) into cache, for fast future loading
+ * @param projectFiles
+ * @param cache
+ */
+void analysis::indexProject(std::vector<std::string> projectFiles, Cache &cache) {
+    for (const auto &file : projectFiles) {
+        buildSymbols(file, file, cache);
+    }
+}
+
 
 analysis::SymbolUsage::SymbolUsage(int line, int col, const std::string &sourceLine) : line(line), col(col),
                                                                                        sourceLine(sourceLine) {}

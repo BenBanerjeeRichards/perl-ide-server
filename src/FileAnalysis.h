@@ -45,6 +45,8 @@ namespace analysis {
                        std::vector<std::string> projectFiles, Cache &cache);
 
     std::optional<FilePos> findVariableDeclaration(const std::string &filePath, FilePos location);
+
+    void indexProject(std::vector<std::string> projectFiles, Cache &cache);
 }
 
 #endif //PERLPARSE_FILEANALYSIS_H

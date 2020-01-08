@@ -145,6 +145,18 @@ void handleFindDeclaration(httplib::Response &res, json params) {
     sendJson(res, response);
 }
 
+void handleIndexProject(httplib::Response &res, json params, Cache &cache) {
+    if (!params.contains("projectFiles")) {
+        sendJson(res, "BAD_PARAMS", "No project files provided");
+        return;
+    }
+
+    std::vector<std::string> projectFiles = params["projectFiles"];
+    analysis::indexProject(projectFiles, cache);
+    json response;
+    sendJson(res, response);
+}
+
 
 void startAndBlock(int port) {
     httplib::Server httpServer;
@@ -180,6 +192,8 @@ void startAndBlock(int port) {
             handleFindUsages(res, params, cache);
         } else if (reqJson["method"] == "find-declaration") {
             handleFindDeclaration(res, params);
+        } else if (reqJson["method"] == "index-project") {
+            handleIndexProject(res, params, cache);
         } else {
             sendJson(res, "UNKNOWN_METHOD", "Method " + std::string(reqJson["method"]) + " not supported");
             return;
