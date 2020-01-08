@@ -3,6 +3,8 @@
 //
 
 #include "PerlServer.h"
+#include <chrono>
+#include <thread>
 
 
 void sendJson(httplib::Response &res, json &jsonObject, std::string error = "", std::string errorMessage = "") {
@@ -25,7 +27,7 @@ void sendJson(httplib::Response &res, std::string error = "", std::string errorM
     sendJson(res, null, std::move(error), std::move(errorMessage));
 }
 
-void handleAutocompleteVariable(httplib::Response &res, json params) {
+void handleAutocompleteVariable(httplib::Response &res, json params, Cache &cache) {
     if (!params.contains("path") || !params.contains("sigil")) {
         sendJson(res, "BAD_PARAMS", "Bad parameters");
         return;
@@ -42,13 +44,16 @@ void handleAutocompleteVariable(httplib::Response &res, json params) {
 
     std::vector<AutocompleteItem> completeItems;
     try {
-        completeItems = analysis::autocompleteVariables(params["path"], FilePos(line, col),
-                                                        std::string(params["sigil"])[0]);
+        completeItems = analysis::autocompleteVariables(params["path"], params["context"], FilePos(line, col),
+                                                        params["projectFiles"], std::string(params["sigil"])[0], cache);
     } catch (IOException &) {
         sendJson(res, "PATH_NOT_FOUND", "File " + std::string(params["path"]) + " not found");
         return;
     } catch (TokeniseException &ex) {
         sendJson(res, "PARSE_ERROR", "Error occured during tokenization " + ex.reason);
+        return;
+    } catch (json::exception &) {
+        sendJson(res, "BAD_PARAMS", "Bad Params 2");
         return;
     }
 
@@ -182,20 +187,24 @@ void startAndBlock(int port) {
             return;
         }
 
-        json params = reqJson["params"];
-
-        if (reqJson["method"] == "autocomplete-var") {
-            handleAutocompleteVariable(res, params);
-        } else if (reqJson["method"] == "autocomplete-sub") {
-            handleAutocompleteSubroutine(res, params);
-        } else if (reqJson["method"] == "find-usages") {
-            handleFindUsages(res, params, cache);
-        } else if (reqJson["method"] == "find-declaration") {
-            handleFindDeclaration(res, params);
-        } else if (reqJson["method"] == "index-project") {
-            handleIndexProject(res, params, cache);
-        } else {
-            sendJson(res, "UNKNOWN_METHOD", "Method " + std::string(reqJson["method"]) + " not supported");
+        try {
+            json params = reqJson["params"];
+            if (reqJson["method"] == "autocomplete-var") {
+                handleAutocompleteVariable(res, params, cache);
+            } else if (reqJson["method"] == "autocomplete-sub") {
+                handleAutocompleteSubroutine(res, params);
+            } else if (reqJson["method"] == "find-usages") {
+                handleFindUsages(res, params, cache);
+            } else if (reqJson["method"] == "find-declaration") {
+                handleFindDeclaration(res, params);
+            } else if (reqJson["method"] == "index-project") {
+                handleIndexProject(res, params, cache);
+            } else {
+                sendJson(res, "UNKNOWN_METHOD", "Method " + std::string(reqJson["method"]) + " not supported");
+                return;
+            }
+        } catch (json::exception &) {
+            sendJson(res, "BAD_PARAMS", "Bad Params 2");
             return;
         }
     });
@@ -205,7 +214,8 @@ void startAndBlock(int port) {
     });
 
 
-    httpServer.listen("localhost", port);
+    bool listenOk = httpServer.listen("localhost", port);
+    std::cout << "DONE! listenOk=" << listenOk << std::endl;
 }
 
 

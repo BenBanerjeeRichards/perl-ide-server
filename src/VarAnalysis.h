@@ -37,11 +37,9 @@ typedef std::unordered_map<std::string, std::shared_ptr<Variable>> SymbolMap;
 
 SymbolMap getSymbolMap(const FileSymbols &fileSymbols, const FilePos &pos);
 
+std::string variableForCompletion(std::string variable, char sigilContext);
+
 std::string getCanonicalVariableName(std::string variableName);
-
-std::vector<AutocompleteItem>
-variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char sigilContext);
-
 
 GlobalVariable getFullyQualifiedVariableName(const std::string &packageVariableName, std::string packageContext);
 

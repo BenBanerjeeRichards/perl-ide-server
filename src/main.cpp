@@ -220,13 +220,6 @@ int main(int argc, char **args) {
             std::cout << completion.name + " - " + completion.detail << std::endl;
         }
         return 0;
-    }
-
-    if (argc == 4) {
-        auto pos = FilePos(std::atoi(args[2]), std::atoi(args[3]));
-        for (const auto &c : analysis::autocompleteVariables(file, pos, 0)) {
-            std::cout << c.name << std::endl << c.detail << std::endl;
-        }
     } else if (argc > 1 && strncmp(args[1], "test", 4) == 0) {
         printFileTokens(args[2], true);
     } else {

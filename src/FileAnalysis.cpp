@@ -27,9 +27,54 @@ FileSymbols analysis::getFileSymbols(const std::string &path, AnalysisDetail ana
 }
 
 std::vector<AutocompleteItem>
-analysis::autocompleteVariables(const std::string &filePath, FilePos location, char sigilContext) {
-    FileSymbols fileSymbols = getFileSymbols(filePath, AnalysisDetail::FULL);
-    return variableNamesAtPos(fileSymbols, location, sigilContext);
+analysis::autocompleteVariables(const std::string &filePath, const std::string &contextPath, FilePos location,
+                                std::vector<std::string> projectFiles, char sigilContext, Cache &cache) {
+    std::vector<AutocompleteItem> completions;
+    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache);
+    if (!symbolsMaybe.has_value()) {
+        return completions;
+    }
+
+    Symbols symbols = symbolsMaybe.value();
+
+    // Symbol map contains all lexically scoped variables
+    SymbolMap symbolMap = getSymbolMap(symbols.rootFileSymbols, location);
+
+    // Get package - so if we are in a global's package, we can suggest it's short name providing there are no
+    // conflicts with lexically scoped variables
+    auto currentPackage = findPackageAtPos(symbols.rootFileSymbols.packages, location);
+    for (auto globalItem : symbols.globalVariablesMap.globalsMap) {
+        GlobalVariable global = globalItem.first;
+        if (global.getPackage() == currentPackage) {
+            if (symbolMap.count(global.getSigil() + global.getName()) == 0) {
+                auto variableName = variableForCompletion(global.getSigil() + global.getName(),
+                                                          sigilContext);
+                if (!variableName.empty()) {
+                    completions.emplace_back(AutocompleteItem(variableName, global.getFullName()));
+                }
+            } else {
+                auto variableName = variableForCompletion(global.getFullName(), sigilContext);
+                if (!variableName.empty()) {
+                    completions.emplace_back(AutocompleteItem(variableName, ""));
+                }
+            }
+        } else {
+            auto variableName = variableForCompletion(global.getFullName(), sigilContext);
+            if (!variableName.empty()) {
+                completions.emplace_back(AutocompleteItem(variableName, ""));
+            }
+        }
+    }
+
+    // Now add lexical variables
+    for (const auto &symbolVal : symbolMap) {
+        auto variableName = variableForCompletion(symbolVal.first, sigilContext);
+        if (!variableName.empty()) {
+            completions.emplace_back(AutocompleteItem(variableName, ""));
+        }
+    }
+
+    return completions;
 }
 
 std::vector<AutocompleteItem> analysis::autocompleteSubs(const std::string &filePath, FilePos location) {

@@ -224,49 +224,6 @@ std::string variableForCompletion(std::string variable, char sigilContext) {
 }
 
 
-std::vector<AutocompleteItem>
-variableNamesAtPos(const FileSymbols &fileSymbols, const FilePos &filePos, char sigilContext) {
-    SymbolMap symbolMap = getSymbolMap(fileSymbols, filePos);
-    std::vector<AutocompleteItem> variables;
-
-    // Now add the globals
-    std::string currentPackage = findPackageAtPos(fileSymbols.packages, filePos);
-    // For globals in the current package, they won't require a fully qualified identifier and so could clash
-    // If there is a clash, then insert the fully qualified identifier, otherwise just insert the name
-    for (const auto &global : fileSymbols.globals) {
-        if (global.first.getPackage() == currentPackage) {
-            if (symbolMap.count(global.first.getName()) == 0) {
-                auto variableName = variableForCompletion(global.first.getSigil() + global.first.getName(),
-                                                          sigilContext);
-                if (!variableName.empty()) {
-                    variables.emplace_back(AutocompleteItem(variableName, global.first.getFullName()));
-                }
-            } else {
-                auto variableName = variableForCompletion(global.first.getFullName(), sigilContext);
-                if (!variableName.empty()) {
-                    variables.emplace_back(AutocompleteItem(variableName, ""));
-                }
-            }
-        } else {
-            auto variableName = variableForCompletion(global.first.getFullName(), sigilContext);
-            if (!variableName.empty()) {
-                variables.emplace_back(AutocompleteItem(variableName, ""));
-            }
-        }
-    }
-
-    // Now add the symbol map
-    for (const auto &symbolVal : symbolMap) {
-        auto variableName = variableForCompletion(symbolVal.first, sigilContext);
-        if (!variableName.empty()) {
-            variables.emplace_back(AutocompleteItem(variableName, ""));
-        }
-    }
-
-    return variables;
-}
-
-
 /**
  * Get's the canonical name for a variale
  *

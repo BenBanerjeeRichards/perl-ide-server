@@ -66,7 +66,6 @@ def configure_settings():
     settings.set("auto_complete_triggers", auto_complete_triggers)
     sublime.save_settings("Preferences.sublime-settings")
 
-
 def get_project_files():
     # Get or guess project files
     if sublime.active_window().project_file_name() is None:
@@ -78,6 +77,7 @@ def get_project_files():
             if file.endswith(".pl") or file.endswith(".pm"):
                 perl_files.append(source_dir + "/" + file)
 
+
         return perl_files
     else:
         # TODO project files
@@ -85,6 +85,7 @@ def get_project_files():
 
 
 def get_completions(complete_type, params, word_separators):
+    params["projectFiles"] = get_project_files()
     res = post_request(complete_type, params)
     if not res["success"]:
         log_error("Completions failed with error - {}:{}".format(res.get("error"), res.get("errorMessage")))
@@ -105,7 +106,6 @@ def get_completions(complete_type, params, word_separators):
 
     log_info(completions)
     return completions
-
 
 def find_usages(path, context_path, project_files, line, col):
     res = post_request("find-usages", {
@@ -144,7 +144,6 @@ def find_declaration(path, context_path, line, col):
         return None
 
     return res["body"]
-
 
 def index_project(project_files):
     res = post_request("index-project", {"projectFiles": project_files})
@@ -419,6 +418,7 @@ class PerlCompletionsListener(sublime_plugin.EventListener):
             set_status(view, STATUS_INDEXING)
             indexer = IndexProjectThread(self.on_index_complete, get_project_files())
             indexer.start()
+
 
     def on_index_complete(self, res):
         log_info("Indexing complete, res = {}".format(res))

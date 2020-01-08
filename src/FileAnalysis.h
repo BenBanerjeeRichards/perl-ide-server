@@ -36,7 +36,8 @@ namespace analysis {
     FileSymbols getFileSymbols(const std::string &path, AnalysisDetail analysisDetail);
 
     std::vector<AutocompleteItem>
-    autocompleteVariables(const std::string &filePath, FilePos location, char sigilContext);
+    autocompleteVariables(const std::string &filePath, const std::string &contextPath, FilePos location,
+                          std::vector<std::string> projectFiles, char sigilContext, Cache &cache);
 
     std::vector<AutocompleteItem> autocompleteSubs(const std::string &filePath, FilePos location);
 
