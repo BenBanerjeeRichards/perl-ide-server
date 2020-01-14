@@ -604,10 +604,14 @@ void Tokeniser::matchDelimString(std::vector<Token> &tokens) {
         tokens.emplace_back(Token(TokenType::StringStart, start, std::string(1, quoteChar)));
         start = currentPos();
         contents = matchBracketedStringLiteral(quoteChar);
-        auto endPos = currentPos();
-        endPos.position -= 1;
-        endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
-        tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
+
+        if (!contents.empty()) {
+            auto endPos = currentPos();
+            endPos.position -= 1;
+            endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
+            tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
+        }
+
         start = currentPos();
         auto endChar = peek();
         nextChar();
@@ -616,10 +620,14 @@ void Tokeniser::matchDelimString(std::vector<Token> &tokens) {
         tokens.emplace_back(Token(TokenType::StringStart, start, std::string(1, quoteChar)));
         start = currentPos();
         contents = matchStringLiteral(quoteChar, false);
-        auto endPos = currentPos();
-        endPos.position -= 1;
-        endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
-        tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
+
+        if (!contents.empty()) {
+            auto endPos = currentPos();
+            endPos.position -= 1;
+            endPos.col = endPos.col == 0 ? 0 : endPos.col - 1;   // FIXME
+            tokens.emplace_back(Token(TokenType::String, start, endPos, contents));
+        }
+
         start = currentPos();
         auto endChar = peek();
         nextChar();
@@ -1182,7 +1190,7 @@ void Tokeniser::matchDereferenceBrackets(std::vector<Token> &tokens) {
     // Consume any whitespace
     while (isWhitespace(peekAhead(offset))) offset++;
     auto firstChar = this->peek();
-    if (peekAhead(offset) == '}' && (firstChar != '$' && firstChar != '@' && firstChar != '%')) {
+    if (peekAhead(offset) == '}' && isalpha(firstChar)) {
         // Is a name!
         start = currentPos();
         auto name = this->matchName();
@@ -1260,17 +1268,27 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                 // Now consider if we have ok identifier
                 i++;
                 if (i >= tokens.size() - 1) continue;
+                // Here doc deliminator must be a string or a bareword
                 if (tokens[i].type != TokenType::Name && tokens[i].type != TokenType::StringStart) {
                     continue;
                 } else {
                     std::string delim;
-                    if (tokens[i].type == TokenType::Name && hasWhitespace)
-                        continue;    // Now allowed with barewords
+                    if (tokens[i].type == TokenType::Name && hasWhitespace) {
+                        continue;    // Whitesapce not allowed with barewords
+                    }
                     // Now finally we can confirm a valid heredoc.
                     if (tokens[i].type == TokenType::Name) {
                         delim = tokens[i].data;
                     } else if (tokens[i].type == TokenType::StringStart) {
-                        delim = tokens[i + 1].data;
+                        if (i + 1 >= tokens.size()) continue;
+                        // Strings have the format StringStart(..) String(..) StringEnd(..)
+                        // But empty strings don't include a String(..)
+                        if (tokens[i + 1].type == TokenType::String) {
+                            delim = tokens[i + 1].data;
+                        } else if (tokens[i + 1].type != TokenType::StringEnd) {
+                            // Something has gone wrong, don't parse as heredoc
+                            continue;
+                        }
                     }
                     matchHereDocBody(tokens, delim, hasTilde);
                     break;
@@ -1928,6 +1946,17 @@ void Tokeniser::secondPass(std::vector<Token> &tokens) {
             secondPassHash(tokens, i);
             i = prevI;
             secondPassHashReref(tokens, i);
+        }
+
+        // Go back to previous non-whitespace token
+        // If it is a Name, replace with HashKey
+        // e.g. `key => "Hello"` -> HashKey[key] Op[=>] StringStart(") String(Hello) StringEnd(")
+        if (tokens[i].type == TokenType::Operator && tokens[i].data == "=>") {
+            int counter = i - 1;
+            while (counter >= 0 && isWhitespaceNewlineComment(tokens[counter].type)) counter--;
+            if (tokens[counter].type == TokenType::Name) {
+                tokens[counter].type = TokenType::HashKey;
+            }
         }
     }
 }

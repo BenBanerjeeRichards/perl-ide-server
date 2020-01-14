@@ -92,7 +92,12 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 //            std::cout << token.data << std::endl;
 //        }
 //    }
-//
+
+    auto prog = readFile(path);
+    for (auto token : tokens) {
+        std::cout << tokenToStrWithCode(token, prog) << std::endl;
+    }
+
     return fileSymbols;
 }
 
@@ -125,6 +130,7 @@ void testFiles() {
 void debugPrint(const std::string &path) {
     TimeInfo timeInfo{};
     FileSymbols fileSymbols = analysisWithTime(path, timeInfo, true);
+    return;
     printFileSymbols(fileSymbols);
 
     std::cout << console::bold << std::endl << "Variables at position" << console::clear << std::endl;

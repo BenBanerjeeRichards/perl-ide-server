@@ -121,6 +121,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::FileTest) return "FileTest";
     if (t == TokenType::Deref) return "Deref";
     if (t == TokenType::Builtin) return "Builtin";
+    if (t == TokenType::HashKey) return "HashKey";
     return "TokenType toString NOT IMPLEMENTED";
 }
 

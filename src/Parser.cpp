@@ -320,7 +320,7 @@ std::optional<Constant> handleConstant(TokenIterator &tokenIter, const std::vect
     Token nextConst = tokenIter.next();
     if (nextConst.type != TokenType::Name || nextConst.data != "constant") return {};
     Token tokenName = tokenIter.next();
-    if (tokenName.type != TokenType::Name || tokenName.data.empty()) return {};
+    if (tokenName.type != TokenType::HashKey || tokenName.data.empty()) return {};
     auto package = findPackageAtPos(packages, tokenName.startPos);
     std::string constantName = tokenName.data;
     std::string canonicalConstantName = getCanonicalPackageName(constantName);

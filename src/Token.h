@@ -76,7 +76,8 @@ enum class TokenType {
     StringModifiers,
     FileTest,
     Deref,
-    Builtin
+    Builtin,
+    HashKey
 };
 
 class Token {
@@ -107,7 +108,6 @@ private:
 };
 
 
-
 // TODO make this an actual iterator
 class TokenIterator {
 public:
@@ -132,7 +132,8 @@ private:
 
 std::string tokenTypeToString(const TokenType &t);
 
-bool isVariable(const TokenType& tokenType);
-bool isWhitespaceNewlineComment(const TokenType& tokenType);
+bool isVariable(const TokenType &tokenType);
+
+bool isWhitespaceNewlineComment(const TokenType &tokenType);
 
 #endif //PERLPARSER_TOKEN_H

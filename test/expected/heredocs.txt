@@ -1,6 +1,5 @@
 Operator(<<)
 StringStart(")
-String
 StringEnd(")
 ;
 HereDoc(   Hello!\n)

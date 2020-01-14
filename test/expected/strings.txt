@@ -197,22 +197,18 @@ StringStart({)
 String(\n    /\*	# Match the opening delimiter.\n        .*?	# Match a minimal number of characters.\n        \*/	# Match the closing delimiter.\n)
 StringEnd(})
 StringStart([)
-String
 StringEnd(])
 StringModifiers(gsx)
 ;
 QuoteIdent(tr)
 StringStart(/)
-String
 StringEnd(/)
 StringEnd(/)
 ;
 QuoteIdent(tr)
 StringStart({)
-String
 StringEnd(})
 StringStart([)
-String
 StringEnd(])
 ;
 My
