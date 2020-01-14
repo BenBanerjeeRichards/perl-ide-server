@@ -224,6 +224,7 @@ std::string variableForCompletion(std::string variable, char sigilContext) {
 }
 
 
+
 /**
  * Get's the canonical name for a variale
  *
@@ -237,41 +238,16 @@ std::string variableForCompletion(std::string variable, char sigilContext) {
 std::string getCanonicalVariableName(std::string variableName) {
     // First remove brackets if they exist
     std::string canonical = variableName;
-    if (variableName.size() <= 1 || (variableName[0] != '@' && variableName[0] != '$' && variableName[0] != '%'))
+    if (variableName.size() <= 1 || (variableName[0] != '@' && variableName[0] != '$' && variableName[0] != '%')) {
         return variableName;
+    }
 
     if (variableName[1] == '{' && variableName[variableName.size() - 1] == '}') {
         canonical = variableName[0] + variableName.substr(2, variableName.size() - 3);
     }
 
-    // Now replace ' with ::
-    for (int i = 1; i < canonical.size(); i++) {
-        if (canonical[i] == '\'') {
-            canonical = canonical.substr(0, i) + "::" + canonical.substr(i + 1, canonical.size() - i);
-        }
-    }
-
-    // Now replace :::: with ::
-    for (int i = 1; i < (int) canonical.size(); i++) {
-        if (canonical[i] == ':') {
-            int j = 1;
-            while (j < (int) canonical.size()) {
-                if (canonical[i + j] != ':') break;
-                j++;
-            }
-
-            int numDoubleColons = (int) j / 2;
-            if (numDoubleColons > 1) {
-                int deleteFrom = i + 2;
-                int deleteTo = i + numDoubleColons * 2;
-                canonical = canonical.substr(0, deleteFrom) + canonical.substr(deleteTo, canonical.size() - deleteTo);
-            }
-
-            i += 2;
-        }
-    }
-
-    return canonical;
+    auto package = canonical.substr(1, canonical.size() - 1);
+    return canonical[0] + getCanonicalPackageName(package);
 }
 
 /**
@@ -284,29 +260,15 @@ std::string getCanonicalVariableName(std::string variableName) {
  * @param packageContext Package that the variable was found in
  */
 GlobalVariable getFullyQualifiedVariableName(const std::string &packageVariableName, std::string packageContext) {
-    auto canonicalName = getCanonicalVariableName(packageVariableName);
     if (packageVariableName.empty()) {
         return GlobalVariable("", "", "", "");
     }
 
+    std::string canonicalName = getCanonicalVariableName(packageVariableName);
     std::string sigil = std::string(1, canonicalName[0]);
     std::string withoutSigil = canonicalName.substr(1, canonicalName.size() - 1);
-    std::vector<std::string> parts = split(withoutSigil, "::");
-
-    // Remove actual name
-    std::string variableName = parts[parts.size() - 1];
-    parts.pop_back();
-
-    // Join again for package name
-    std::string packageNameFromVariable = parts.empty() ? "" : join(parts, "::");
-
-    if (packageNameFromVariable.empty()) {
-        // variable has no encoded package name - assume current package at location
-        return GlobalVariable(packageVariableName, sigil, packageContext, variableName);
-    } else {
-        // package name provided in variable name, use that instead
-        return GlobalVariable(packageVariableName, sigil, packageNameFromVariable, variableName);
-    }
+    PackagedSymbol packagedSymbol = splitOnPackage(withoutSigil, packageContext);
+    return GlobalVariable(packageVariableName, sigil, packagedSymbol.package, packagedSymbol.symbol);
 }
 
 

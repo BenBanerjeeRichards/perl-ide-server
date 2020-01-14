@@ -316,6 +316,18 @@ std::optional<Import> handleUse(TokenIterator &tokenIter, FilePos location) {
     return Import(location, ImportType::Module, ImportMechanism::Use, moduleName, exportList);
 }
 
+std::optional<Constant> handleConstant(TokenIterator &tokenIter, const std::vector<PackageSpan> &packages) {
+    Token nextConst = tokenIter.next();
+    if (nextConst.type != TokenType::Name || nextConst.data != "constant") return {};
+    Token tokenName = tokenIter.next();
+    if (tokenName.type != TokenType::Name || tokenName.data.empty()) return {};
+    auto package = findPackageAtPos(packages, tokenName.startPos);
+    std::string constantName = tokenName.data;
+    std::string canonicalConstantName = getCanonicalPackageName(constantName);
+    PackagedSymbol constantSymbol = splitOnPackage(canonicalConstantName, package);
+    return Constant(constantSymbol.package, constantSymbol.symbol, tokenName.startPos);
+}
+
 
 void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
                       FileSymbols &fileSymbols, std::vector<std::string> &variables,
@@ -356,12 +368,18 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
                         fileSymbols.imports.emplace_back(import.value());
                     }
                 } else if (tokenType == TokenType::Use) {
-                    auto import = handleUse(tokenIter, token.startPos);
-                    if (import.has_value()) {
-                        fileSymbols.imports.emplace_back(import.value());
+                    auto next = tokenIter.peek();
+                    if (next.type == TokenType::Name && next.data == "constant") {
+                        if (auto constant = handleConstant(tokenIter, fileSymbols.packages)) {
+                            fileSymbols.constants.emplace_back(constant.value());
+                        }
+                    } else {
+                        auto import = handleUse(tokenIter, token.startPos);
+                        if (import.has_value()) {
+                            fileSymbols.imports.emplace_back(import.value());
+                        }
                     }
                 }
-
                 token = tokenIter.next();
             }
         }

@@ -11,32 +11,280 @@ Tokeniser::Tokeniser(std::string perl, bool doSecondPass) {
     this->program = std::move(perl);
     this->doSecondPass = doSecondPass;
 
-    this->keywordConfigs = std::vector<KeywordConfig>{KeywordConfig("use", TokenType::Use),
-                                                      KeywordConfig("if", TokenType::If),
-                                                      KeywordConfig("else", TokenType::Else),
-                                                      KeywordConfig("elsif", TokenType::ElsIf),
-                                                      KeywordConfig("unless", TokenType::Until),
-                                                      KeywordConfig("while", TokenType::While),
-                                                      KeywordConfig("until", TokenType::Until),
-                                                      KeywordConfig("for", TokenType::For),
-                                                      KeywordConfig("foreach", TokenType::Foreach),
-                                                      KeywordConfig("when", TokenType::When),
-                                                      KeywordConfig("do", TokenType::Do),
-                                                      KeywordConfig("next", TokenType::Next),
-                                                      KeywordConfig("redo", TokenType::Redo),
-                                                      KeywordConfig("last", TokenType::Last),
-                                                      KeywordConfig("my", TokenType::My),
-                                                      KeywordConfig("local", TokenType::Local),
-                                                      KeywordConfig("state", TokenType::State),
-                                                      KeywordConfig("our", TokenType::Our),
-                                                      KeywordConfig("break", TokenType::Break),
-                                                      KeywordConfig("continue", TokenType::Continue),
-                                                      KeywordConfig("given", TokenType::Given),
-                                                      KeywordConfig("sub", TokenType::Sub),
-                                                      KeywordConfig("package", TokenType::Package),
-                                                      KeywordConfig("state", TokenType::State),
-                                                      KeywordConfig("use", TokenType::Use),
-                                                      KeywordConfig("require", TokenType::Require),};
+    this->keywordMap = {{"use",      TokenType::Use},
+                        {"if",       TokenType::If},
+                        {"else",     TokenType::Else},
+                        {"elsif",    TokenType::ElsIf},
+                        {"unless",   TokenType::Unless},
+                        {"while",    TokenType::While},
+                        {"until",    TokenType::Until},
+                        {"for",      TokenType::For},
+                        {"foreach",  TokenType::Foreach},
+                        {"when",     TokenType::When},
+                        {"do",       TokenType::Do},
+                        {"next",     TokenType::Next},
+                        {"redo",     TokenType::Redo},
+                        {"last",     TokenType::Last},
+                        {"my",       TokenType::My},
+                        {"state",    TokenType::State},
+                        {"local",    TokenType::Local},
+                        {"our",      TokenType::Our},
+                        {"break",    TokenType::Break},
+                        {"continue", TokenType::Continue},
+                        {"given",    TokenType::Given},
+                        {"sub",      TokenType::Sub},
+                        {"package",  TokenType::Package},
+                        {"state",    TokenType::State},
+                        {"use",      TokenType::Use},
+                        {"require",  TokenType::Require}};
+
+    // Built in perl functions, from https://perldoc.perl.org/5.30.0/index-functions.html
+    this->builtinSubMap = {{"abs",              1},
+                           {"accept",           1},
+                           {"alarm",            1},
+                           {"and",              1},
+                           {"atan2",            1},
+                           {"bind",             1},
+                           {"binmode",          1},
+                           {"bless",            1},
+                           {"break",            1},
+                           {"caller",           1},
+                           {"chdir",            1},
+                           {"chmod",            1},
+                           {"chomp",            1},
+                           {"chop",             1},
+                           {"chown",            1},
+                           {"chr",              1},
+                           {"chroot",           1},
+                           {"close",            1},
+                           {"closedir",         1},
+                           {"cmp",              1},
+                           {"connect",          1},
+                           {"continue",         1},
+                           {"cos",              1},
+                           {"crypt",            1},
+                           {"__DATA__",         1},
+                           {"dbmclose",         1},
+                           {"dbmopen",          1},
+                           {"default",          1},
+                           {"defined",          1},
+                           {"delete",           1},
+                           {"die",              1},
+                           {"do",               1},
+                           {"dump",             1},
+                           {"each",             1},
+                           {"else",             1},
+                           {"elseif",           1},
+                           {"elsif",            1},
+                           {"endgrent",         1},
+                           {"endhostent",       1},
+                           {"endnetent",        1},
+                           {"endprotoent",      1},
+                           {"endpwent",         1},
+                           {"endservent",       1},
+                           {"eof",              1},
+                           {"eq",               1},
+                           {"eval",             1},
+                           {"evalbytes",        1},
+                           {"exec",             1},
+                           {"exists",           1},
+                           {"exit",             1},
+                           {"exp",              1},
+                           {"fc",               1},
+                           {"fcntl",            1},
+                           {"fileno",           1},
+                           {"flock",            1},
+                           {"for",              1},
+                           {"foreach",          1},
+                           {"fork",             1},
+                           {"format",           1},
+                           {"formline",         1},
+                           {"ge",               1},
+                           {"getc",             1},
+                           {"getgrent",         1},
+                           {"getgrgid",         1},
+                           {"getgrnam",         1},
+                           {"gethostbyaddr",    1},
+                           {"gethostbyname",    1},
+                           {"gethostent",       1},
+                           {"getlogin",         1},
+                           {"getnetbyaddr",     1},
+                           {"getnetbyname",     1},
+                           {"getnetent",        1},
+                           {"getpeername",      1},
+                           {"getpgrp",          1},
+                           {"getppid",          1},
+                           {"getpriority",      1},
+                           {"getprotobyname",   1},
+                           {"getprotobynumber", 1},
+                           {"getprotoent",      1},
+                           {"getpwent",         1},
+                           {"getpwnam",         1},
+                           {"getpwuid",         1},
+                           {"getservbyname",    1},
+                           {"getservbyport",    1},
+                           {"getservent",       1},
+                           {"getsockname",      1},
+                           {"getsockopt",       1},
+                           {"given",            1},
+                           {"glob",             1},
+                           {"gmtime",           1},
+                           {"goto",             1},
+                           {"grep",             1},
+                           {"gt",               1},
+                           {"hex",              1},
+                           {"INIT",             1},
+                           {"if",               1},
+                           {"import",           1},
+                           {"index",            1},
+                           {"int",              1},
+                           {"ioctl",            1},
+                           {"join",             1},
+                           {"keys",             1},
+                           {"kill",             1},
+                           {"last",             1},
+                           {"lc",               1},
+                           {"lcfirst",          1},
+                           {"le",               1},
+                           {"length",           1},
+                           {"link",             1},
+                           {"listen",           1},
+                           {"local",            1},
+                           {"localtime",        1},
+                           {"lock",             1},
+                           {"log",              1},
+                           {"lstat",            1},
+                           {"lt",               1},
+                           {"m",                1},
+                           {"map",              1},
+                           {"mkdir",            1},
+                           {"msgctl",           1},
+                           {"msgget",           1},
+                           {"msgrcv",           1},
+                           {"msgsnd",           1},
+                           {"my",               1},
+                           {"ne",               1},
+                           {"next",             1},
+                           {"no",               1},
+                           {"not",              1},
+                           {"oct",              1},
+                           {"open",             1},
+                           {"opendir",          1},
+                           {"or",               1},
+                           {"ord",              1},
+                           {"our",              1},
+                           {"pack",             1},
+                           {"package",          1},
+                           {"pipe",             1},
+                           {"pop",              1},
+                           {"pos",              1},
+                           {"print",            1},
+                           {"printf",           1},
+                           {"prototype",        1},
+                           {"push",             1},
+                           {"q",                1},
+                           {"qq",               1},
+                           {"qr",               1},
+                           {"quotemeta",        1},
+                           {"qw",               1},
+                           {"qx",               1},
+                           {"rand",             1},
+                           {"read",             1},
+                           {"readdir",          1},
+                           {"readline",         1},
+                           {"readlink",         1},
+                           {"readpipe",         1},
+                           {"recv",             1},
+                           {"redo",             1},
+                           {"ref",              1},
+                           {"rename",           1},
+                           {"require",          1},
+                           {"reset",            1},
+                           {"return",           1},
+                           {"reverse",          1},
+                           {"rewinddir",        1},
+                           {"rindex",           1},
+                           {"rmdir",            1},
+                           {"s",                1},
+                           {"say",              1},
+                           {"scalar",           1},
+                           {"seek",             1},
+                           {"seekdir",          1},
+                           {"select",           1},
+                           {"semctl",           1},
+                           {"semget",           1},
+                           {"semop",            1},
+                           {"send",             1},
+                           {"setgrent",         1},
+                           {"sethostent",       1},
+                           {"setnetent",        1},
+                           {"setpgrp",          1},
+                           {"setpriority",      1},
+                           {"setprotoent",      1},
+                           {"setpwent",         1},
+                           {"setservent",       1},
+                           {"setsockopt",       1},
+                           {"shift",            1},
+                           {"shmctl",           1},
+                           {"shmget",           1},
+                           {"shmread",          1},
+                           {"shmwrite",         1},
+                           {"shutdown",         1},
+                           {"sin",              1},
+                           {"sleep",            1},
+                           {"socket",           1},
+                           {"socketpair",       1},
+                           {"sort",             1},
+                           {"splice",           1},
+                           {"split",            1},
+                           {"sprintf",          1},
+                           {"sqrt",             1},
+                           {"srand",            1},
+                           {"stat",             1},
+                           {"state",            1},
+                           {"study",            1},
+                           {"sub",              1},
+                           {"substr",           1},
+                           {"symlink",          1},
+                           {"syscall",          1},
+                           {"sysopen",          1},
+                           {"sysread",          1},
+                           {"sysseek",          1},
+                           {"system",           1},
+                           {"syswrite",         1},
+                           {"tell",             1},
+                           {"telldir",          1},
+                           {"tie",              1},
+                           {"tied",             1},
+                           {"time",             1},
+                           {"times",            1},
+                           {"tr",               1},
+                           {"truncate",         1},
+                           {"UNITCHECK",        1},
+                           {"uc",               1},
+                           {"ucfirst",          1},
+                           {"umask",            1},
+                           {"undef",            1},
+                           {"unless",           1},
+                           {"unlink",           1},
+                           {"unpack",           1},
+                           {"unshift",          1},
+                           {"untie",            1},
+                           {"until",            1},
+                           {"use",              1},
+                           {"utime",            1},
+                           {"values",           1},
+                           {"vec",              1},
+                           {"wait",             1},
+                           {"waitpid",          1},
+                           {"wantarray",        1},
+                           {"warn",             1},
+                           {"when",             1},
+                           {"while",            1},
+                           {"write",            1},
+                           {"-X",               1},
+                           {"x",                1},
+                           {"xor",              1}};
 
     // Remove any unicode Byte Order Mark (e.g. 0xEFBBBF)
     if (this->program.size() >= 3 && this->program[0] == '\xEF' && this->program[1] == '\xBB' &&
@@ -77,7 +325,8 @@ char Tokeniser::nextChar() {
         return EOF;
     }
 
-    if ((this->peek() == '\r' && this->peekAhead(2) == '\n') || (this->peek() == '\n' && this->peekAhead(0) != '\r')) {
+    if ((this->peek() == '\r' && this->peekAhead(2) == '\n') ||
+        (this->peek() == '\n' && this->peekAhead(0) != '\r')) {
         // Newline coming up, other code will handle token
         this->nextLine();
     } else {
@@ -151,7 +400,8 @@ bool Tokeniser::isPunctuation(char c) {
 // Variable body i.e. variable name after any Sigil and then first char
 // TODO This is not comprehensive
 bool Tokeniser::isNameBody(char c) {
-    return c >= '!' && c != ';' && c != ',' && c != '>' && c != '<' && c != '-' && c != '.' && c != '{' && c != '}' &&
+    return c >= '!' && c != ';' && c != ',' && c != '>' && c != '<' && c != '-' && c != '.' && c != '{' &&
+           c != '}' &&
            c != '(' &&
            c != ')' && c != '[' && c != ']' && c != ':' && c != '=' && c != '"' && c != '/';
 }
@@ -381,7 +631,8 @@ std::string Tokeniser::matchQuoteOperator() {
     auto p1 = peek();
     auto p2 = peekAhead(2);
 
-    if ((p1 == 'q' && p2 == 'q') || (p1 == 'q' && p2 == 'x') || (p1 == 'q' && p2 == 'w') || (p1 == 'q' && p2 == 'r')) {
+    if ((p1 == 'q' && p2 == 'q') || (p1 == 'q' && p2 == 'x') || (p1 == 'q' && p2 == 'w') ||
+        (p1 == 'q' && p2 == 'r')) {
         this->nextChar();
         this->nextChar();
         return std::string(1, p1) + p2;
@@ -760,22 +1011,25 @@ std::string Tokeniser::matchIdentifier() {
     return ident;
 }
 
-std::optional<Token>
-Tokeniser::doMatchKeyword(FilePos startPos, const std::string &keywordCode, TokenType keywordType) {
-    if (this->matchKeyword(keywordCode)) {
-        return std::optional<Token>(Token(keywordType, startPos, startPos.col + (int) keywordCode.size() - 1));
-    }
-
-    return std::optional<Token>();
-}
-
 std::optional<Token> Tokeniser::tryMatchKeywords(FilePos startPos) {
-    for (const auto &config: keywordConfigs) {
-        auto attempt = doMatchKeyword(startPos, config.code, config.type);
-        if (attempt.has_value()) return attempt;
+    std::string possibleKeyword = "";
+    int i = 1;
+    while (isalpha(this->peekAhead(i))) {
+        possibleKeyword += this->peekAhead(i);
+        i++;
     }
 
-    return std::optional<Token>();
+    // Keyword must be followed by non a-zA-Z0-9 character
+    if (possibleKeyword.empty() || isalnum(peekAhead(i))) {
+        return std::optional<Token>();
+    }
+
+    if (this->keywordMap.count(possibleKeyword) == 0) {
+        return std::optional<Token>();
+    }
+
+    this->advancePositionSameLine(possibleKeyword.size());
+    return Token(this->keywordMap[possibleKeyword], startPos, startPos.col + (int) possibleKeyword.size() - 1);
 }
 
 std::string Tokeniser::matchWhitespace() {
@@ -927,7 +1181,8 @@ void Tokeniser::matchDereferenceBrackets(std::vector<Token> &tokens) {
 
     // Consume any whitespace
     while (isWhitespace(peekAhead(offset))) offset++;
-    if (peekAhead(offset) == '}') {
+    auto firstChar = this->peek();
+    if (peekAhead(offset) == '}' && (firstChar != '$' && firstChar != '@' && firstChar != '%')) {
         // Is a name!
         start = currentPos();
         auto name = this->matchName();
@@ -998,7 +1253,8 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                 if (hasWhitespace) i++;
 
                 bool hasTilde =
-                        i + 1 < tokens.size() && tokens[i + 1].type == TokenType::Operator && tokens[i + 1].data == "~";
+                        i + 1 < tokens.size() && tokens[i + 1].type == TokenType::Operator &&
+                        tokens[i + 1].data == "~";
                 if (hasTilde) i++;
 
                 // Now consider if we have ok identifier
@@ -1008,7 +1264,8 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
                     continue;
                 } else {
                     std::string delim;
-                    if (tokens[i].type == TokenType::Name && hasWhitespace) continue;    // Now allowed with barewords
+                    if (tokens[i].type == TokenType::Name && hasWhitespace)
+                        continue;    // Now allowed with barewords
                     // Now finally we can confirm a valid heredoc.
                     if (tokens[i].type == TokenType::Name) {
                         delim = tokens[i].data;
@@ -1139,6 +1396,8 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
 
     if (peek == '{') {
         if (!tokens.empty()) {
+            // Find previous token
+            // If previous token is a -> operator, then this is a dereference
             int i = (int) tokens.size() - 1;
             auto prevType = tokens[i].type;
             while (i > 0 && (prevType == TokenType::Whitespace || prevType == TokenType::Newline ||
@@ -1377,14 +1636,18 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
     auto ident = matchIdentifier();
     if (!ident.empty()) {
         // Also use a name here
-        tokens.emplace_back(Token(TokenType::Name, startPos, ident));
+        auto token = Token(TokenType::Name, startPos, ident);
+        if (this->builtinSubMap.count(ident) != 0) token.type = TokenType::Builtin;
+        tokens.emplace_back(token);
         return;
 
     }
 
     auto name = this->matchName();
     if (!name.empty()) {
-        tokens.emplace_back(Token(TokenType::Name, startPos, name));
+        auto token = Token(TokenType::Name, startPos, name);
+        if (this->builtinSubMap.count(name) != 0) token.type = TokenType::Builtin;
+        tokens.emplace_back(token);
         return;
     }
 
@@ -1726,11 +1989,6 @@ bool Tokeniser::isPrototype() {
 FilePos Tokeniser::currentPos() {
     return FilePos(this->currentLine, this->currentCol, this->_position + 1 + this->positionOffset);
 }
-
-
-KeywordConfig::KeywordConfig(
-        const std::string &code, TokenType
-type) : code(code), type(type) {}
 
 
 std::optional<Token> previousNonWhitespaceToken(const std::vector<Token> &tokens) {

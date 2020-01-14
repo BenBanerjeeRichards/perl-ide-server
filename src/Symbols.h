@@ -61,6 +61,25 @@ public:
     std::vector<std::shared_ptr<SymbolNode>> children;
 };
 
+struct SubroutineUsage {
+    std::string package;
+    std::string name;
+    Range pos;
+};
+
+struct Constant {
+    std::string package;
+    std::string name;
+    FilePos location;
+
+    Constant(const std::string &package, const std::string &name, const FilePos &loocation);
+
+    std::string getFullName();
+
+    std::string toStr();
+};
+
+
 // Stores information about a single file in isolation
 struct FileSymbols {
     // Stores all lexically scoped information - for example `my` variables
@@ -75,12 +94,14 @@ struct FileSymbols {
     // All subroutines defined in the file. As of now, these are all exported BUT TODO private subs are allowed
     std::vector<Subroutine> subroutines;
 
+    std::vector<SubroutineUsage> subroutineUsages;
+
     // All `require` or `use` imports. `require` imports are treated as static use imports as we can't do runtime
     // analysis! `require $myvar` will of course fail
     std::vector<Import> imports;
 
     // Package globals, map from fully qualified name to usages
-    // Different to lexical variabels as package variables don't have a declaration
+    // Different to lexical variables as package variables don't have a declaration
     // This is as they are implicitly declared when they are used
     // And it is impossible to find a first usage without running the perl code
     // These are all exported
@@ -90,14 +111,17 @@ struct FileSymbols {
     int partialParse;
 
     // Usages of each lexically scoped variable DOES NOT INCLUDE GLOBALS!
-    // Includes definition.
+    // Includes definition.-
     std::unordered_map<std::shared_ptr<Variable>, std::vector<Range>> variableUsages;
+
+    // Constant definitions
+    std::vector<Constant> constants;
 };
 
 // Map from <file path> of a perl file to the parsed symbol table for that specific file
 typedef std::unordered_map<std::string, FileSymbols> FileSymbolMap;
 
-
+// TODO use templates for GlobalVariablesMap + SubroutineMap
 struct GlobalVariablesMap {
     // Global Variable -> (File path -> [usages])
     // So GlobalVariablesMap[var]["perl.pm"] is the usages of global var in file "perl.pm"
@@ -107,6 +131,17 @@ struct GlobalVariablesMap {
 
     std::string toStr();
 };
+
+struct SubroutineMap {
+    // Global Variable -> (File path -> [usages])
+    // So GlobalVariablesMap[var]["perl.pm"] is the usages of global var in file "perl.pm"
+    std::unordered_map<Subroutine, std::unordered_map<std::string, std::vector<Range>>> subsMap;
+
+    void addSub(Subroutine global, std::string path, std::vector<Range> usages);
+
+    std::string toStr();
+};
+
 
 struct Symbols {
     // Root file is the file that the analysis started from

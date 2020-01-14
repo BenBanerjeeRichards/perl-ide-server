@@ -2,18 +2,18 @@ Sub
 SubName(signatureNoAttribute)
 Signature(($a, $b = 54, $c=5))
 LBracket
-Name(say)
+Builtin(say)
 StringStart(")
 String(f(...) )
 StringEnd(")
 Dot
 ScalarVariable($a)
-Semicolon
-Name(say)
+;
+Builtin(say)
 LParen
 ScalarVariable($b)
 RParen
-Semicolon
+;
 RBracket
 Comment(# #Prototype, no attributes)
 Sub

@@ -77,14 +77,22 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
     timing.parse = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
     begin = std::chrono::steady_clock::now();
-    parseFirstPass(parseTree, fileSymbols);
     fileSymbols.packages = parsePackages(parseTree);
+    parseFirstPass(parseTree, fileSymbols);
     buildVariableSymbolTree(parseTree, fileSymbols);
     end = std::chrono::steady_clock::now();
     timing.analysis = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
     auto totalEnd = std::chrono::steady_clock::now();
 
     timing.total = std::chrono::duration_cast<std::chrono::milliseconds>(totalEnd - totalBegin).count();
+
+//    std::cout << "Names - " << std::endl;
+//    for (auto token : tokens) {
+//        if (token.type == TokenType::Name) {
+//            std::cout << token.data << std::endl;
+//        }
+//    }
+//
     return fileSymbols;
 }
 
@@ -117,7 +125,6 @@ void testFiles() {
 void debugPrint(const std::string &path) {
     TimeInfo timeInfo{};
     FileSymbols fileSymbols = analysisWithTime(path, timeInfo, true);
-
     printFileSymbols(fileSymbols);
 
     std::cout << console::bold << std::endl << "Variables at position" << console::clear << std::endl;
@@ -135,6 +142,11 @@ void debugPrint(const std::string &path) {
         }
 
         std::cout << std::endl;
+    }
+
+    std::cout << console::bold << std::endl << "Constants" << console::clear << std::endl;
+    for (auto constant : fileSymbols.constants) {
+        std::cout << constant.toStr() << std::endl;
     }
 
     std::cout << console::bold << std::endl << "Imports" << console::clear << std::endl;
@@ -164,18 +176,6 @@ void debugPrint(const std::string &path) {
 
 
 int main(int argc, char **args) {
-//    Cache cache;
-//    auto graph = loadProjectGraph(std::vector<std::string>{"/Users/bbr/Documents/PerlInclude/main.pl",
-//                                                           "/Users/bbr/Documents/PerlInclude/Along.pl",
-//                                                           "/Users/bbr/Documents/PerlInclude/Ben.pm"},
-//                                  getIncludePaths("/Users/bbr/Documents/PerlInclude"), cache);
-//
-//    std::cout << projGraphToDot(graph, false) << std::endl;
-//
-//    for (auto path : relatedFiles("/System/Library/Perl/5.18/Math/BigInt.pm", graph)) {
-//        std::cout << path << std::endl;
-//
-//    return 0;
     auto includePaths = getIncludePaths("/");
     std::string file = "../perl/input.pl";
 //    std::string file = "/System/Library/Perl/5.18/Math/BigFloat.pm";

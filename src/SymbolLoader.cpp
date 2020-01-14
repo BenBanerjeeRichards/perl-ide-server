@@ -21,8 +21,8 @@ std::optional<FileSymbols> loadSymbols(std::string path, Cache &cache) {
         cache.addItem(path, std::make_shared<FileSymbols>(fileSymbols));
     }
     auto end = std::chrono::steady_clock::now();
-//    std::cout << "[" << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms]"
-//              << "Loaded symbols for " << path << std::endl;
+    std::cout << "[" << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms]"
+              << "Loaded symbols for " << path << std::endl;
 
     return fileSymbols;
 }
@@ -83,6 +83,20 @@ GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap) 
 
     return globalVariablesMap;
 }
+
+SubroutineMap buildSubroutineMap(const FileSymbolMap &fileSymbolsMap) {
+    SubroutineMap subroutineMap;
+    std::unordered_map<std::string, SubroutineDecl> nameToDecl;
+
+    for (auto pathToFileSymbol : fileSymbolsMap) {
+        std::string path = pathToFileSymbol.first;
+        FileSymbols fileSymbols = pathToFileSymbol.second;
+
+    }
+
+    return subroutineMap;
+}
+
 
 std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath, Cache &cache) {
     auto fileSymbolsMap = loadAllFileSymbols(rootPath, contextPath, cache);

@@ -71,7 +71,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::Whitespace) return "Whitespace";
     if (t == TokenType::Dot) return "Dot";
     if (t == TokenType::Assignment) return "Assignment";
-    if (t == TokenType::Semicolon) return "Semicolon";
+    if (t == TokenType::Semicolon) return ";";
     if (t == TokenType::EndOfInput) return "EndOfInput";
     if (t == TokenType::If) return "If";
     if (t == TokenType::Else) return "Else";
@@ -120,6 +120,7 @@ std::string tokenTypeToString(const TokenType &t) {
     if (t == TokenType::StringModifiers) return "StringModifiers";
     if (t == TokenType::FileTest) return "FileTest";
     if (t == TokenType::Deref) return "Deref";
+    if (t == TokenType::Builtin) return "Builtin";
     return "TokenType toString NOT IMPLEMENTED";
 }
 
@@ -166,6 +167,14 @@ Token TokenIterator::next() {
     return Token(TokenType::EndOfInput, FilePos(0, 0));
 }
 
+Token TokenIterator::peek() {
+    int currentI = this->i;
+    auto next = this->next();
+    this->i = currentI;
+    return next;
+}
+
+
 std::optional<std::string> TokenIterator::tryGetString() {
     // TODO this probably should be in a different place
     int currentI = this->i;
@@ -192,8 +201,5 @@ std::optional<std::string> TokenIterator::tryGetString() {
     this->i = currentI;
     return std::optional<std::string>();
 }
-
-
-
 
 

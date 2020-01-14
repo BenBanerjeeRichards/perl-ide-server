@@ -75,7 +75,8 @@ enum class TokenType {
     QuoteIdent,
     StringModifiers,
     FileTest,
-    Deref
+    Deref,
+    Builtin
 };
 
 class Token {
@@ -115,6 +116,8 @@ public:
     TokenIterator(const std::vector<Token> &tokens, std::vector<TokenType> ignoreTokens, int offset);
 
     Token next();
+
+    Token peek();
 
     int getIndex();
 

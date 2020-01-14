@@ -2,47 +2,47 @@ Operator(<<)
 StringStart(")
 String
 StringEnd(")
-Semicolon
+;
 HereDoc(   Hello!\n)
 HereDocEnd
-Name(print)
+Builtin(print)
 Operator(<<)
 Name(OUT)
-Semicolon
+;
 HereDoc(    OUT\n    some OUT\n)
 HereDocEnd(OUT)
-Name(print)
+Builtin(print)
 Operator(<<)
 Name(EOL)
-Semicolon
+;
 HereDoc(    XHello World!\n    Y qw {\n)
 HereDocEnd(EOL)
-Name(print)
+Builtin(print)
 Operator(<<)
 StringStart(")
 String(    OUT)
 StringEnd(")
-Until
+Unless
 ArrayVariable(@_)
 LSquareBracket
 NumericLiteral(0)
 RSquareBracket
-Semicolon
+;
 HereDoc(    Hello. Output\n)
 HereDocEnd(    OUT)
-Name(print)
+Builtin(print)
 Operator(<<)
 Operator(~)
 Name(Hello)
-Semicolon
+;
 HereDoc(Hello world!\n)
 HereDocEnd(Hello)
-Name(print)
+Builtin(print)
 Operator(<<)
 StringStart(`)
 String(EOL)
 StringEnd(`)
-Semicolon
+;
 HereDoc(    XHello World!\n    Y qw {\n)
 HereDocEnd(EOL)
 EndOfInput

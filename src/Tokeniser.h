@@ -19,13 +19,6 @@
 #include "Util.h"
 #include "TokeniseException.h"
 
-struct KeywordConfig {
-    KeywordConfig(const std::string &code, TokenType type);
-
-    std::string code;
-    TokenType type;
-};
-
 class Tokeniser {
 public:
     Tokeniser(std::string program, bool doSecondPass = true);
@@ -96,8 +89,6 @@ private:
 
     std::optional<Token> tryMatchKeywords(FilePos startPos);
 
-    std::optional<Token> doMatchKeyword(FilePos startPos, const std::string &keywordCode, TokenType keywordType);
-
     FilePos currentPos();
 
     bool matchAttribute(std::vector<Token> &tokens);
@@ -110,7 +101,7 @@ private:
 
     bool matchSignatureTokens(std::vector<Token> &tokens);
 
-    std::string matchStringContainingOnlyLetters(const std::string& letters);
+    std::string matchStringContainingOnlyLetters(const std::string &letters);
 
 
     bool isPrototype();
@@ -119,7 +110,8 @@ private:
     int currentLine = 1;
     int currentCol = 1;
     std::string program;
-    std::vector<KeywordConfig> keywordConfigs;
+    std::unordered_map<std::string, TokenType> keywordMap;
+    std::unordered_map<std::string, int> builtinSubMap;
     int positionOffset = 0;
     bool doSecondPass = true;
 

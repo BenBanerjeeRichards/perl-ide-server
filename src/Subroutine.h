@@ -19,7 +19,6 @@ struct Subroutine {
     // Subroutine name, empty if anonymous
     std::string name;
 
-    // TODO more processing on prototype/signatures to understand them
     std::string signature;
     std::string prototype;
 
@@ -27,7 +26,25 @@ struct Subroutine {
     std::vector<std::string> attributes;
 
     std::string toStr();
+
+    const std::string getFullName() const;
 };
+
+struct SubroutineDecl {
+    Subroutine subroutine;
+    std::string path;
+    Range location;
+};
+
+
+namespace std {
+    template<>
+    struct hash<Subroutine> {
+        std::size_t operator()(const Subroutine &sub) const {
+            return std::hash<std::string>()(sub.getFullName());
+        }
+    };
+}
 
 
 #endif //PERLPARSE_SUBROUTINE_H

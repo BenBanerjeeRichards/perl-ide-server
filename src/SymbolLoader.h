@@ -21,6 +21,8 @@ FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath, Cach
 
 GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap);
 
+SubroutineMap buildSubroutineMap(const FileSymbolMap &fileSymbolsMap);
+
 std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath);
 
 std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath, Cache &cache);

@@ -19,3 +19,9 @@ std::string Subroutine::toStr() {
 
     return str;
 }
+
+const std::string Subroutine::getFullName() const {
+    return this->package + "::" + this->name;
+
+}
+

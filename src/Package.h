@@ -21,8 +21,17 @@ struct PackageSpan {
     std::string packageName;
 };
 
+struct PackagedSymbol {
+    std::string package;
+    std::string symbol;
+};
+
 std::string findPackageAtPos(const std::vector<PackageSpan> &packages, FilePos pos);
 
 std::vector<std::string> splitPackage(const std::string &package);
+
+PackagedSymbol splitOnPackage(std::string canonicalSymbol, std::string packageContext);
+
+std::string getCanonicalPackageName(const std::string &package);
 
 #endif //PERLPARSE_PACKAGE_H

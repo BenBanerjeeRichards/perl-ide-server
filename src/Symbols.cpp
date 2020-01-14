@@ -65,3 +65,47 @@ std::string GlobalVariablesMap::toStr() {
 
     return str;
 }
+
+void SubroutineMap::addSub(Subroutine sub, std::string path, std::vector<Range> usages) {
+//    if (this->subsMap.count(sub) == 0) {
+//        this->subsMap[sub] = std::unordered_map<std::string, std::vector<Range>>();
+//    }
+//
+//    if (this->subsMap[sub].count(path) == 0) {
+//        this->subsMap[sub][path] = std::vector<Range>();
+//    }
+//
+//    this->subsMap[sub][path].insert(this->subsMap[sub][path].end(), usages.begin(), usages.end());
+}
+
+std::string SubroutineMap::toStr() {
+    std::string str;
+
+    for (const auto &subMapItem : this->subsMap) {
+        str += subMapItem.first.getFullName() + "\n";
+
+        for (const auto &pathMap : subMapItem.second) {
+            str += "\t" + pathMap.first + ": ";
+
+            for (auto usage : pathMap.second) {
+                str += "(" + usage.toStr() + ") ";
+            }
+            str += "\n";
+        }
+    }
+
+    return str;
+}
+
+std::string Constant::getFullName() {
+    return this->package + "::" + this->name;
+}
+
+Constant::Constant(const std::string &package, const std::string &name, const FilePos &loocation) : package(package),
+                                                                                                    name(name),
+                                                                                                    location(
+                                                                                                            loocation) {}
+
+std::string Constant::toStr() {
+    return "[" + this->location.toStr() + "] " + this->getFullName();
+}

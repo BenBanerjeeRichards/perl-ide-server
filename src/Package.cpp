@@ -45,3 +45,56 @@ std::vector<std::string> splitPackage(const std::string &package) {
     if (!part.empty()) parts.emplace_back(part);
     return parts;
 }
+
+PackagedSymbol splitOnPackage(std::string canonicalSymbol, std::string packageContext) {
+    std::vector<std::string> parts = split(canonicalSymbol, "::");
+    PackagedSymbol packagedSymbol;
+
+    // Remove actual name
+    packagedSymbol.symbol = parts[parts.size() - 1];
+    parts.pop_back();
+
+    // Join again for package name
+    std::string packageNameFromSymbol = parts.empty() ? "" : join(parts, "::");
+    if (packageNameFromSymbol.empty()) {
+        packagedSymbol.package = packageContext;
+    } else {
+        packagedSymbol.package = packageNameFromSymbol;
+    }
+
+    return packagedSymbol;
+}
+
+std::string getCanonicalPackageName(const std::string &package) {
+    std::string canonical = package;
+
+    // Now replace ' with ::
+    for (int i = 0; i < canonical.size(); i++) {
+        if (canonical[i] == '\'') {
+            canonical = canonical.substr(0, i) + "::" + canonical.substr(i + 1, canonical.size() - i);
+        }
+    }
+
+    // Now replace :::: with ::
+    for (int i = 0; i < (int) canonical.size(); i++) {
+        if (canonical[i] == ':') {
+            int j = 1;
+            while (j < (int) canonical.size()) {
+                if (canonical[i + j] != ':') break;
+                j++;
+            }
+
+            int numDoubleColons = (int) j / 2;
+            if (numDoubleColons > 1) {
+                int deleteFrom = i + 2;
+                int deleteTo = i + numDoubleColons * 2;
+                canonical = canonical.substr(0, deleteFrom) + canonical.substr(deleteTo, canonical.size() - deleteTo);
+            }
+
+            i += 2;
+        }
+    }
+
+    return canonical;
+}
+
