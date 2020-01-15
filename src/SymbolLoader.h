@@ -21,11 +21,11 @@ FileSymbolMap loadAllFileSymbols(std::string path, std::string contextPath, Cach
 
 GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap);
 
-SubroutineMap buildSubroutineMap(const FileSymbolMap &fileSymbolsMap);
+SubroutineMap buildSubroutineMap(FileSymbolMap &fileSymbolsMap);
 
 std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath);
 
-std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath, Cache &cache);
+std::optional<Symbols> buildSymbols(const std::string &rootPath, const std::string &contextPath, Cache &cache);
 
 std::unordered_map<std::string, PathNode>
 loadProjectGraph(const std::vector<std::string> &projectFiles, std::vector<std::string> includes, Cache &cache);

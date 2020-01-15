@@ -84,13 +84,53 @@ GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap) 
     return globalVariablesMap;
 }
 
-SubroutineMap buildSubroutineMap(const FileSymbolMap &fileSymbolsMap) {
+std::optional<Subroutine> doFindSubDeclaration(const FileSymbols &fileSymbols, std::string package, std::string name) {
+    for (auto subDecl : fileSymbols.subroutines) {
+        if (subDecl.package == package && subDecl.name == name) {
+            return subDecl;
+        }
+    }
+
+    return {};
+}
+
+
+std::optional<SubroutineDecl>
+findSubDeclaration(FileSymbolMap &fileSymbolsMap, const std::string &path, std::string package, std::string name) {
+    // Search current file first, as this is most likely to have declaration
+    if (fileSymbolsMap.count(path) > 0) {
+        if (auto subDecl = doFindSubDeclaration(fileSymbolsMap[path], package, name)) {
+            return SubroutineDecl(subDecl.value(), path);
+        }
+    }
+
+    // Now search every other file
+    // TODO optimize by first searching only in correct packages
+    for (const auto &pathWithSymbols : fileSymbolsMap) {
+        std::string currPath = pathWithSymbols.first;
+        FileSymbols fileSymbols = pathWithSymbols.second;
+        if (currPath == path) continue; // Already checked this one
+        if (auto subDecl = doFindSubDeclaration(fileSymbolsMap[currPath], package, name)) {
+            return SubroutineDecl(subDecl.value(), path);
+        }
+    }
+
+    return {};
+}
+
+SubroutineMap buildSubroutineMap(FileSymbolMap &fileSymbolsMap) {
     SubroutineMap subroutineMap;
     std::unordered_map<std::string, SubroutineDecl> nameToDecl;
 
-    for (auto pathToFileSymbol : fileSymbolsMap) {
+    for (const auto &pathToFileSymbol : fileSymbolsMap) {
         std::string path = pathToFileSymbol.first;
         FileSymbols fileSymbols = pathToFileSymbol.second;
+
+        for (auto usage : fileSymbols.possibleSubroutineUsages) {
+            if (auto decl = findSubDeclaration(fileSymbolsMap, path, usage.package, usage.name)) {
+                subroutineMap.addSubUsage(decl.value(), usage.pos, path);
+            }
+        }
 
     }
 
@@ -98,7 +138,7 @@ SubroutineMap buildSubroutineMap(const FileSymbolMap &fileSymbolsMap) {
 }
 
 
-std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPath, Cache &cache) {
+std::optional<Symbols> buildSymbols(const std::string &rootPath, const std::string &contextPath, Cache &cache) {
     auto fileSymbolsMap = loadAllFileSymbols(rootPath, contextPath, cache);
     if (fileSymbolsMap.count(contextPath) == 0) {
         std::cerr << "FileAnalysis failed - could not find symbols for root file with path " << rootPath << std::endl;
@@ -109,6 +149,10 @@ std::optional<Symbols> buildSymbols(std::string rootPath, std::string contextPat
     symbols.rootFilePath = contextPath;
     symbols.rootFileSymbols = fileSymbolsMap[contextPath];
     symbols.globalVariablesMap = buildGlobalVariablesMap(fileSymbolsMap);
+    symbols.subroutineMap = buildSubroutineMap(fileSymbolsMap);
+
+    std::cout << symbols.subroutineMap.toStr() << std::endl;
+
     return symbols;
 }
 

@@ -34,6 +34,10 @@ struct Subroutine {
 struct SubroutineDecl {
     Subroutine subroutine;
     std::string path;
+
+    SubroutineDecl(const Subroutine &subroutine, const std::string &path);
+
+    bool operator==(const SubroutineDecl &other) const;
 };
 
 namespace std {
@@ -49,7 +53,7 @@ namespace std {
     template<>
     struct hash<SubroutineDecl> {
         std::size_t operator()(const SubroutineDecl &sub) const {
-            return std::hash<std::string>()(sub.path + sub.subroutine.getFullName());
+            return std::hash<std::string>()(sub.subroutine.getFullName());
         }
     };
 }

@@ -155,6 +155,11 @@ void debugPrint(const std::string &path) {
         std::cout << constant.toStr() << std::endl;
     }
 
+    std::cout << console::bold << std::endl << "Possible subroutinue usages" << console::clear << std::endl;
+    for (auto usage : fileSymbols.possibleSubroutineUsages) {
+        std::cout << usage.toStr() << std::endl;
+    }
+
     std::cout << console::bold << std::endl << "Imports" << console::clear << std::endl;
     for (auto import : fileSymbols.imports) {
         std::cout << import.toStr() << std::endl;
@@ -182,7 +187,10 @@ void debugPrint(const std::string &path) {
 
 
 int main(int argc, char **args) {
-    auto includePaths = getIncludePaths("/");
+    Cache cache;
+    buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
+
+    return 0;
     std::string file = "../perl/input.pl";
 //    std::string file = "/System/Library/Perl/5.18/Math/BigFloat.pm";
 

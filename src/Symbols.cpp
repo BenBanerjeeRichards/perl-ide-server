@@ -66,16 +66,16 @@ std::string GlobalVariablesMap::toStr() {
     return str;
 }
 
-void SubroutineMap::addSub(SubroutineDecl sub, std::string path, std::vector<Range> usages) {
-//    if (this->subsMap.count(sub) == 0) {
-//        this->subsMap[sub] = std::unordered_map<std::string, std::vector<Range>>();
-//    }
-//
-//    if (this->subsMap[sub].count(path) == 0) {
-//        this->subsMap[sub][path] = std::vector<Range>();
-//    }
-//
-//    this->subsMap[sub][path].insert(this->subsMap[sub][path].end(), usages.begin(), usages.end());
+void SubroutineMap::addSubUsage(SubroutineDecl declaration, Range &usageRange, std::string &usagePath) {
+    if (this->subsMap.count(declaration) == 0) {
+        this->subsMap[declaration] = std::unordered_map<std::string, std::vector<Range>>();
+    }
+
+    if (this->subsMap[declaration].count(usagePath) == 0) {
+        this->subsMap[declaration][usagePath] = std::vector<Range>();
+    }
+
+    this->subsMap[declaration][usagePath].emplace_back(usageRange);
 }
 
 std::string SubroutineMap::toStr() {
@@ -108,4 +108,11 @@ Constant::Constant(const std::string &package, const std::string &name, const Fi
 
 std::string Constant::toStr() {
     return "[" + this->location.toStr() + "] " + this->getFullName();
+}
+
+SubroutineUsage::SubroutineUsage(const std::string &package, const std::string &name, const Range &pos) : package(
+        package), name(name), pos(pos) {}
+
+std::string SubroutineUsage::toStr() {
+    return this->pos.toStr() + " " + this->package + "::" + this->name;
 }

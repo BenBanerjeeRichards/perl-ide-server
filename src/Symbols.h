@@ -65,6 +65,10 @@ struct SubroutineUsage {
     std::string package;
     std::string name;
     Range pos;
+
+    SubroutineUsage(const std::string &package, const std::string &name, const Range &pos);
+
+    std::string toStr();
 };
 
 struct Constant {
@@ -94,7 +98,9 @@ struct FileSymbols {
     // All subroutines defined in the file. As of now, these are all exported BUT TODO private subs are allowed
     std::vector<Subroutine> subroutines;
 
-    std::vector<SubroutineUsage> subroutineUsages;
+    // We can't be sure these are actual subroutine usages until we've parsed all files so we can so declaration
+    // resolution
+    std::vector<SubroutineUsage> possibleSubroutineUsages;
 
     // All `require` or `use` imports. `require` imports are treated as static use imports as we can't do runtime
     // analysis! `require $myvar` will of course fail
@@ -136,7 +142,7 @@ struct SubroutineMap {
     // Map from declaration -> (files -> [usages])
     std::unordered_map<SubroutineDecl, std::unordered_map<std::string, std::vector<Range>>> subsMap;
 
-    void addSub(SubroutineDecl global, std::string path, std::vector<Range> usages);
+    void addSubUsage(SubroutineDecl declaration, Range &usageRange, std::string &usagePath);
 
     std::string toStr();
 };
@@ -153,6 +159,8 @@ struct Symbols {
 
     // Global variables across all files
     GlobalVariablesMap globalVariablesMap;
+
+    SubroutineMap subroutineMap;
 
     // Subroutines defined across all files
     std::vector<Subroutine> subroutines;
