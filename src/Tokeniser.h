@@ -137,7 +137,7 @@ private:
 
     void addWhitespaceToken(std::vector<Token> &tokens);
 
-    bool addNewlineWhitespaceCommentTokens(std::vector<Token> &tokens);
+    bool addNewlineWhitespaceCommentTokens(std::vector<Token> &tokens, bool ignoreComments = false);
 
     std::string matchQuoteOperator();
 

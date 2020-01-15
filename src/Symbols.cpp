@@ -66,7 +66,7 @@ std::string GlobalVariablesMap::toStr() {
     return str;
 }
 
-void SubroutineMap::addSub(Subroutine sub, std::string path, std::vector<Range> usages) {
+void SubroutineMap::addSub(SubroutineDecl sub, std::string path, std::vector<Range> usages) {
 //    if (this->subsMap.count(sub) == 0) {
 //        this->subsMap[sub] = std::unordered_map<std::string, std::vector<Range>>();
 //    }
@@ -82,7 +82,7 @@ std::string SubroutineMap::toStr() {
     std::string str;
 
     for (const auto &subMapItem : this->subsMap) {
-        str += subMapItem.first.getFullName() + "\n";
+        str += subMapItem.first.subroutine.getFullName() + "\n";
 
         for (const auto &pathMap : subMapItem.second) {
             str += "\t" + pathMap.first + ": ";

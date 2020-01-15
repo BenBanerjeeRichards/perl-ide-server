@@ -89,7 +89,7 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 //    std::cout << "Names - " << std::endl;
 //    for (auto token : tokens) {
 //        if (token.type == TokenType::Name) {
-//            std::cout << token.data << std::endl;
+//            std::cout << "[" + token.startPos.toStr() << "]" << token.data << std::endl;
 //        }
 //    }
 
@@ -102,7 +102,7 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 }
 
 void testFiles() {
-    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/2/*");
+    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/1/*");
     std::cout << "file,tokens,lines,total_ms,tok_ms,parse_ms,analysis_ms" << std::endl;
     for (auto file : perlFiles) {
         TimeInfo timing{};
@@ -130,7 +130,7 @@ void testFiles() {
 void debugPrint(const std::string &path) {
     TimeInfo timeInfo{};
     FileSymbols fileSymbols = analysisWithTime(path, timeInfo, true);
-    return;
+//    return;
     printFileSymbols(fileSymbols);
 
     std::cout << console::bold << std::endl << "Variables at position" << console::clear << std::endl;

@@ -674,9 +674,8 @@ bool Tokeniser::matchQuoteLiteral(std::vector<Token> &tokens) {
     bool isMultipleLiteral = quoteOperator == "s" || quoteOperator == "y" || quoteOperator == "tr";
     tokens.emplace_back(Token(TokenType::QuoteIdent, startPos, quoteOperator));
 
-    bool whitespaceEtcMatched = addNewlineWhitespaceCommentTokens(tokens);
-
-    addNewlineWhitespaceCommentTokens(tokens);
+    // Match whitespace, ignoring comments
+    bool whitespaceEtcMatched = addNewlineWhitespaceCommentTokens(tokens, true);
     auto quoteChar = peek();
 
     if (isalnum(quoteChar)) {
@@ -699,14 +698,14 @@ bool Tokeniser::matchQuoteLiteral(std::vector<Token> &tokens) {
             start = currentPos();
             whitespace = matchWhitespace();
             if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
-            addNewlineWhitespaceCommentTokens(tokens);
+            addNewlineWhitespaceCommentTokens(tokens, true);
 
             // Now we can match something new
             matchDelimString(tokens);
         } else {
             // Match more string then followed by ending string
             start = currentPos();
-            std::string contents = matchStringLiteral(quoteChar, false);
+            std::string contents = matchStringLiteral(quoteChar);
             if (!contents.empty()) {
                 auto endPos = currentPos();
                 endPos.position -= 1;
@@ -1111,11 +1110,11 @@ bool Tokeniser::matchSlashString(std::vector<Token> &tokens) {
 }
 
 /**
- * Match new lines + whitespace then add them to the tokens list
+ * Match new lines + whitespace + comments, then add them to the tokens list
  * @param tokens
  * @return
  */
-bool Tokeniser::addNewlineWhitespaceCommentTokens(std::vector<Token> &tokens) {
+bool Tokeniser::addNewlineWhitespaceCommentTokens(std::vector<Token> &tokens, bool ignoreComments) {
     bool matched = true;
     int size = tokens.size();
     while (matched) {
@@ -1131,10 +1130,12 @@ bool Tokeniser::addNewlineWhitespaceCommentTokens(std::vector<Token> &tokens) {
 
         matched = matchNewline(tokens) || matched;
 
-        start = currentPos();
-        auto comment = matchComment();
-        matched = !comment.empty() || matched;
-        if (!comment.empty()) tokens.emplace_back(Token(TokenType::Comment, start, comment));
+        if (!ignoreComments) {
+            start = currentPos();
+            auto comment = matchComment();
+            matched = !comment.empty() || matched;
+            if (!comment.empty()) tokens.emplace_back(Token(TokenType::Comment, start, comment));
+        }
     }
 
     return size != tokens.size();
@@ -1194,7 +1195,7 @@ void Tokeniser::matchDereferenceBrackets(std::vector<Token> &tokens) {
         // Is a name!
         start = currentPos();
         auto name = this->matchName();
-        tokens.emplace_back(Token(TokenType::Name, start, name));
+        tokens.emplace_back(Token(TokenType::HashKey, start, name));
 
         start = currentPos();
         whitespace = matchWhitespace();

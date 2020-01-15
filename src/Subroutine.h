@@ -30,18 +30,26 @@ struct Subroutine {
     const std::string getFullName() const;
 };
 
+// path does't belong in Subroutine as normally Subroutine is associated with a FileSymbols
 struct SubroutineDecl {
     Subroutine subroutine;
     std::string path;
-    Range location;
 };
-
 
 namespace std {
     template<>
     struct hash<Subroutine> {
         std::size_t operator()(const Subroutine &sub) const {
             return std::hash<std::string>()(sub.getFullName());
+        }
+    };
+}
+
+namespace std {
+    template<>
+    struct hash<SubroutineDecl> {
+        std::size_t operator()(const SubroutineDecl &sub) const {
+            return std::hash<std::string>()(sub.path + sub.subroutine.getFullName());
         }
     };
 }

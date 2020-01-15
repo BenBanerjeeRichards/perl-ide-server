@@ -1,10 +1,10 @@
 ScalarVariable($x)
 Operator(->)
 HashDerefStart({)
-Name(hello)
+HashKey(hello)
 HashDerefEnd(})
 HashDerefStart({)
-Name(world)
+HashKey(world)
 HashDerefEnd(})
 ;
 LBracket
@@ -14,7 +14,7 @@ RBracket
 ScalarVariable($y)
 Operator(->)
 HashDerefStart({)
-Name(world)
+HashKey(world)
 HashDerefEnd(})
 HashDerefStart({)
 StringStart(")

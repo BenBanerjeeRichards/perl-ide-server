@@ -133,11 +133,10 @@ struct GlobalVariablesMap {
 };
 
 struct SubroutineMap {
-    // Global Variable -> (File path -> [usages])
-    // So GlobalVariablesMap[var]["perl.pm"] is the usages of global var in file "perl.pm"
-    std::unordered_map<Subroutine, std::unordered_map<std::string, std::vector<Range>>> subsMap;
+    // Map from declaration -> (files -> [usages])
+    std::unordered_map<SubroutineDecl, std::unordered_map<std::string, std::vector<Range>>> subsMap;
 
-    void addSub(Subroutine global, std::string path, std::vector<Range> usages);
+    void addSub(SubroutineDecl global, std::string path, std::vector<Range> usages);
 
     std::string toStr();
 };
