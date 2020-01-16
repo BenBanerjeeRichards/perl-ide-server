@@ -96,22 +96,19 @@ std::optional<Subroutine> doFindSubDeclaration(const FileSymbols &fileSymbols, s
 
 
 std::optional<SubroutineDecl>
-findSubDeclaration(FileSymbolMap &fileSymbolsMap, const std::string &path, std::string package, std::string name) {
-    // Search current file first, as this is most likely to have declaration
-    if (fileSymbolsMap.count(path) > 0) {
-        if (auto subDecl = doFindSubDeclaration(fileSymbolsMap[path], package, name)) {
-            return SubroutineDecl(subDecl.value(), path);
-        }
+findSubDeclaration(FileSymbolMap &fileSymbolsMap, std::string package, std::string name,
+                   std::unordered_map<std::string, SubroutineDecl> &cache) {
+    auto cacheKey = package + "::" + name;
+    if (cache.count(cacheKey) > 0) {
+        return cache[cacheKey];
     }
 
-    // Now search every other file
-    // TODO optimize by first searching only in correct packages
     for (const auto &pathWithSymbols : fileSymbolsMap) {
         std::string currPath = pathWithSymbols.first;
-        FileSymbols fileSymbols = pathWithSymbols.second;
-        if (currPath == path) continue; // Already checked this one
         if (auto subDecl = doFindSubDeclaration(fileSymbolsMap[currPath], package, name)) {
-            return SubroutineDecl(subDecl.value(), path);
+            auto decl = SubroutineDecl(subDecl.value(), currPath);
+            cache[cacheKey] = decl;
+            return decl;
         }
     }
 
@@ -121,14 +118,23 @@ findSubDeclaration(FileSymbolMap &fileSymbolsMap, const std::string &path, std::
 SubroutineMap buildSubroutineMap(FileSymbolMap &fileSymbolsMap) {
     SubroutineMap subroutineMap;
     std::unordered_map<std::string, SubroutineDecl> nameToDecl;
+    std::unordered_map<std::string, SubroutineDecl> cache;
+
 
     for (const auto &pathToFileSymbol : fileSymbolsMap) {
         std::string path = pathToFileSymbol.first;
         FileSymbols fileSymbols = pathToFileSymbol.second;
 
         for (auto usage : fileSymbols.possibleSubroutineUsages) {
-            if (auto decl = findSubDeclaration(fileSymbolsMap, path, usage.package, usage.name)) {
-                subroutineMap.addSubUsage(decl.value(), usage.pos, path);
+//            auto begin = std::chrono::steady_clock::now();
+            auto maybeDecl = findSubDeclaration(fileSymbolsMap, usage.package, usage.name, cache);
+//            auto end = std::chrono::steady_clock::now();
+//            auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
+//            std::cout << "[" << time << "] find-sub-usages " << path + " " << usage.toStr() << std::endl;
+
+            if (maybeDecl.has_value()) {
+                subroutineMap.addSubUsage(maybeDecl.value(), usage.pos, path);
             }
         }
 
@@ -149,7 +155,12 @@ std::optional<Symbols> buildSymbols(const std::string &rootPath, const std::stri
     symbols.rootFilePath = contextPath;
     symbols.rootFileSymbols = fileSymbolsMap[contextPath];
     symbols.globalVariablesMap = buildGlobalVariablesMap(fileSymbolsMap);
+
+    auto begin = std::chrono::steady_clock::now();
     symbols.subroutineMap = buildSubroutineMap(fileSymbolsMap);
+    auto end = std::chrono::steady_clock::now();
+    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+    std::cout << "Built map in " << time << "ms" << std::endl;
 
     std::cout << symbols.subroutineMap.toStr() << std::endl;
 

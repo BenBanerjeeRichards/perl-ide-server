@@ -31,3 +31,14 @@ SubroutineDecl::SubroutineDecl(const Subroutine &subroutine, const std::string &
 bool SubroutineDecl::operator==(const SubroutineDecl &other) const {
     return other.subroutine.getFullName() == this->subroutine.getFullName();
 }
+
+SubroutineDecl::SubroutineDecl(const SubroutineDecl &old) {
+    this->path = old.path;
+    this->subroutine = old.subroutine;
+}
+
+SubroutineDecl::SubroutineDecl() {
+    this->path = "";
+    this->subroutine = Subroutine();
+}
+

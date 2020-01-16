@@ -37,7 +37,13 @@ struct SubroutineDecl {
 
     SubroutineDecl(const Subroutine &subroutine, const std::string &path);
 
+    SubroutineDecl(const SubroutineDecl &);
+
+    SubroutineDecl();
+
     bool operator==(const SubroutineDecl &other) const;
+
+
 };
 
 namespace std {
