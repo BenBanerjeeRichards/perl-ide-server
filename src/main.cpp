@@ -247,12 +247,6 @@ int main(int argc, char **args) {
         return 0;
     }
     if (argc == 5 && strncmp(args[1], "sub", 4) == 0) {
-        auto pos = FilePos(std::atoi(args[3]), std::atoi(args[4]));
-        auto vars = analysis::autocompleteSubs(args[2], pos);
-        for (auto completion : vars) {
-            std::cout << completion.name + " - " + completion.detail << std::endl;
-        }
-        return 0;
     } else if (argc > 1 && strncmp(args[1], "test", 4) == 0) {
         printFileTokens(args[2], true);
     } else {

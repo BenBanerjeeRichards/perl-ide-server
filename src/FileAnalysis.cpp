@@ -69,17 +69,24 @@ analysis::autocompleteVariables(const std::string &filePath, const std::string &
     return completions;
 }
 
-std::vector<AutocompleteItem> analysis::autocompleteSubs(const std::string &filePath, FilePos location) {
-    FileSymbols fileSymbols = getFileSymbols(filePath);
-    std::string currentPackage = findPackageAtPos(fileSymbols.packages, location);
+std::vector<AutocompleteItem>
+analysis::autocompleteSubs(const std::string &filePath, const std::string &contextPath, FilePos location,
+                           std::vector<std::string> projectFiles, Cache &cache) {
     std::vector<AutocompleteItem> completions;
+    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache);
+    if (!symbolsMaybe.has_value()) {
+        return completions;
+    }
 
-    for (const auto &sub : fileSymbols.subroutineDeclarations) {
-        if (sub.second->package == currentPackage) {
-            completions.emplace_back(AutocompleteItem(sub.second->name, sub.second->name + "()"));
+    Symbols symbols = symbolsMaybe.value();
+    std::string currentPackage = findPackageAtPos(symbols.rootFileSymbols.packages, location);
+
+    for (auto sub : symbols.subroutines) {
+        if (sub.package == currentPackage) {
+            completions.emplace_back(AutocompleteItem(sub.name, sub.name + "()"));
         } else {
             completions.emplace_back(
-                    AutocompleteItem(sub.second->package + "::" + sub.second->name, sub.second->name + "()"));
+                    AutocompleteItem(sub.package + "::" + sub.name, sub.name + "()"));
         }
     }
 

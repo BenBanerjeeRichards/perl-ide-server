@@ -16,6 +16,7 @@ PERL_COMPLETE_SERVER = "http://localhost:1234/"
 # Constants for the status bar
 STATUS_KEY = "perl_complete"
 STATUS_READY = "PerlComplete ✔"
+STATUS_STOPPED = "PerlComplete ✖ - Language server not found"
 STATUS_LOADING = "PerlComplete ..."
 STATUS_INDEXING = "PerlComplete ... [Indexing Project]"
 STATUS_ON_LOAD = "PerlComplete"
@@ -30,6 +31,10 @@ POST_ATTEMPTS = 5
 # Number of lines difference to split groups in find UX
 USAGE_GROUP_THRESHHOLD = 5
 USAGES_PANEL_NAME = "usages"
+
+# Allow restarting server
+AUTO_RESTART = False
+
 
 def log_info(msg):
     print("[PerlComplete:INFO] - {}".format(msg))
@@ -163,6 +168,9 @@ def ping():
 
 def start_server():
     if not ping():
+        if not AUTO_RESTART:
+            set_status(sublime.active_window().active_view(), STATUS_STOPPED)
+            return
         log_info("Server stopped - starting again")
         # Could not connect to server, needs to be started
         # First stop any PerlParser processes that may be lying around for some reason
@@ -503,6 +511,7 @@ class IndexProjectThread(threading.Thread):
     def run(self):
         log_info("Indexing project...")
         self.on_complete(index_project(self.project_files))
+
 
 
 class GotoDeclarationCommand(sublime_plugin.TextCommand):

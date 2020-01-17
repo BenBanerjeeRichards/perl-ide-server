@@ -53,7 +53,7 @@ void handleAutocompleteVariable(httplib::Response &res, json params, Cache &cach
         sendJson(res, "PARSE_ERROR", "Error occured during tokenization " + ex.reason);
         return;
     } catch (json::exception &) {
-        sendJson(res, "BAD_PARAMS", "Bad Params 2");
+        sendJson(res, "BAD_PARAMS", "Bad Params");
         return;
     }
 
@@ -67,7 +67,7 @@ void handleAutocompleteVariable(httplib::Response &res, json params, Cache &cach
     sendJson(res, response);
 }
 
-void handleAutocompleteSubroutine(httplib::Response &res, json params) {
+void handleAutocompleteSubroutine(httplib::Response &res, json params, Cache &cache) {
     std::string path = params["path"];
     int line, col;
     try {
@@ -80,12 +80,16 @@ void handleAutocompleteSubroutine(httplib::Response &res, json params) {
 
     std::vector<AutocompleteItem> completeItems;
     try {
-        completeItems = analysis::autocompleteSubs(path, FilePos(line, col));
+        completeItems = analysis::autocompleteSubs(path, params["context"], FilePos(line, col), params["projectFiles"],
+                                                   cache);
     } catch (IOException &) {
         sendJson(res, "PATH_NOT_FOUND", "File " + path + " not found");
         return;
     } catch (TokeniseException &ex) {
         sendJson(res, "PARSE_ERROR", "Error occurred during tokenization " + ex.reason);
+        return;
+    } catch (json::exception &) {
+        sendJson(res, "BAD_PARAMS", "Bad Params");
         return;
     }
 
@@ -192,7 +196,7 @@ void startAndBlock(int port) {
             if (reqJson["method"] == "autocomplete-var") {
                 handleAutocompleteVariable(res, params, cache);
             } else if (reqJson["method"] == "autocomplete-sub") {
-                handleAutocompleteSubroutine(res, params);
+                handleAutocompleteSubroutine(res, params, cache);
             } else if (reqJson["method"] == "find-usages") {
                 handleFindUsages(res, params, cache);
             } else if (reqJson["method"] == "find-declaration") {

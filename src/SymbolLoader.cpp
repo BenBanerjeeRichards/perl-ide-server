@@ -184,12 +184,19 @@ buildProjectSymbols(const std::string &rootPath, std::string contextPath, std::v
     auto files = relatedFiles(contextPath, projGraph);
 
     FileSymbolMap fileSymbols;
+    Symbols symbols;
+
     for (auto file : files) {
         // If the current file is in /tmp, load from there but keep key the same
         std::string path = file == contextPath ? rootPath : file;
         auto maybeFileSymbols = loadSymbols(path, cache);
         if (!maybeFileSymbols.has_value()) continue;
-        fileSymbols[file] = maybeFileSymbols.value();
+        FileSymbols symbolsForFile = maybeFileSymbols.value();
+        fileSymbols[file] = symbolsForFile;
+
+        for (auto decl : symbolsForFile.subroutineDeclarations) {
+            symbols.subroutines.emplace_back(*decl.second);
+        }
     }
 
     if (fileSymbols.count(contextPath) == 0) {
@@ -197,7 +204,6 @@ buildProjectSymbols(const std::string &rootPath, std::string contextPath, std::v
         return std::optional<Symbols>();
     }
 
-    Symbols symbols;
     symbols.rootFilePath = contextPath;
     symbols.rootFileSymbols = fileSymbols[contextPath];
     symbols.globalVariablesMap = buildGlobalVariablesMap(fileSymbols);

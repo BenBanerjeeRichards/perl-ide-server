@@ -31,7 +31,9 @@ namespace analysis {
     autocompleteVariables(const std::string &filePath, const std::string &contextPath, FilePos location,
                           std::vector<std::string> projectFiles, char sigilContext, Cache &cache);
 
-    std::vector<AutocompleteItem> autocompleteSubs(const std::string &filePath, FilePos location);
+    std::vector<AutocompleteItem>
+    autocompleteSubs(const std::string &filePath, const std::string &contextPath, FilePos location,
+                     std::vector<std::string> projectFiles, Cache &cache);
 
     std::unordered_map<std::string, std::vector<Range>>
     findVariableUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
