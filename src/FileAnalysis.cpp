@@ -74,11 +74,12 @@ std::vector<AutocompleteItem> analysis::autocompleteSubs(const std::string &file
     std::string currentPackage = findPackageAtPos(fileSymbols.packages, location);
     std::vector<AutocompleteItem> completions;
 
-    for (const auto &sub : fileSymbols.subroutines) {
-        if (sub.package == currentPackage) {
-            completions.emplace_back(AutocompleteItem(sub.name, sub.name + "()"));
+    for (const auto &sub : fileSymbols.subroutineDeclarations) {
+        if (sub.second->package == currentPackage) {
+            completions.emplace_back(AutocompleteItem(sub.second->name, sub.second->name + "()"));
         } else {
-            completions.emplace_back(AutocompleteItem(sub.package + "::" + sub.name, sub.name + "()"));
+            completions.emplace_back(
+                    AutocompleteItem(sub.second->package + "::" + sub.second->name, sub.second->name + "()"));
         }
     }
 

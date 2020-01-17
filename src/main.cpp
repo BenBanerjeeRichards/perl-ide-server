@@ -160,6 +160,16 @@ void debugPrint(const std::string &path) {
         std::cout << usage.toStr() << std::endl;
     }
 
+    std::cout << console::bold << std::endl << "File subroutine usages" << console::clear << std::endl;
+    for (auto usage : fileSymbols.fileSubroutineUsages) {
+        std::string usageRanges = "";
+        for (auto range : usage.second) {
+            usageRanges += range.toStr() + " ";
+        }
+
+        std::cout << usage.first.getFullName() << " - " << usageRanges << std::endl;
+    }
+
     std::cout << console::bold << std::endl << "Imports" << console::clear << std::endl;
     for (auto import : fileSymbols.imports) {
         std::cout << import.toStr() << std::endl;
@@ -186,14 +196,22 @@ void debugPrint(const std::string &path) {
 }
 
 
-int main(int argc, char **args) {
+void buildSymbolsTest() {
     Cache cache;
     buildSymbols("/Users/bbr/Documents/PerlInclude/main.pl", "/Users/bbr/Documents/PerlInclude/main.pl", cache);
+}
 
-    return 0;
+int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
 
 //    std::string file = "/System/Library/Perl/5.18/Math/BigFloat.pm";
+    std::string arg1 = argc >= 2 ? std::string(args[1]) : "";
+    std::string arg2 = argc >= 3 ? std::string(args[2]) : "";
+
+    if (arg1 == "symbols") {
+        buildSymbolsTest();
+        return 0;
+    }
 
     if (argc >= 2) file = args[1];
     if (argc == 2 && strncmp(args[1], "strtest", 7) == 0) {

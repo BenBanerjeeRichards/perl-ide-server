@@ -675,7 +675,7 @@ bool Tokeniser::matchQuoteLiteral(std::vector<Token> &tokens) {
     tokens.emplace_back(Token(TokenType::QuoteIdent, startPos, quoteOperator));
 
     // Match whitespace, ignoring comments
-    bool whitespaceEtcMatched = addNewlineWhitespaceCommentTokens(tokens, true);
+    bool whitespaceEtcMatched = addNewlineWhitespaceCommentTokens(tokens, false);
     auto quoteChar = peek();
 
     if (isalnum(quoteChar)) {
@@ -685,6 +685,15 @@ bool Tokeniser::matchQuoteLiteral(std::vector<Token> &tokens) {
             tokens.erase(tokens.begin() + tokensSize, tokens.end());
             return false;
         }
+    }
+
+    if (quoteChar == '#' && whitespaceEtcMatched) {
+        // If this is the case, it's not a string
+        // `qq#hello# -> string OK
+        // `qq #Hello# -> 'qq' followed by comment`
+        backtrack(startPos);
+        tokens.erase(tokens.begin() + tokensSize, tokens.end());
+        return false;
     }
 
     auto start = currentPos();
@@ -698,14 +707,14 @@ bool Tokeniser::matchQuoteLiteral(std::vector<Token> &tokens) {
             start = currentPos();
             whitespace = matchWhitespace();
             if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
-            addNewlineWhitespaceCommentTokens(tokens, true);
+            addNewlineWhitespaceCommentTokens(tokens, false);
 
             // Now we can match something new
             matchDelimString(tokens);
         } else {
             // Match more string then followed by ending string
             start = currentPos();
-            std::string contents = matchStringLiteral(quoteChar);
+            std::string contents = matchStringLiteral(quoteChar, false);
             if (!contents.empty()) {
                 auto endPos = currentPos();
                 endPos.position -= 1;

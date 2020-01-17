@@ -360,7 +360,6 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
 
                 } else if (tokenType == TokenType::Sub) {
                     auto sub = handleSub(tokenIter, token.startPos, fileSymbols.packages);
-                    fileSymbols.subroutines.emplace_back(sub);  // TOOD remove
                     fileSymbols.subroutineDeclarations[sub.getFullName()] = std::make_shared<Subroutine>(sub);
                 } else if (tokenType == TokenType::Require) {
                     auto import = handleRequire(tokenIter, token.startPos);

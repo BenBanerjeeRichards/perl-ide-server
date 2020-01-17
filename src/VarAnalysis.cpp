@@ -152,21 +152,15 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
                 PackagedSymbol subSymbol = splitOnPackage(canonicalSubName, currPackage);
 
                 // Now resolve
-                auto found = false;
-                for (const Subroutine &decl : fileSymbols.subroutines) {
-                    if (decl.name == subSymbol.symbol && decl.package == subSymbol.package) {
-                        found = true;
-                        // resolved in file!
-                        if (fileSymbols.fileSubroutineUsages.count(decl) == 0) {
-                            fileSymbols.fileSubroutineUsages[decl] = std::vector<Range>();
-                        }
-
-                        fileSymbols.fileSubroutineUsages[decl].emplace_back(
-                                Range(nameToken.startPos, nameToken.endPos));
+                auto key = subSymbol.package + "::" + subSymbol.symbol;
+                if (fileSymbols.subroutineDeclarations.count(key) > 0) {
+                    auto decl = fileSymbols.subroutineDeclarations[key];
+                    if (fileSymbols.fileSubroutineUsages.count(*decl) == 0) {
+                        fileSymbols.fileSubroutineUsages[*decl] = std::vector<Range>();
                     }
-                }
+                    fileSymbols.fileSubroutineUsages[*decl].emplace_back(Range(nameToken.startPos, nameToken.endPos));
 
-                if (!found) {
+                } else {
                     // For further processing later on
                     auto subUsage = SubroutineUsage(subSymbol.package, subSymbol.symbol,
                                                     Range(nameToken.startPos, nameToken.endPos));
@@ -228,8 +222,8 @@ void printFileSymbols(FileSymbols &fileSymbols) {
     }
 
     std::cout << std::endl << "\e[1mSubroutines\e[0m" << std::endl;
-    for (auto function : fileSymbols.subroutines) {
-        std::cout << function.toStr() << std::endl;
+    for (auto function : fileSymbols.subroutineDeclarations) {
+        std::cout << function.second->toStr() << std::endl;
     }
 
 }
@@ -262,7 +256,6 @@ std::string variableForCompletion(std::string variable, char sigilContext) {
     if (variable[0] == '%' && sigilContext == '@') return "@" + variableWithoutSigil;
     return "";
 }
-
 
 
 /**

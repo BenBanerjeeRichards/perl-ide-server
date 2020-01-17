@@ -129,15 +129,9 @@ SubroutineMap buildSubroutineMap(FileSymbolMap &fileSymbolsMap) {
             auto decl = SubroutineDecl(sub.first, path);
             subroutineMap.addSubUsages(decl, sub.second, path);
         }
-
+        std::cout << path << " - " << std::endl;
         for (auto usage : fileSymbols.possibleSubroutineUsages) {
-//            auto begin = std::chrono::steady_clock::now();
             auto maybeDecl = findSubDeclaration(fileSymbolsMap, usage.package, usage.name, cache);
-//            auto end = std::chrono::steady_clock::now();
-//            auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-
-//            std::cout << "[" << time << "] find-sub-usages " << path + " " << usage.toStr() << std::endl;
-
             if (maybeDecl.has_value()) {
                 subroutineMap.addSubUsage(maybeDecl.value(), usage.pos, path);
             }
