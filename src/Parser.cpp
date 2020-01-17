@@ -191,7 +191,9 @@ Subroutine handleSub(TokenIterator &tokenIter, FilePos subStart, std::vector<Pac
     subroutine.pos = subStart;
 
     auto nextTok = tokenIter.next();
+    bool unnamed = true;
     if (nextTok.type == TokenType::SubName) {
+        unnamed = false;
         // If this is not the case then function is unnamed
         subroutine.name = nextTok.data;
         subroutine.nameStart = nextTok.startPos;
@@ -205,7 +207,16 @@ Subroutine handleSub(TokenIterator &tokenIter, FilePos subStart, std::vector<Pac
         nextTok = tokenIter.next();
     }
 
-    subroutine.package = findPackageAtPos(packages, subroutine.pos);
+    auto currentPackage = findPackageAtPos(packages, subroutine.pos);
+    if (unnamed) {
+        subroutine.package = currentPackage;
+    } else {
+        auto canonicalSubName = getCanonicalPackageName(subroutine.name);
+        auto symbol = splitOnPackage(canonicalSubName, currentPackage);
+        subroutine.package = symbol.package;
+        subroutine.name = symbol.symbol;
+    }
+
     return subroutine;
 
 }

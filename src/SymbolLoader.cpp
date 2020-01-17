@@ -123,6 +123,8 @@ SubroutineMap buildSubroutineMap(FileSymbolMap &fileSymbolsMap) {
 
     for (const auto &pathToFileSymbol : fileSymbolsMap) {
         std::string path = pathToFileSymbol.first;
+        if (isSystemPath(path)) continue;
+
         FileSymbols fileSymbols = pathToFileSymbol.second;
 
         for (auto sub : fileSymbols.fileSubroutineUsages) {
