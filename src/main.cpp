@@ -93,10 +93,10 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 //        }
 //    }
 
-    auto prog = readFile(path);
-    for (auto token : tokens) {
-        std::cout << tokenToStrWithCode(token, prog) << std::endl;
-    }
+//    auto prog = readFile(path);
+//    for (auto token : tokens) {
+//        std::cout << tokenToStrWithCode(token, prog) << std::endl;
+//    }
 
     return fileSymbols;
 }
@@ -192,10 +192,10 @@ int main(int argc, char **args) {
 
     return 0;
     std::string file = "../perl/input.pl";
+
 //    std::string file = "/System/Library/Perl/5.18/Math/BigFloat.pm";
 
     if (argc >= 2) file = args[1];
-
     if (argc == 2 && strncmp(args[1], "strtest", 7) == 0) {
         testFiles();
         return 0;

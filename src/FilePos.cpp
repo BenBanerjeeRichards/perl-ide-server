@@ -29,3 +29,7 @@ std::string Range::toStr() {
     return "[" + this->from.toStr() + "] - [" + this->to.toStr() + "]";
 }
 
+bool Range::operator==(const Range other) {
+    return this->to == other.to && this->from == other.from;
+}
+

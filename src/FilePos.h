@@ -26,7 +26,7 @@ struct FilePos {
         this->position = position;
     }
 
-    bool operator==(const FilePos& other) {
+    bool operator==(const FilePos &other) const {
         // NOTE: Ignores position
         return other.line == this->line && other.col == this->col;
     }
@@ -55,6 +55,8 @@ struct Range {
     Range(FilePos from, int symbolLength);
 
     std::string toStr();
+
+    bool operator==(const Range);
 };
 
 

@@ -132,6 +132,32 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
                     usages[declaration].emplace_back(Range(token.startPos, token.endPos));
                 }
 
+            } else if (token.type == TokenType::Name) {
+                // Try to resolve to subroutine declaration
+                auto currPackage = findPackageAtPos(fileSymbols.packages, token.startPos);
+                auto canonicalSubName = getCanonicalPackageName(token.data);
+                PackagedSymbol subSymbol = splitOnPackage(canonicalSubName, currPackage);
+
+                // Now resolve
+                auto found = false;
+                for (Subroutine decl : fileSymbols.subroutines) {
+                    if (decl.name == subSymbol.symbol && decl.package == subSymbol.package) {
+                        found = true;
+                        // resolved in file!
+                        if (fileSymbols.fileSubroutineUsages.count(decl) == 0) {
+                            fileSymbols.fileSubroutineUsages[decl] = std::vector<Range>();
+                        }
+
+                        fileSymbols.fileSubroutineUsages[decl].emplace_back(Range(token.startPos, token.endPos));
+                    }
+                }
+
+                if (!found) {
+                    // For further processing later on
+                    auto subUsage = SubroutineUsage(subSymbol.package, subSymbol.symbol,
+                                                    Range(token.startPos, token.endPos));
+                    fileSymbols.possibleSubroutineUsages.emplace_back(subUsage);
+                }
             }
             token = tokenIterator.next();
         }

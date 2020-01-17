@@ -78,6 +78,20 @@ void SubroutineMap::addSubUsage(SubroutineDecl declaration, Range &usageRange, s
     this->subsMap[declaration][usagePath].emplace_back(usageRange);
 }
 
+void SubroutineMap::addSubUsages(SubroutineDecl declaration, std::vector<Range> &usages, std::string &usagePath) {
+    if (this->subsMap.count(declaration) == 0) {
+        this->subsMap[declaration] = std::unordered_map<std::string, std::vector<Range>>();
+    }
+
+    if (this->subsMap[declaration].count(usagePath) == 0) {
+        this->subsMap[declaration][usagePath] = std::vector<Range>();
+    }
+
+    this->subsMap[declaration][usagePath].insert(this->subsMap[declaration][usagePath].end(), usages.begin(),
+                                                 usages.end());
+
+}
+
 std::string SubroutineMap::toStr() {
     std::string str;
 

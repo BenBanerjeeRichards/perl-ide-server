@@ -84,14 +84,14 @@ GlobalVariablesMap buildGlobalVariablesMap(const FileSymbolMap &fileSymbolsMap) 
     return globalVariablesMap;
 }
 
-std::optional<Subroutine> doFindSubDeclaration(const FileSymbols &fileSymbols, std::string package, std::string name) {
-    for (auto subDecl : fileSymbols.subroutines) {
-        if (subDecl.package == package && subDecl.name == name) {
-            return subDecl;
-        }
+std::optional<std::shared_ptr<Subroutine>>
+doFindSubDeclaration(const FileSymbols &fileSymbols, std::string package, std::string name) {
+    auto it = fileSymbols.subroutineDeclarations.find(package + "::" + name);
+    if (it == fileSymbols.subroutineDeclarations.end()) {
+        return {};
     }
 
-    return {};
+    return it->second;
 }
 
 
@@ -106,7 +106,7 @@ findSubDeclaration(FileSymbolMap &fileSymbolsMap, std::string package, std::stri
     for (const auto &pathWithSymbols : fileSymbolsMap) {
         std::string currPath = pathWithSymbols.first;
         if (auto subDecl = doFindSubDeclaration(fileSymbolsMap[currPath], package, name)) {
-            auto decl = SubroutineDecl(subDecl.value(), currPath);
+            auto decl = SubroutineDecl(*subDecl.value(), currPath);
             cache[cacheKey] = decl;
             return decl;
         }
@@ -124,6 +124,11 @@ SubroutineMap buildSubroutineMap(FileSymbolMap &fileSymbolsMap) {
     for (const auto &pathToFileSymbol : fileSymbolsMap) {
         std::string path = pathToFileSymbol.first;
         FileSymbols fileSymbols = pathToFileSymbol.second;
+
+        for (auto sub : fileSymbols.fileSubroutineUsages) {
+            auto decl = SubroutineDecl(sub.first, path);
+            subroutineMap.addSubUsages(decl, sub.second, path);
+        }
 
         for (auto usage : fileSymbols.possibleSubroutineUsages) {
 //            auto begin = std::chrono::steady_clock::now();

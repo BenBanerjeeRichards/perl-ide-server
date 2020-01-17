@@ -28,6 +28,8 @@ struct Subroutine {
     std::string toStr();
 
     const std::string getFullName() const;
+
+    bool operator==(const Subroutine &other) const;
 };
 
 // path does't belong in Subroutine as normally Subroutine is associated with a FileSymbols

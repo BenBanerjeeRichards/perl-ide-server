@@ -369,7 +369,8 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
 
                 } else if (tokenType == TokenType::Sub) {
                     auto sub = handleSub(tokenIter, token.startPos, fileSymbols.packages);
-                    fileSymbols.subroutines.emplace_back(sub);
+                    fileSymbols.subroutines.emplace_back(sub);  // TOOD remove
+                    fileSymbols.subroutineDeclarations[sub.getFullName()] = std::make_shared<Subroutine>(sub);
                 } else if (tokenType == TokenType::Require) {
                     auto import = handleRequire(tokenIter, token.startPos);
                     if (import.has_value()) {
@@ -386,11 +387,6 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
                         if (import.has_value()) {
                             fileSymbols.imports.emplace_back(import.value());
                         }
-                    }
-                } else if (tokenType == TokenType::Name) {
-                    // Possible subroutine definition
-                    if (auto sub = handlePossibleSubroutineUsages(token, fileSymbols.packages)) {
-                        fileSymbols.possibleSubroutineUsages.emplace_back(sub.value());
                     }
                 }
                 token = tokenIter.next();

@@ -96,7 +96,12 @@ struct FileSymbols {
     std::vector<PackageSpan> packages;
 
     // All subroutines defined in the file. As of now, these are all exported BUT TODO private subs are allowed
-    std::vector<Subroutine> subroutines;
+    std::vector<Subroutine> subroutines;    // TODO remove this in favor of subroutineDeclarations
+
+    std::unordered_map<std::string, std::shared_ptr<Subroutine>> subroutineDeclarations;
+
+    // Where a subroutine call is declared in the current file
+    std::unordered_map<Subroutine, std::vector<Range>> fileSubroutineUsages;
 
     // We can't be sure these are actual subroutine usages until we've parsed all files so we can so declaration
     // resolution
@@ -145,6 +150,8 @@ struct SubroutineMap {
     void addSubUsage(SubroutineDecl declaration, Range &usageRange, std::string &usagePath);
 
     std::string toStr();
+
+    void addSubUsages(SubroutineDecl declaration, std::vector<Range> &usages, std::string &usagePath);
 };
 
 

@@ -25,6 +25,10 @@ const std::string Subroutine::getFullName() const {
 
 }
 
+bool Subroutine::operator==(const Subroutine &other) const {
+    return this->package == other.package && this->name == other.name && (this->pos == other.pos);
+}
+
 SubroutineDecl::SubroutineDecl(const Subroutine &subroutine, const std::string &path) : subroutine(subroutine),
                                                                                         path(path) {}
 
