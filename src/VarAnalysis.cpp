@@ -133,14 +133,27 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
                 }
 
             } else if (token.type == TokenType::Name) {
+                Token nameToken = token;
+                auto peek = tokenIterator.peek();
+                if (peek.type == TokenType::Operator && peek.data == "->") {
+                    tokenIterator.next();
+                    auto peekName = tokenIterator.peek();
+                    if (peekName.type == TokenType::Name) {
+                        tokenIterator.next();
+                        // We have Name -> Name
+                        // Combine into single token
+                        nameToken.endPos = peekName.endPos;
+                        nameToken.data = nameToken.data + "::" + peekName.data;
+                    }
+                }
                 // Try to resolve to subroutine declaration
-                auto currPackage = findPackageAtPos(fileSymbols.packages, token.startPos);
-                auto canonicalSubName = getCanonicalPackageName(token.data);
+                auto currPackage = findPackageAtPos(fileSymbols.packages, nameToken.startPos);
+                auto canonicalSubName = getCanonicalPackageName(nameToken.data);
                 PackagedSymbol subSymbol = splitOnPackage(canonicalSubName, currPackage);
 
                 // Now resolve
                 auto found = false;
-                for (Subroutine decl : fileSymbols.subroutines) {
+                for (const Subroutine &decl : fileSymbols.subroutines) {
                     if (decl.name == subSymbol.symbol && decl.package == subSymbol.package) {
                         found = true;
                         // resolved in file!
@@ -148,14 +161,15 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
                             fileSymbols.fileSubroutineUsages[decl] = std::vector<Range>();
                         }
 
-                        fileSymbols.fileSubroutineUsages[decl].emplace_back(Range(token.startPos, token.endPos));
+                        fileSymbols.fileSubroutineUsages[decl].emplace_back(
+                                Range(nameToken.startPos, nameToken.endPos));
                     }
                 }
 
                 if (!found) {
                     // For further processing later on
                     auto subUsage = SubroutineUsage(subSymbol.package, subSymbol.symbol,
-                                                    Range(token.startPos, token.endPos));
+                                                    Range(nameToken.startPos, nameToken.endPos));
                     fileSymbols.possibleSubroutineUsages.emplace_back(subUsage);
                 }
             }

@@ -68,10 +68,13 @@ PackagedSymbol splitOnPackage(std::string canonicalSymbol, std::string packageCo
 std::string getCanonicalPackageName(const std::string &package) {
     std::string canonical = package;
 
-    // Now replace ' with ::
+    // Now replace ' with ::, -> with ::
     for (int i = 0; i < canonical.size(); i++) {
         if (canonical[i] == '\'') {
             canonical = canonical.substr(0, i) + "::" + canonical.substr(i + 1, canonical.size() - i);
+        } else if (canonical[i] == '-' && i < canonical.size() - 2 && canonical[i + 1] == '>') {
+            canonical[i] = ':';
+            canonical[i + 1] = ':';
         }
     }
 

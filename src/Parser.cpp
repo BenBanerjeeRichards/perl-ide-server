@@ -328,15 +328,6 @@ std::optional<Constant> handleConstant(TokenIterator &tokenIter, const std::vect
     return Constant(constantSymbol.package, constantSymbol.symbol, tokenName.startPos);
 }
 
-std::optional<SubroutineUsage>
-handlePossibleSubroutineUsages(const Token &token, const std::vector<PackageSpan> &packages) {
-    auto currPackage = findPackageAtPos(packages, token.startPos);
-    auto canonicalSubName = getCanonicalPackageName(token.data);
-    PackagedSymbol subSymbol = splitOnPackage(canonicalSubName, currPackage);
-    return SubroutineUsage(subSymbol.package, subSymbol.symbol, Range(token.startPos, token.endPos));
-}
-
-
 void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_ptr<SymbolNode> &symbolNode,
                       FileSymbols &fileSymbols, std::vector<std::string> &variables,
                       int lastId) {
