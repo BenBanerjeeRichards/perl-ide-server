@@ -14,14 +14,10 @@
 
 namespace analysis {
 
-    struct SymbolUsage {
-        int line;
-        int col;
-        std::string sourceLine;
-
-        SymbolUsage(int line, int col, const std::string &sourceLine);
+    struct Declaration {
+        std::string path;
+        FilePos pos;
     };
-
 
     typedef std::unordered_map<std::string, std::vector<FilePos>> UsagesMap;
 
@@ -42,6 +38,10 @@ namespace analysis {
     std::optional<FilePos> findVariableDeclaration(const std::string &filePath, FilePos location);
 
     void indexProject(std::vector<std::string> projectFiles, Cache &cache);
+
+    std::optional<analysis::Declaration>
+    findSubroutineDeclaration(const std::string &filePath, const std::string &contextPath, FilePos location,
+                              std::vector<std::string> projectFiles, Cache &cache);
 }
 
 #endif //PERLPARSE_FILEANALYSIS_H

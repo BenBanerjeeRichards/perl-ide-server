@@ -35,7 +35,6 @@ USAGES_PANEL_NAME = "usages"
 # Allow restarting server
 AUTO_RESTART = False
 
-
 def log_info(msg):
     print("[PerlComplete:INFO] - {}".format(msg))
 
@@ -137,7 +136,8 @@ def find_declaration(path, context_path, line, col):
         "line": line,
         "col": col,
         "path": path,
-        "context": context_path
+        "context": context_path,
+        "projectFiles": get_project_files()
     })
 
     if not res["success"]:
@@ -534,7 +534,10 @@ class GotoDeclarationCommand(sublime_plugin.TextCommand):
 
 # Command to move cursor to specific position in current view
 class MoveCursorCommand(sublime_plugin.TextCommand):
-    def run(self, edit, line, col):
+    def run(self, edit, line, col, path):
+        sublime.active_window().open_file("{}:{}:{}".format(path, line, col), sublime.ENCODED_POSITION)
+        log_info("OPENING " + "{}:{}:{}".format(path, line, col))
+        return
         del_point = self.view.text_point(line - 1, col - 1)
         log_debug("Moving cursor to {}".format(del_point))
         self.view.sel().clear()
@@ -562,7 +565,8 @@ def on_find_declaration_complete(declaration):
     if declaration is not None and declaration["exists"]:
         # Move the cursor
         # Have to use event as we can't change cursor position in this thread
-        sublime.active_window().run_command("move_cursor", {"line": declaration["line"], "col": declaration["col"]})
+        sublime.active_window().run_command("move_cursor", {"line": declaration["line"], "col": declaration["col"],
+                                                            "path": declaration["file"]})
     else:
         view.show_popup("Declaration not found")
 

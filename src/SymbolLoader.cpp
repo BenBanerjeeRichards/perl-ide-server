@@ -177,9 +177,8 @@ std::optional<Symbols> buildSymbols(const std::string &rootPath, const std::stri
  * @return
  */
 std::optional<Symbols>
-buildProjectSymbols(const std::string &rootPath, std::string contextPath, std::vector<std::string> projectPaths,
-                    Cache &cache) {
-    // TODO use root path when building graph too
+buildProjectSymbols(const std::string &rootPath, const std::string &contextPath, std::vector<std::string> projectPaths,
+                    Cache &cache, bool variableUsages, bool subroutineDecl, bool subroutineUsage) {
     auto projGraph = loadProjectGraph(projectPaths, getIncludePaths(directoryOf(contextPath)), cache);
     auto files = relatedFiles(contextPath, projGraph);
 
@@ -194,8 +193,10 @@ buildProjectSymbols(const std::string &rootPath, std::string contextPath, std::v
         FileSymbols symbolsForFile = maybeFileSymbols.value();
         fileSymbols[file] = symbolsForFile;
 
-        for (auto decl : symbolsForFile.subroutineDeclarations) {
-            symbols.subroutines.emplace_back(*decl.second);
+        if (subroutineDecl) {
+            for (auto decl : symbolsForFile.subroutineDeclarations) {
+                symbols.subroutines.emplace_back(*decl.second);
+            }
         }
     }
 
@@ -206,7 +207,15 @@ buildProjectSymbols(const std::string &rootPath, std::string contextPath, std::v
 
     symbols.rootFilePath = contextPath;
     symbols.rootFileSymbols = fileSymbols[contextPath];
-    symbols.globalVariablesMap = buildGlobalVariablesMap(fileSymbols);
+
+    if (variableUsages) {
+        symbols.globalVariablesMap = buildGlobalVariablesMap(fileSymbols);
+    }
+
+    if (subroutineUsage) {
+        symbols.subroutineMap = buildSubroutineMap(fileSymbols);
+    }
+
     return symbols;
 }
 

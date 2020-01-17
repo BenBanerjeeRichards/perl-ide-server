@@ -133,22 +133,31 @@ void handleFindUsages(httplib::Response &res, json params, Cache &cache) {
 }
 
 
-void handleFindDeclaration(httplib::Response &res, json params) {
+void handleFindDeclaration(httplib::Response &res, json params, Cache &cache) {
     std::string path = params["path"];
     std::string context = params["context"];
+    std::vector<std::string> projectFiles = params["projectFiles"];
     int line = params["line"];
     int col = params["col"];
 
     // TODO expand search to multiple files
     json response;
     auto maybeDecl = analysis::findVariableDeclaration(path, FilePos(line, col));
-    if (!maybeDecl.has_value()) {
-        response["exists"] = false;
-    } else {
+    if (maybeDecl.has_value()) {
         response["exists"] = true;
         response["file"] = context;
         response["line"] = maybeDecl.value().line;
         response["col"] = maybeDecl.value().col;
+    } else {
+        auto maybeSub = analysis::findSubroutineDeclaration(path, context, FilePos(line, col), projectFiles, cache);
+        if (maybeSub.has_value()) {
+            response["exists"] = true;
+            response["file"] = maybeSub.value().path;
+            response["line"] = maybeSub.value().pos.line;
+            response["col"] = maybeSub.value().pos.col;
+        } else {
+            response["exists"] = false;
+        }
     }
 
     sendJson(res, response);
@@ -200,7 +209,7 @@ void startAndBlock(int port) {
             } else if (reqJson["method"] == "find-usages") {
                 handleFindUsages(res, params, cache);
             } else if (reqJson["method"] == "find-declaration") {
-                handleFindDeclaration(res, params);
+                handleFindDeclaration(res, params, cache);
             } else if (reqJson["method"] == "index-project") {
                 handleIndexProject(res, params, cache);
             } else {

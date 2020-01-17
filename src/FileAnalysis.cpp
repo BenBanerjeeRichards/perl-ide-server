@@ -22,7 +22,7 @@ std::vector<AutocompleteItem>
 analysis::autocompleteVariables(const std::string &filePath, const std::string &contextPath, FilePos location,
                                 std::vector<std::string> projectFiles, char sigilContext, Cache &cache) {
     std::vector<AutocompleteItem> completions;
-    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache);
+    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache, true, false, false);
     if (!symbolsMaybe.has_value()) {
         return completions;
     }
@@ -73,7 +73,7 @@ std::vector<AutocompleteItem>
 analysis::autocompleteSubs(const std::string &filePath, const std::string &contextPath, FilePos location,
                            std::vector<std::string> projectFiles, Cache &cache) {
     std::vector<AutocompleteItem> completions;
-    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache);
+    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache, false, true, false);
     if (!symbolsMaybe.has_value()) {
         return completions;
     }
@@ -98,7 +98,7 @@ analysis::findVariableUsages(const std::string &filePath, const std::string &con
                              std::vector<std::string> projectFiles, Cache &cache) {
     std::unordered_map<std::string, std::vector<Range>> usages;
 
-    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache);
+    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache, true, false, false);
     if (!symbolsMaybe.has_value()) {
         return usages;
     }
@@ -141,6 +141,36 @@ std::optional<FilePos> analysis::findVariableDeclaration(const std::string &file
     return findVariableDeclaration(fileSymbols, location);
 }
 
+std::optional<analysis::Declaration>
+analysis::findSubroutineDeclaration(const std::string &filePath, const std::string &contextPath, FilePos location,
+                                    std::vector<std::string> projectFiles, Cache &cache) {
+    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache, false, false, true);
+    if (!symbolsMaybe.has_value()) {
+        return {};
+    }
+
+    auto symbols = symbolsMaybe.value();
+    auto subMap = symbols.subroutineMap.subsMap;
+
+    for (const auto &subMapItem : subMap) {
+        auto fileToRangeMap = subMapItem.second;
+        if (fileToRangeMap.count(contextPath) == 0) continue;
+
+        for (auto range : fileToRangeMap[contextPath]) {
+            if (insideRange(range, location)) {
+                // We've found the subroutine symbol, now get declaration
+                Declaration decl;
+                decl.path = subMapItem.first.path;
+                decl.pos = subMapItem.first.subroutine.pos;
+                return decl;
+            }
+        }
+    }
+
+    return {};
+
+}
+
 /**
  * Load project files (and their imports) into cache, for fast future loading
  * @param projectFiles
@@ -152,6 +182,3 @@ void analysis::indexProject(std::vector<std::string> projectFiles, Cache &cache)
     }
 }
 
-
-analysis::SymbolUsage::SymbolUsage(int line, int col, const std::string &sourceLine) : line(line), col(col),
-                                                                                       sourceLine(sourceLine) {}

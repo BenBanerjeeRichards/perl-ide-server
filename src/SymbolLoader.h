@@ -37,7 +37,8 @@ std::set<std::string> pathsConnectedTo(std::string path, std::unordered_map<std:
 std::set<std::string> relatedFiles(std::string path, std::unordered_map<std::string, PathNode> graph);
 
 std::optional<Symbols>
-buildProjectSymbols(const std::string &rootPath, std::string contextPath, std::vector<std::string> projectPaths,
-                    Cache &cache);
+buildProjectSymbols(const std::string &rootPath, const std::string &contextPath, std::vector<std::string> projectPaths,
+                    Cache &cache, bool variableUsages = false, bool subroutineDecl = false,
+                    bool subroutineUsage = false);
 
 #endif //PERLPARSE_SYMBOLLOADER_H
