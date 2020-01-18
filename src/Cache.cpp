@@ -21,6 +21,7 @@ std::string generateMd5Sum(const std::string &path) {
     md5_init(&state);
     // TODO what if path doesn't exist? Add error testing
     auto fileContents = readFile(path).c_str();
+    if (strlen(fileContents) == 0) return "<EMPTY>";
     md5_append(&state, (const md5_byte_t *) fileContents, strlen(fileContents));
     md5_byte_t digest[16];
     md5_finish(&state, digest);

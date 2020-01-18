@@ -17,6 +17,9 @@ std::optional<FileSymbols> loadSymbols(std::string path, Cache &cache) {
         } catch (IOException e) {
             std::cerr << "Failed to load symbols - file not found:" << path << std::endl;
             return std::optional<FileSymbols>();
+        } catch (TokeniseException &e) {
+            std::cerr << "Tokenization failed for path:" << path << std::endl;
+            return std::optional<FileSymbols>();
         }
         cache.addItem(path, std::make_shared<FileSymbols>(fileSymbols));
     }

@@ -93,17 +93,10 @@ analysis::autocompleteSubs(const std::string &filePath, const std::string &conte
     return completions;
 }
 
-std::unordered_map<std::string, std::vector<Range>>
+std::optional<std::unordered_map<std::string, std::vector<Range>>>
 analysis::findVariableUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
-                             std::vector<std::string> projectFiles, Cache &cache) {
+                             Symbols &symbols) {
     std::unordered_map<std::string, std::vector<Range>> usages;
-
-    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, projectFiles, cache, true, false, false);
-    if (!symbolsMaybe.has_value()) {
-        return usages;
-    }
-
-    auto symbols = symbolsMaybe.value();
 
     // Test if local variable first
     auto maybeVariable = findVariableAtLocation(symbols.rootFileSymbols, location);
@@ -133,13 +126,79 @@ analysis::findVariableUsages(const std::string &filePath, const std::string &con
         }
     }
 
-    return usages;
+    return {};
+}
+
+
+std::optional<analysis::Declaration>
+doFindSubroutineDeclaration(std::string contextPath, FilePos location, Symbols &symbols) {
+    auto subMap = symbols.subroutineMap.subsMap;
+
+    for (const auto &subMapItem : subMap) {
+        auto fileToRangeMap = subMapItem.second;
+        if (fileToRangeMap.count(contextPath) == 0) continue;
+
+        for (auto range : fileToRangeMap[contextPath]) {
+            if (insideRange(range, location)) {
+                // We've found the subroutine symbol, now get declaration
+                analysis::Declaration decl;
+                decl.path = subMapItem.first.path;
+                decl.pos = subMapItem.first.subroutine.pos;
+                return decl;
+            }
+        }
+    }
+
+    return {};
+}
+
+std::optional<std::unordered_map<std::string, std::vector<Range>>>
+analysis::findSubroutineUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+                               Symbols &symbols) {
+    auto subMap = symbols.subroutineMap.subsMap;
+
+    for (const auto &subMapItem : subMap) {
+        auto fileToRangeMap = subMapItem.second;
+        if (fileToRangeMap.count(contextPath) == 0) continue;
+
+        for (auto range : fileToRangeMap[contextPath]) {
+            if (insideRange(range, location)) {
+                // We've found the subroutine symbol, now get declaration
+                return subMap[subMapItem.first];
+            }
+        }
+    }
+
+    return {};
+}
+
+std::unordered_map<std::string, std::vector<Range>>
+analysis::findUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+                     std::vector<std::string> projectFiles, Cache &cache) {
+    auto symbolsMaybe = buildProjectSymbols(filePath, contextPath, std::move(projectFiles), cache, true, false, true);
+    if (!symbolsMaybe.has_value()) {
+        return std::unordered_map<std::string, std::vector<Range>>();
+    }
+
+    auto symbols = symbolsMaybe.value();
+
+    if (auto variableUsages = analysis::findVariableUsages(filePath, contextPath, location, symbols)) {
+        return variableUsages.value();
+    }
+
+
+    if (auto subUsages = analysis::findSubroutineUsages(filePath, contextPath, location, symbols)) {
+        return subUsages.value();
+    }
+
+    return std::unordered_map<std::string, std::vector<Range>>();
 }
 
 std::optional<FilePos> analysis::findVariableDeclaration(const std::string &filePath, FilePos location) {
     FileSymbols fileSymbols = getFileSymbols(filePath);
     return findVariableDeclaration(fileSymbols, location);
 }
+
 
 std::optional<analysis::Declaration>
 analysis::findSubroutineDeclaration(const std::string &filePath, const std::string &contextPath, FilePos location,
@@ -150,26 +209,9 @@ analysis::findSubroutineDeclaration(const std::string &filePath, const std::stri
     }
 
     auto symbols = symbolsMaybe.value();
-    auto subMap = symbols.subroutineMap.subsMap;
-
-    for (const auto &subMapItem : subMap) {
-        auto fileToRangeMap = subMapItem.second;
-        if (fileToRangeMap.count(contextPath) == 0) continue;
-
-        for (auto range : fileToRangeMap[contextPath]) {
-            if (insideRange(range, location)) {
-                // We've found the subroutine symbol, now get declaration
-                Declaration decl;
-                decl.path = subMapItem.first.path;
-                decl.pos = subMapItem.first.subroutine.pos;
-                return decl;
-            }
-        }
-    }
-
-    return {};
-
+    return doFindSubroutineDeclaration(contextPath, location, symbols);
 }
+
 
 /**
  * Load project files (and their imports) into cache, for fast future loading

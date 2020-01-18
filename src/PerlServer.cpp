@@ -112,8 +112,8 @@ void handleFindUsages(httplib::Response &res, json params, Cache &cache) {
         std::vector<std::string> projectFiles = params["projectFiles"];
 
         std::map<std::string, std::vector<std::vector<int>>> jsonFrom;
-        for (const auto &fileWithUsages : analysis::findVariableUsages(path, contextPath, FilePos(line, col),
-                                                                       projectFiles, cache)) {
+        for (const auto &fileWithUsages : analysis::findUsages(path, contextPath, FilePos(line, col),
+                                                               projectFiles, cache)) {
             std::vector<std::vector<int>> fileLocations;
             for (const Range &usage : fileWithUsages.second) {
                 fileLocations.emplace_back(std::vector<int>{usage.from.line, usage.from.col});

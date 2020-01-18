@@ -31,9 +31,9 @@ namespace analysis {
     autocompleteSubs(const std::string &filePath, const std::string &contextPath, FilePos location,
                      std::vector<std::string> projectFiles, Cache &cache);
 
-    std::unordered_map<std::string, std::vector<Range>>
+    std::optional<std::unordered_map<std::string, std::vector<Range>>>
     findVariableUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
-                       std::vector<std::string> projectFiles, Cache &cache);
+                       Symbols &symbols);
 
     std::optional<FilePos> findVariableDeclaration(const std::string &filePath, FilePos location);
 
@@ -42,6 +42,14 @@ namespace analysis {
     std::optional<analysis::Declaration>
     findSubroutineDeclaration(const std::string &filePath, const std::string &contextPath, FilePos location,
                               std::vector<std::string> projectFiles, Cache &cache);
+
+    std::unordered_map<std::string, std::vector<Range>>
+    findUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+               std::vector<std::string> projectFiles, Cache &cache);
+
+    std::optional<std::unordered_map<std::string, std::vector<Range>>>
+    findSubroutineUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+                         Symbols &symbols);
 }
 
 #endif //PERLPARSE_FILEANALYSIS_H
