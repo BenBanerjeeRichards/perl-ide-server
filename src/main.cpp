@@ -102,7 +102,7 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 }
 
 void testFiles() {
-    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/1/*");
+    auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/2/*");
     std::cout << "file,tokens,lines,total_ms,tok_ms,parse_ms,analysis_ms" << std::endl;
     for (auto file : perlFiles) {
         TimeInfo timing{};

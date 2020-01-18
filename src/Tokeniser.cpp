@@ -687,7 +687,7 @@ bool Tokeniser::matchQuoteLiteral(std::vector<Token> &tokens) {
         }
     }
 
-    if ((quoteChar == '#' && whitespaceEtcMatched) || quoteChar == EOF) {
+    if ((quoteChar == '#' && whitespaceEtcMatched) || quoteChar == EOF || quoteChar == '_') {
         // If this is the case, it's not a string
         // `qq#hello# -> string OK
         // `qq #Hello# -> 'qq' followed by comment`

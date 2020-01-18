@@ -118,4 +118,8 @@ tr
     {World}
     {Hello}s;
 
+
+# Below are non strings
+
+qq_Hello_;
 qq #Hello#;

@@ -394,6 +394,9 @@ String(Hello)
 StringEnd(})
 StringModifiers(s)
 ;
+Comment(# Below are non strings)
+Name(qq_Hello_)
+;
 Builtin(qq)
 Comment(#Hello#;)
 EndOfInput
