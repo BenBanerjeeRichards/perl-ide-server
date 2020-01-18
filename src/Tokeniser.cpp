@@ -675,7 +675,7 @@ bool Tokeniser::matchQuoteLiteral(std::vector<Token> &tokens) {
     tokens.emplace_back(Token(TokenType::QuoteIdent, startPos, quoteOperator));
 
     // Match whitespace, ignoring comments
-    bool whitespaceEtcMatched = addNewlineWhitespaceCommentTokens(tokens, false);
+    bool whitespaceEtcMatched = addNewlineWhitespaceCommentTokens(tokens, peek() == '#');
     auto quoteChar = peek();
 
     if (isalnum(quoteChar)) {
@@ -687,7 +687,7 @@ bool Tokeniser::matchQuoteLiteral(std::vector<Token> &tokens) {
         }
     }
 
-    if (quoteChar == '#' && whitespaceEtcMatched) {
+    if ((quoteChar == '#' && whitespaceEtcMatched) || quoteChar == EOF) {
         // If this is the case, it's not a string
         // `qq#hello# -> string OK
         // `qq #Hello# -> 'qq' followed by comment`
@@ -1907,10 +1907,11 @@ void Tokeniser::secondPassHash(std::vector<Token> &tokens, int &i) {
     i++;
 }
 
-void Tokeniser::addWhitespaceToken(std::vector<Token> &tokens) {
+bool Tokeniser::addWhitespaceToken(std::vector<Token> &tokens) {
     auto start = currentPos();
     auto whitespace = matchWhitespace();
     if (!whitespace.empty()) tokens.emplace_back(Token(TokenType::Whitespace, start, whitespace));
+    return !whitespace.empty();
 }
 
 void Tokeniser::secondPassHashReref(std::vector<Token> &tokens, int &i) {

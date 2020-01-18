@@ -102,9 +102,20 @@ s   # Test
     # Comment!
     {x}smix;
 
-say s #WOrld
+say s#WOrld
     #Hello
     {Hello}{World};
 
 say qq
     WHelloW;
+
+qq#Hello#;
+
+tr
+
+    #Hello
+
+    {World}
+    {Hello}s;
+
+qq #Hello#;

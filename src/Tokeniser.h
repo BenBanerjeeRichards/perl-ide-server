@@ -135,7 +135,7 @@ private:
 
     void matchDereferenceBrackets(std::vector<Token> &tokens);
 
-    void addWhitespaceToken(std::vector<Token> &tokens);
+    bool addWhitespaceToken(std::vector<Token> &tokens);
 
     bool addNewlineWhitespaceCommentTokens(std::vector<Token> &tokens, bool ignoreComments = false);
 
