@@ -1688,6 +1688,7 @@ void Tokeniser::nextTokens(std::vector<Token> &tokens, bool enableHereDoc) {
  */
 std::vector<Token> Tokeniser::tokenise() {
     std::vector<Token> tokens;
+    if (this->program.empty()) return tokens;
 
     while (tokens.empty() || tokens[tokens.size() - 1].type != TokenType::EndOfInput) {
         nextTokens(tokens);

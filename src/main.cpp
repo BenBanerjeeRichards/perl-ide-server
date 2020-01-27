@@ -6,7 +6,6 @@
 #include "IOException.h"
 #include "Test.h"
 #include "PerlServer.h"
-#include "PerlCommandLine.h"
 #include "SymbolLoader.h"
 
 struct TimeInfo {
@@ -93,10 +92,10 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
 //        }
 //    }
 
-    auto prog = readFile(path);
-    for (auto token : tokens) {
-        std::cout << tokenToStrWithCode(token, prog) << std::endl;
-    }
+//    auto prog = readFile(path);
+//    for (auto token : tokens) {
+//        std::cout << tokenToStrWithCode(token, prog) << std::endl;
+//    }
 
     return fileSymbols;
 }

@@ -174,6 +174,8 @@ std::vector<PackageSpan> parsePackages(std::shared_ptr<BlockNode> parent) {
 std::shared_ptr<BlockNode> buildParseTree(std::vector<Token> tokens, int &incorrectNestingStart) {
     incorrectNestingStart = -1;
     auto node = std::make_shared<BlockNode>(FilePos(0, 0));
+    if (tokens.empty()) return node;
+
     node->end = tokens[tokens.size() - 1].endPos;
     int tokenIdx = 0;
     doBuildParseTree(node, tokens, tokenIdx);
