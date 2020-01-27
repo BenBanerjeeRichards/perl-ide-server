@@ -10,6 +10,10 @@
 #include <glob.h>
 #include <vector>
 #include <iterator>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include "IOException.h"
 #include "FilePos.h"
 
 namespace console {

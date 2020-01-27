@@ -2,10 +2,7 @@
 // Created by Ben Banerjee-Richards on 2019-08-25.
 //
 
-#include <fstream>
-#include <sstream>
 #include "Util.h"
-#include "IOException.h"
 
 bool insideRange(FilePos start, FilePos end, FilePos pos) {
     // Note end is inclusive
