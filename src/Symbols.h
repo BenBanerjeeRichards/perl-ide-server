@@ -41,18 +41,11 @@ class SymbolNode {
 public:
     SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode);
 
-    SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode,
-               std::vector<std::string> parentFeatures);
-
     // Reference to tokens
     std::shared_ptr<BlockNode> blockNode;
 
     // Variables declared in this scope
     std::vector<std::shared_ptr<Variable>> variables;
-
-    // 'use feature ...'
-    // These are lexically scoped and can also be turned off using 'no feature ...' (also lexically scoped)
-    std::vector<std::string> features;
 
     // References to scoping start and end positions
     FilePos startPos;

@@ -7,11 +7,6 @@
 SymbolNode::SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode) :
         startPos(startPos), endPos(endPos), blockNode(blockNode) {}
 
-SymbolNode::SymbolNode(const FilePos &startPos, const FilePos &endPos, std::shared_ptr<BlockNode> blockNode,
-                       std::vector<std::string> parentFeatures)
-        : startPos(startPos), endPos(endPos), blockNode(blockNode), features(parentFeatures) {
-}
-
 Import::Import(const FilePos &location, ImportType type, ImportMechanism mechanism, const std::string &data,
                const std::vector<std::string> &exports) : location(location), type(type), mechanism(mechanism),
 

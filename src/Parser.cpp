@@ -348,8 +348,7 @@ void doParseFirstPass(const std::shared_ptr<BlockNode> &tree, const std::shared_
     for (const auto &child : tree->children) {
         if (std::shared_ptr<BlockNode> blockNode = std::dynamic_pointer_cast<BlockNode>(child)) {
             // Create new child for symbol tree
-            auto symbolChild = std::make_shared<SymbolNode>(blockNode->start, blockNode->end, blockNode,
-                                                            symbolNode->features);
+            auto symbolChild = std::make_shared<SymbolNode>(blockNode->start, blockNode->end, blockNode);
             symbolNode->children.emplace_back(symbolChild);
             doParseFirstPass(blockNode, symbolChild, fileSymbols, variables, lastId);
         }

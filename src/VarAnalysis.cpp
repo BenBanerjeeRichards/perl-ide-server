@@ -192,14 +192,13 @@ void doPrintSymbolTree(const std::shared_ptr<SymbolNode> &node, int level) {
 
     for (const auto &child : node->children) {
         for (int i = 0; i < level; i++) std::cout << " ";
-        std::cout << "SymbolNode " << child->startPos.toStr() << " - " << child->endPos.toStr() << " Features: ["
-                  << join(child->features, ",") << "]" << std::endl;
+        std::cout << "SymbolNode " << child->startPos.toStr() << " - " << child->endPos.toStr() << std::endl;
         doPrintSymbolTree(child, level + 2);
     }
 }
 
 void printSymbolTree(const std::shared_ptr<SymbolNode> &node) {
-    std::cout << "SymbolNode" << " Features: [" << join(node->features, ",") << "]" << std::endl;
+    std::cout << "SymbolNode" << " Features: [" << std::endl;
     doPrintSymbolTree(node, 2);
 }
 

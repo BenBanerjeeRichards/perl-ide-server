@@ -26,6 +26,6 @@ std::shared_ptr<SymbolNode> symbolNodeFromJson(const json &j);
 
 std::shared_ptr<Variable> variableFromJson(json j);
 
-FilePos filePosFromJson(json j);
+FilePos filePosFromJson(const json &j);
 
 #endif //PERLPARSE_SERIALIZE_H
