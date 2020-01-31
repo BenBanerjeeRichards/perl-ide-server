@@ -7,6 +7,7 @@
 #include "Test.h"
 #include "PerlServer.h"
 #include "SymbolLoader.h"
+#include "Serialize.h"
 
 struct TimeInfo {
     long long int tokenise;
@@ -192,6 +193,21 @@ void debugPrint(const std::string &path) {
                   << fileSymbols.partialParse
                   << console::clear << std::endl;
     }
+
+
+    auto begin = std::chrono::steady_clock::now();
+    auto asJson = toJson(*fileSymbols.symbolTree);
+    writeFile("longboi.json", asJson.dump());
+    auto end = std::chrono::steady_clock::now();
+    auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
+    begin = std::chrono::steady_clock::now();
+    auto newSyms = symbolNodeFromJson(asJson);
+    end = std::chrono::steady_clock::now();
+    auto timeTaken2 = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
+
+    std::cout << "DONE " << timeTaken << " - " << timeTaken2 << std::endl;
 }
 
 

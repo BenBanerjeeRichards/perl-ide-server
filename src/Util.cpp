@@ -77,6 +77,11 @@ std::string readFile(const std::string &path) {
     return contents;
 }
 
+void writeFile(const std::string &path, const std::string &contents) {
+    std::ofstream file(path);
+    file << contents;
+}
+
 // https://stackoverflow.com/a/18427254
 std::string join(const std::vector<std::string> &vec, const char *delim) {
     if (vec.empty()) return "";

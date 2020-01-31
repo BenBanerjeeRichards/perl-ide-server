@@ -97,9 +97,8 @@ public:
         return "[" + this->declaration.toStr() + "] (#" + std::to_string(id) + ")" + name;
     }
 
-
-private:
     FilePos scopeEnd;
+
 };
 
 

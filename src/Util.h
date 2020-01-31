@@ -27,7 +27,10 @@ namespace console {
 std::string replace(std::string str, const std::string &what, const std::string &with);
 std::vector<std::string> globglob(const std::string& pattern);
 std::string fileName(const std::string& path);
-std::string readFile(const std::string& path);
+std::string readFile(const std::string &path);
+
+void writeFile(const std::string &path, const std::string &contents);
+
 bool insideRange(FilePos start, FilePos end, FilePos pos);
 
 bool insideRange(Range range, FilePos pos);
