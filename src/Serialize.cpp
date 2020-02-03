@@ -4,19 +4,29 @@
 
 #include "Serialize.h"
 
-enum VariableType {
+enum VariableTypeCode {
     Our = 1,
     Local = 2,
     Scoped = 3
 };
 
-json toJson(FilePos &filePos) {
+
+json toJson(const FilePos &filePos) {
     return std::vector<int>{filePos.line, filePos.col, filePos.position};
 }
+
 
 FilePos filePosFromJson(const json &j) {
     std::vector<int> jList = j;
     return FilePos(jList[0], jList[1], jList[2]);
+}
+
+json toJson(Range &range) {
+    return std::vector<json>{toJson(range.from), toJson(range.to)};
+}
+
+Range rangeFromJson(const json &j) {
+    return Range(filePosFromJson(j[0]), filePosFromJson(j[1]));
 }
 
 json toJson(std::shared_ptr<Variable> variable) {
@@ -95,7 +105,6 @@ void doSymboLNodeToJson(SymbolNode &parentNode, json &parentJson) {
 
 json toJson(SymbolNode &rootSymbolNode) {
     json j;
-    std::vector<json>{};
     j.emplace_back(json());
     j.emplace_back(json());
     j.emplace_back(json());
@@ -135,4 +144,108 @@ std::shared_ptr<SymbolNode> symbolNodeFromJson(const json &j) {
 
     return nullptr;
 }
+
+json toJson(PackageSpan &packageSpan) {
+    return std::vector<json>{packageSpan.packageName, toJson(packageSpan.start), toJson(packageSpan.end)};
+}
+
+PackageSpan packageSpanFromJson(const json &j) {
+    return PackageSpan(filePosFromJson(j[1]), filePosFromJson(j[2]), j[0]);
+}
+
+json toJson(Subroutine &sub) {
+    return std::vector<json>{toJson(sub.location), sub.package, sub.name, sub.signature, sub.prototype};
+}
+
+Subroutine subFromJson(const json &j) {
+    Subroutine sub;
+    sub.location = rangeFromJson(j[0]);
+    sub.package = j[1];
+    sub.name = j[2];
+    sub.signature = j[3];
+    sub.prototype = j[4];
+    return sub;
+}
+
+json toJson(SubroutineUsage &subUsage) {
+    return std::vector<json>{subUsage.package, subUsage.name, toJson(subUsage.pos)};
+}
+
+SubroutineUsage subUsageFromJson(const json &j) {
+    return SubroutineUsage(j[0], j[1], rangeFromJson(j[2]));
+}
+
+
+json toJson(Constant &subUsage) {
+    return std::vector<json>{subUsage.package, subUsage.name, toJson(subUsage.location)};
+}
+
+Constant constantFromJson(const json &j) {
+    return Constant(j[0], j[1], filePosFromJson(j[2]));
+}
+
+json toJson(Import &import) {
+    return std::vector<json>{toJson(import.location), (int) import.type, (int) import.mechanism, import.data,
+                             import.exports};
+}
+
+Import importFromJson(const json &j) {
+    return Import(filePosFromJson(j[0]), (ImportType) j[1], (ImportMechanism) j[2], j[3], j[4]);
+}
+
+json toJson(const GlobalVariable &globalVar) {
+    return std::vector<json>{globalVar.getPackage(), globalVar.getName(), globalVar.getSigil(), globalVar.getCodeName(),
+                             toJson(globalVar.getFilePos())};
+}
+
+
+GlobalVariable globalVarFromJson(const json &j) {
+    auto global = GlobalVariable(j[3], j[2], j[0], j[1]);
+    global.setFilePos(filePosFromJson(j[4]));
+    return global;
+}
+
+json toJson(FileSymbols &fileSymbols) {
+    json j;
+    j["symbolTree"] = toJson(*fileSymbols.symbolTree);
+    j["packages"] = std::vector<json>();
+    j["imports"] = std::vector<json>();
+    j["constants"] = std::vector<json>();
+    j["globals"] = std::vector<json>();
+    j["subroutineDeclarations"] = std::vector<json>();
+    j["possibleSubroutines"] = std::vector<json>();
+
+    for (auto package : fileSymbols.packages) j["packages"].emplace_back(toJson(package));
+    for (auto import : fileSymbols.imports) j["imports"].emplace_back(toJson(import));
+    for (auto constant : fileSymbols.constants) j["constants"].emplace_back(toJson(constant));
+    for (auto subUsage : fileSymbols.possibleSubroutineUsages) j["possibleSubroutines"].emplace_back(toJson(subUsage));
+
+    // j[globals] has format [[<global>, <ranges...>, ...]]
+    for (const auto &globalWithRanges : fileSymbols.globals) {
+        json rangesVector = std::vector<json>();
+        for (auto range : globalWithRanges.second) rangesVector.emplace_back(toJson(range));
+        j["globals"].emplace_back(std::vector<json>{toJson(globalWithRanges.first), rangesVector});
+    }
+
+    for (const auto &subNameWithSub : fileSymbols.subroutineDeclarations) {
+        j["subroutineDeclarations"].emplace_back(toJson(*subNameWithSub.second));
+    }
+
+    j["fileSubroutineUsages"] = std::unordered_map<std::string, std::vector<json>>();
+    for (const auto &subUsageItem : fileSymbols.fileSubroutineUsages) {
+        std::vector<json> rangeList;
+        for (auto range : subUsageItem.second) rangeList.emplace_back(toJson(range));
+        j["fileSubroutineUsages"][subUsageItem.first.getFullName()] = rangeList;
+    }
+
+
+    for (const auto &variableUsage : fileSymbols.variableUsages) {
+        json rangesVector = std::vector<json>();
+        for (auto range : variableUsage.second) rangesVector.emplace_back(toJson(range));
+        j["variableUsages"].emplace_back(std::vector<json>{toJson(variableUsage.first), rangesVector});
+    }
+
+    return j;
+}
+
 

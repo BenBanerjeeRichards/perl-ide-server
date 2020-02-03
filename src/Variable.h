@@ -28,6 +28,8 @@ public:
 
     const std::string getFullName() const;
 
+    const std::string getCodeName() const;
+
     const std::string &getPackage() const;
 
     const std::string &getName() const;

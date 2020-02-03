@@ -33,3 +33,8 @@ bool Range::operator==(const Range other) {
     return this->to == other.to && this->from == other.from;
 }
 
+Range::Range() {
+    this->from = FilePos();
+    this->to = FilePos();
+}
+

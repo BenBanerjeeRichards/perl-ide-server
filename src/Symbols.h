@@ -88,6 +88,8 @@ struct FileSymbols {
     // variables
     std::vector<PackageSpan> packages;
 
+    // Subroutine declarations in this file
+    // Map from full name -> Subroutine (i.e. main::func -> Subroutine{...})
     std::unordered_map<std::string, std::shared_ptr<Subroutine>> subroutineDeclarations;
 
     // Where a subroutine call is declared in the current file

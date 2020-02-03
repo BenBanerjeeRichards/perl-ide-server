@@ -50,6 +50,8 @@ struct Range {
     FilePos from;
     FilePos to;
 
+    Range();
+
     Range(FilePos from, FilePos to);
 
     Range(FilePos from, int symbolLength);

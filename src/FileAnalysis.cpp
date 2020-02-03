@@ -143,7 +143,7 @@ doFindSubroutineDeclaration(std::string contextPath, FilePos location, Symbols &
                 // We've found the subroutine symbol, now get declaration
                 analysis::Declaration decl;
                 decl.path = subMapItem.first.path;
-                decl.pos = subMapItem.first.subroutine.pos;
+                decl.pos = subMapItem.first.subroutine.location.from;
                 return decl;
             }
         }

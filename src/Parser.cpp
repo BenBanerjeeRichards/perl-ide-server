@@ -190,16 +190,13 @@ std::shared_ptr<BlockNode> buildParseTree(std::vector<Token> tokens, int &incorr
 Subroutine handleSub(TokenIterator &tokenIter, FilePos subStart, std::vector<PackageSpan> &packages) {
     Subroutine subroutine;
 
-    subroutine.pos = subStart;
-
     auto nextTok = tokenIter.next();
     bool unnamed = true;
     if (nextTok.type == TokenType::SubName) {
         unnamed = false;
         // If this is not the case then function is unnamed
         subroutine.name = nextTok.data;
-        subroutine.nameStart = nextTok.startPos;
-        subroutine.nameEnd = nextTok.endPos;
+        subroutine.location = Range(nextTok.startPos, nextTok.endPos);
         nextTok = tokenIter.next();
     }
 
@@ -209,7 +206,7 @@ Subroutine handleSub(TokenIterator &tokenIter, FilePos subStart, std::vector<Pac
         nextTok = tokenIter.next();
     }
 
-    auto currentPackage = findPackageAtPos(packages, subroutine.pos);
+    auto currentPackage = findPackageAtPos(packages, subroutine.location.from);
     if (unnamed) {
         subroutine.package = currentPackage;
     } else {

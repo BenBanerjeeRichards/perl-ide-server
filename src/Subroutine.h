@@ -8,10 +8,7 @@
 #include "Util.h"
 
 struct Subroutine {
-    FilePos pos;
-    // Start and end of sub name to facilitate renaming
-    FilePos nameStart;
-    FilePos nameEnd;
+    Range location;
 
     // Package subroutine is declared in
     std::string package;
@@ -22,8 +19,6 @@ struct Subroutine {
     std::string signature;
     std::string prototype;
 
-    // Attributes
-    std::vector<std::string> attributes;
 
     std::string toStr();
 

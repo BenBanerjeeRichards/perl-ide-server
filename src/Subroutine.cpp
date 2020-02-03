@@ -7,7 +7,7 @@
 std::string Subroutine::toStr() {
     std::string str;
     auto nameStr = name.empty() ? "<ANOM>" : name;
-    str = pos.toStr() + " " + package + "::" + nameStr + "()";
+    str = location.toStr() + " " + package + "::" + nameStr + "()";
 
     if (!signature.empty()) {
         str += " signature=" + signature;
@@ -26,7 +26,7 @@ const std::string Subroutine::getFullName() const {
 }
 
 bool Subroutine::operator==(const Subroutine &other) const {
-    return this->package == other.package && this->name == other.name && (this->pos == other.pos);
+    return this->package == other.package && this->name == other.name && (this->location.from == other.location.from);
 }
 
 SubroutineDecl::SubroutineDecl(const Subroutine &subroutine, const std::string &path) : subroutine(subroutine),

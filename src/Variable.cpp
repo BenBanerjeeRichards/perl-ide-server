@@ -59,3 +59,7 @@ GlobalVariable::GlobalVariable(std::string codeName, std::string sigil, std::str
     this->name = name;
     this->codeName = codeName;
 }
+
+const std::string GlobalVariable::getCodeName() const {
+    return this->codeName;
+}
