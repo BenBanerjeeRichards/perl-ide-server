@@ -19,6 +19,8 @@ struct Subroutine {
     std::string signature;
     std::string prototype;
 
+    std::string code;
+
 
     std::string toStr();
 

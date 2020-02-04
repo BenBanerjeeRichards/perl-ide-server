@@ -28,12 +28,12 @@ std::string GlobalVariable::toStr() {
     return this->sigil + "," + this->package + "," + this->name;
 }
 
-const FilePos &GlobalVariable::getFilePos() const {
-    return filePos;
+Range GlobalVariable::getLocation() const {
+    return this->location;
 }
 
-void GlobalVariable::setFilePos(const FilePos &filePos) {
-    GlobalVariable::filePos = filePos;
+void GlobalVariable::setLocation(const Range &filePos) {
+    this->location = filePos;
 }
 
 /**
@@ -46,10 +46,7 @@ void GlobalVariable::setFilePos(const FilePos &filePos) {
  * @return
  */
 FilePos GlobalVariable::getEndPos() {
-    FilePos endPos = this->filePos;
-    endPos.col += this->codeName.size();
-    endPos.position += this->codeName.size();
-    return endPos;
+    return this->location.to;
 }
 
 

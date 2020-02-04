@@ -196,6 +196,7 @@ Subroutine handleSub(TokenIterator &tokenIter, FilePos subStart, std::vector<Pac
         unnamed = false;
         // If this is not the case then function is unnamed
         subroutine.name = nextTok.data;
+        subroutine.code = subroutine.name;  // Keep reference to original code, even after package analysis
         subroutine.location = Range(nextTok.startPos, nextTok.endPos);
         nextTok = tokenIter.next();
     }

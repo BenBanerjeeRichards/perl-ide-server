@@ -93,45 +93,80 @@ analysis::autocompleteSubs(const std::string &filePath, const std::string &conte
     return completions;
 }
 
-std::optional<std::unordered_map<std::string, std::vector<Range>>>
-analysis::findVariableUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+std::optional<GlobalVariable>
+analysis::findGlobalVariable(const std::string &filePath, const std::string &contextPath, FilePos location,
                              Symbols &symbols) {
-    std::unordered_map<std::string, std::vector<Range>> usages;
+    // Not a local, now check for global variable and get usages
+    // Will include multiple files
+    auto globals = symbols.globalVariablesMap.globalsMap;
 
-    // Test if local variable first
+    for (auto globalWithFiles : globals) {
+        GlobalVariable globalVariable = globalWithFiles.first;
+        // This global doesn't appear in the current file, so skip
+        if (globalWithFiles.second.count(contextPath) == 0) {
+            continue;
+        }
+
+        // Now check every usage to see if location is within usage
+        for (GlobalVariable &usage : globalWithFiles.second[contextPath]) {
+            if (insideRange(usage.getLocation(), location)) {
+                // We've found a global
+                return globalVariable;
+            }
+        }
+    }
+
+    return {};
+}
+
+
+optional<vector<Range>>
+analysis::findLocalVariableUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+                                  Symbols &symbols) {
     auto maybeVariable = findVariableAtLocation(symbols.rootFileSymbols, location);
     if (maybeVariable.has_value()) {
         // Was a local variable
-        usages[symbols.rootFilePath] = maybeVariable.value().usages;
+        return maybeVariable.value().usages;
+    }
+
+    return {};
+}
+
+optional<unordered_map<string, vector<GlobalVariable>>> analysis::findGlobalVariableUsages(const std::string &filePath,
+                                                                                           const std::string &contextPath,
+                                                                                           FilePos location,
+                                                                                           Symbols &symbols) {
+    auto maybeGlobal = findGlobalVariable(filePath, contextPath, location, symbols);
+    if (maybeGlobal.has_value()) {
+        return symbols.globalVariablesMap.globalsMap[maybeGlobal.value()];
+    }
+    return {};
+}
+
+
+optional<unordered_map<string, vector<Range>>>
+analysis::findVariableUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+                             Symbols &symbols) {
+    if (auto localUsages = findLocalVariableUsages(filePath, contextPath, location, symbols)) {
+        return unordered_map<string, vector<Range>>{{symbols.rootFilePath, localUsages.value()}};
+    } else if (auto globalUsages = findGlobalVariableUsages(filePath, contextPath, location, symbols)) {
+        unordered_map<string, vector<Range>> usages;
+        for (auto fileWithGlobals : globalUsages.value()) {
+            usages[fileWithGlobals.first] = vector<Range>();
+            for (const auto &usage : fileWithGlobals.second) {
+                usages[fileWithGlobals.first].emplace_back(usage.getLocation());
+            }
+        }
+
         return usages;
-    } else {
-        // Not a local, now check for global variable and get usages
-        // Will include multiple files
-        auto globals = symbols.globalVariablesMap.globalsMap;
-
-        for (auto globalWithFiles : globals) {
-            GlobalVariable globalVariable = globalWithFiles.first;
-            // This global doesn't appear in the current file, so skip
-            if (globalWithFiles.second.count(contextPath) == 0) {
-                continue;
-            }
-
-            // Now check every usage to see if location is within usage
-            for (Range &usage : globalWithFiles.second[contextPath]) {
-                if (insideRange(usage, location)) {
-                    // We've found a global
-                    return globals[globalVariable];
-                }
-            }
-        }
     }
 
     return {};
 }
 
 
-std::optional<analysis::Declaration>
-doFindSubroutineDeclaration(std::string contextPath, FilePos location, Symbols &symbols) {
+std::optional<SubroutineDecl>
+analysis::doFindSubroutineDeclaration(std::string contextPath, FilePos location, Symbols &symbols) {
     auto subMap = symbols.subroutineMap.subsMap;
 
     for (const auto &subMapItem : subMap) {
@@ -139,12 +174,9 @@ doFindSubroutineDeclaration(std::string contextPath, FilePos location, Symbols &
         if (fileToRangeMap.count(contextPath) == 0) continue;
 
         for (auto range : fileToRangeMap[contextPath]) {
-            if (insideRange(range, location)) {
+            if (insideRange(range.location, location)) {
                 // We've found the subroutine symbol, now get declaration
-                analysis::Declaration decl;
-                decl.path = subMapItem.first.path;
-                decl.pos = subMapItem.first.subroutine.location.from;
-                return decl;
+                return subMapItem.first;
             }
         }
     }
@@ -152,9 +184,9 @@ doFindSubroutineDeclaration(std::string contextPath, FilePos location, Symbols &
     return {};
 }
 
-std::optional<std::unordered_map<std::string, std::vector<Range>>>
-analysis::findSubroutineUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
-                               Symbols &symbols) {
+optional<unordered_map<string, vector<SubroutineCode>>>
+analysis::findSubroutineUsagesCode(const std::string &filePath, const std::string &contextPath, FilePos location,
+                                   Symbols &symbols) {
     auto subMap = symbols.subroutineMap.subsMap;
 
     for (const auto &subMapItem : subMap) {
@@ -162,14 +194,33 @@ analysis::findSubroutineUsages(const std::string &filePath, const std::string &c
         if (fileToRangeMap.count(contextPath) == 0) continue;
 
         for (auto range : fileToRangeMap[contextPath]) {
-            if (insideRange(range, location)) {
-                // We've found the subroutine symbol, now get declaration
+            if (insideRange(range.location, location)) {
+                // We've found the subroutine symbol, now get usages
                 return subMap[subMapItem.first];
             }
         }
     }
 
     return {};
+
+
+}
+
+std::optional<std::unordered_map<std::string, std::vector<Range>>>
+analysis::findSubroutineUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
+                               Symbols &symbols) {
+    unordered_map<string, vector<Range>> rangeMap;
+    if (auto usages = findSubroutineUsagesCode(filePath, contextPath, location, symbols)) {
+        for (auto fileUsages : usages.value()) {
+            rangeMap[fileUsages.first] = vector<Range>();
+            for (auto subCode : fileUsages.second) rangeMap[fileUsages.first].emplace_back(subCode.location);
+        }
+
+        return rangeMap;
+    }
+
+    return {};
+
 }
 
 std::unordered_map<std::string, std::vector<Range>>
@@ -209,7 +260,13 @@ analysis::findSubroutineDeclaration(const std::string &filePath, const std::stri
     }
 
     auto symbols = symbolsMaybe.value();
-    return doFindSubroutineDeclaration(contextPath, location, symbols);
+    auto declMaybe = doFindSubroutineDeclaration(contextPath, location, symbols);
+    if (!declMaybe.has_value()) return {};
+    auto subDecl = declMaybe.value();
+    analysis::Declaration declaration;
+    declaration.path = subDecl.path;
+    declaration.pos = subDecl.subroutine.location.from;
+    return declaration;
 }
 
 
@@ -222,5 +279,130 @@ void analysis::indexProject(std::vector<std::string> projectFiles, Cache &cache)
     for (const auto &file : projectFiles) {
         buildSymbols(file, file, cache);
     }
+}
+
+void analysis::renameSymbol(const string &filePath, FilePos location, string renameTo,
+                            vector<string> projectFiles, Cache &cache) {
+    auto symbolsMaybe = buildProjectSymbols(filePath, filePath, std::move(projectFiles), cache, true, false, true);
+    if (!symbolsMaybe.has_value()) {
+        return;
+    }
+    auto symbols = symbolsMaybe.value();
+
+    auto maybeSubDecl = analysis::doFindSubroutineDeclaration(filePath, location, symbols);
+    std::string existingPackage;
+
+    bool isSub = false;
+    bool isGlobal = false;
+
+    if (maybeSubDecl.has_value()) {
+        existingPackage = maybeSubDecl.value().subroutine.package;
+        isSub = true;
+    } else {
+        auto maybeGlobal = analysis::findGlobalVariable(filePath, filePath, location, symbols);
+        if (maybeGlobal.has_value()) existingPackage = maybeGlobal.value().getPackage();
+        isGlobal = true;
+    }
+
+    string packageAtLocation = findPackageAtPos(symbols.rootFileSymbols.packages, location);
+
+    // Map of replacements from file->replacements
+    unordered_map<string, vector<Replacement>> replacementMap;
+
+    if (existingPackage.empty()) {
+        // In this case we have a local variable
+        // Can just to basic rename here
+        auto localUsages = analysis::findLocalVariableUsages(filePath, filePath, location, symbols);
+        if (localUsages.has_value()) {
+            replacementMap[filePath] = vector<Replacement>();
+
+            for (auto usage : localUsages.value()) {
+                // No package to worry about, just a simple replacement
+                replacementMap[filePath].emplace_back(Replacement(usage, renameTo));
+            }
+        }
+    } else {
+        // Here we have a packaged symbol - e.g. Subroutine or global variable
+        // Must check packages and take care during renames
+        std::string canonicalReplacement = getCanonicalPackageName(renameTo);
+        PackagedSymbol packagedSymbol = splitOnPackage(canonicalReplacement, packageAtLocation);
+
+        if (packagedSymbol.package != existingPackage) {
+            std::cerr << "Attempted change of package on rename: " << renameTo << " from " << existingPackage
+                      << " to " << packagedSymbol.package << std::endl;
+            return;
+        }
+
+
+        if (isGlobal) {
+            if (auto globalUsages = analysis::findGlobalVariableUsages(filePath, filePath, location, symbols)) {
+                for (auto fileGlobals : globalUsages.value()) {
+                    if (isSystemPath(fileGlobals.first)) {
+                        cerr << "Got system path in rename analysis, ignoring - " << fileGlobals.first << endl;
+                    }
+
+                    replacementMap[fileGlobals.first] = vector<Replacement>();
+                    for (auto global : fileGlobals.second) {
+                        // We know the package is the same, so only alter the new part
+                        auto canonicalName = getCanonicalVariableName(global.getCodeName());
+                        auto packageParts = splitPackage(canonicalName);
+                        if (packageParts.empty()) {
+                            cerr << "Package parts empty, something gone very wrong" << endl;
+                            return;
+                        }
+
+                        // Do the actual rename
+                        packageParts[packageParts.size() - 1] = renameTo;
+                        auto rep = join(packageParts, "::");
+                        replacementMap[fileGlobals.first].emplace_back(Replacement(global.getLocation(), rep));
+                    }
+                }
+            }
+        }
+
+        if (isSub) {
+            if (auto subUsages = analysis::findSubroutineUsagesCode(filePath, filePath, location, symbols)) {
+                for (auto subUsage : subUsages.value()) {
+                    if (isSystemPath(subUsage.first)) {
+                        cerr << "Got system path in rename analysis, ignoring - " << subUsage.first << endl;
+                    }
+
+                    replacementMap[subUsage.first] = vector<Replacement>();
+                    for (auto global : subUsage.second) {
+                        // We know the package is the same, so only alter the new part
+                        auto canonicalName = getCanonicalPackageName(global.code);
+                        auto packageParts = splitPackage(canonicalName);
+                        if (packageParts.empty()) {
+                            cerr << "Package parts empty, something gone very wrong" << endl;
+                            return;
+                        }
+
+                        // Do the actual rename
+                        packageParts[packageParts.size() - 1] = packagedSymbol.symbol;
+                        auto rep = join(packageParts, "::");
+                        replacementMap[subUsage.first].emplace_back(Replacement(global.location, rep));
+                    }
+                }
+            }
+        }
+
+    }
+
+    cout << endl;
+    for (auto fileRep : replacementMap) {
+        cout << fileRep.first << endl;
+        for (auto rep: fileRep.second) {
+            cout << "\t " << rep.location.toStr() << " -> " << rep.replacement << endl;
+        }
+    }
+
+    // Now do the actual renaming
+    for (auto fileReplacement : replacementMap) {
+        if (isSystemPath(fileReplacement.first)) continue;
+        auto fileContents = readFile(fileReplacement.first);
+        auto newFile = doReplacements(fileContents, fileReplacement.second);
+        writeFile(fileReplacement.first, newFile);
+    }
+
 }
 

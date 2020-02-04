@@ -172,7 +172,7 @@ json toJson(SubroutineUsage &subUsage) {
 }
 
 SubroutineUsage subUsageFromJson(const json &j) {
-    return SubroutineUsage(j[0], j[1], rangeFromJson(j[2]));
+    return SubroutineUsage(j[0], j[1], "", rangeFromJson(j[2]));
 }
 
 
@@ -194,14 +194,15 @@ Import importFromJson(const json &j) {
 }
 
 json toJson(const GlobalVariable &globalVar) {
+    auto location = globalVar.getLocation();
     return std::vector<json>{globalVar.getPackage(), globalVar.getName(), globalVar.getSigil(), globalVar.getCodeName(),
-                             toJson(globalVar.getFilePos())};
+                             toJson(location)};
 }
 
 
 GlobalVariable globalVarFromJson(const json &j) {
     auto global = GlobalVariable(j[3], j[2], j[0], j[1]);
-    global.setFilePos(filePosFromJson(j[4]));
+    global.setLocation(rangeFromJson(j[4]));
     return global;
 }
 
@@ -234,7 +235,7 @@ json toJson(FileSymbols &fileSymbols) {
     j["fileSubroutineUsages"] = std::unordered_map<std::string, std::vector<json>>();
     for (const auto &subUsageItem : fileSymbols.fileSubroutineUsages) {
         std::vector<json> rangeList;
-        for (auto range : subUsageItem.second) rangeList.emplace_back(toJson(range));
+//        for (auto range : subUsageItem.second) rangeList.emplace_back(toJson(range));
         j["fileSubroutineUsages"][subUsageItem.first.getFullName()] = rangeList;
     }
 

@@ -15,11 +15,9 @@ class GlobalVariable {
 
     std::string sigil;
 
-    // As specified in the code
-    // Important as it allows us to determine the range the that the symbol covers
     std::string codeName;
 
-    FilePos filePos;
+    Range location;
 
 
 public:
@@ -36,11 +34,11 @@ public:
 
     const std::string &getSigil() const;
 
-    const FilePos &getFilePos() const;
+    Range getLocation() const;
 
     FilePos getEndPos();
 
-    void setFilePos(const FilePos &filePos);
+    void setLocation(const Range &filePos);
 
     std::string toStr();
 

@@ -5,51 +5,49 @@
 #include "VarAnalysis.h"
 
 
-std::optional<GlobalVariable> handleGlobalVariables(const Token &token, const std::vector<PackageSpan> &packages) {
-    if (token.type == TokenType::ScalarVariable || token.type == TokenType::HashVariable ||
-        token.type == TokenType::ArrayVariable) {
-        // First check if it is a special variable
-        // if it is, ignore it
-        if (token.type == TokenType::ScalarVariable &&
-            std::find(constant::SPECIAL_SCALARS.begin(), constant::SPECIAL_SCALARS.end(), token.data) !=
-            constant::SPECIAL_SCALARS.end()) {
-            return std::optional<GlobalVariable>();
-        }
-        if (token.type == TokenType::ArrayVariable &&
-            std::find(constant::SPECIAL_ARRAYS.begin(), constant::SPECIAL_ARRAYS.end(), token.data) !=
-            constant::SPECIAL_ARRAYS.end()) {
-            return std::optional<GlobalVariable>();
-        }
-        if (token.type == TokenType::HashVariable &&
-            std::find(constant::SPECIAL_HASHES.begin(), constant::SPECIAL_HASHES.end(), token.data) !=
-            constant::SPECIAL_HASHES.end()) {
-            return std::optional<GlobalVariable>();
-        }
-
-        if (token.type == TokenType::ScalarVariable && token.data.size() >= 2) {
-            // Finally check for $<digit> variables
-            auto digitStr = token.data.substr(1, token.data.size() - 1);
-            bool isInt = true;
-
-            for (auto c : digitStr) {
-                if (!isdigit(c)) {
-                    isInt = false;
-                    break;
-                }
-            }
-
-            if (isInt) {
-                return std::optional<GlobalVariable>();
-            }
-        }
-
-        auto package = findPackageAtPos(packages, token.startPos);
-        auto globalVariable = getFullyQualifiedVariableName(token.data, package);
-        globalVariable.setFilePos(token.startPos);
-        return std::optional<GlobalVariable>(globalVariable);
+std::optional<GlobalVariable> handleGlobalVariables(const Token &varToken, const std::vector<PackageSpan> &packages) {
+    if (!(varToken.type == TokenType::ScalarVariable || varToken.type == TokenType::HashVariable ||
+          varToken.type == TokenType::ArrayVariable)) {
+        return {};
     }
 
-    return std::optional<GlobalVariable>();
+    // First check if it is a special variable
+    // if it is, ignore it
+    if (varToken.type == TokenType::ScalarVariable &&
+        std::find(constant::SPECIAL_SCALARS.begin(), constant::SPECIAL_SCALARS.end(), varToken.data) !=
+        constant::SPECIAL_SCALARS.end()) {
+        return std::optional<GlobalVariable>();
+    }
+    if (varToken.type == TokenType::ArrayVariable &&
+        std::find(constant::SPECIAL_ARRAYS.begin(), constant::SPECIAL_ARRAYS.end(), varToken.data) !=
+        constant::SPECIAL_ARRAYS.end()) {
+        return std::optional<GlobalVariable>();
+    }
+    if (varToken.type == TokenType::HashVariable &&
+        std::find(constant::SPECIAL_HASHES.begin(), constant::SPECIAL_HASHES.end(), varToken.data) !=
+        constant::SPECIAL_HASHES.end()) {
+        return std::optional<GlobalVariable>();
+    }
+
+    if (varToken.type == TokenType::ScalarVariable && varToken.data.size() >= 2) {
+        // Finally check for $<digit> variables
+        auto digitStr = varToken.data.substr(1, varToken.data.size() - 1);
+        bool isInt = true;
+
+        for (auto c : digitStr) {
+            if (!isdigit(c)) {
+                isInt = false;
+                break;
+            }
+        }
+
+        if (isInt) return {};
+    }
+
+    auto package = findPackageAtPos(packages, varToken.startPos);
+    auto globalVariable = getFullyQualifiedVariableName(varToken.data, package);
+    globalVariable.setLocation(Range(varToken.startPos, varToken.endPos));
+    return std::optional<GlobalVariable>(globalVariable);
 }
 
 void doFindDeclaration(const std::shared_ptr<SymbolNode> &symbolNode, const std::string &varName, const FilePos &varPos,
@@ -120,12 +118,12 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
                     auto globalOptional = handleGlobalVariables(token, fileSymbols.packages);
                     if (globalOptional.has_value()) {
                         GlobalVariable global = globalOptional.value();
+                        // IMPORTANT: hash for GlobalVariable DOES NOT take into account the global position
                         if (fileSymbols.globals.count(global) == 0) {
-                            fileSymbols.globals[global] = std::vector<Range>{
-                                    Range(global.getFilePos(), global.getEndPos())};
-                        } else {
-                            fileSymbols.globals[global].emplace_back(Range(global.getFilePos(), global.getEndPos()));
+                            fileSymbols.globals[global] = std::vector<GlobalVariable>{};
                         }
+
+                        fileSymbols.globals[global].emplace_back(global);
                     }
                 } else {
                     if (usages.count(declaration) == 0) usages[declaration] = std::vector<Range>();
@@ -156,13 +154,14 @@ doFindVariableUsages(FileSymbols &fileSymbols, const std::shared_ptr<SymbolNode>
                 if (fileSymbols.subroutineDeclarations.count(key) > 0) {
                     auto decl = fileSymbols.subroutineDeclarations[key];
                     if (fileSymbols.fileSubroutineUsages.count(*decl) == 0) {
-                        fileSymbols.fileSubroutineUsages[*decl] = std::vector<Range>();
+                        fileSymbols.fileSubroutineUsages[*decl] = std::vector<SubroutineCode>();
                     }
-                    fileSymbols.fileSubroutineUsages[*decl].emplace_back(Range(nameToken.startPos, nameToken.endPos));
+                    fileSymbols.fileSubroutineUsages[*decl].emplace_back(
+                            SubroutineCode(Range(nameToken.startPos, nameToken.endPos), nameToken.data));
 
                 } else {
                     // For further processing later on
-                    auto subUsage = SubroutineUsage(subSymbol.package, subSymbol.symbol,
+                    auto subUsage = SubroutineUsage(subSymbol.package, subSymbol.symbol, nameToken.data,
                                                     Range(nameToken.startPos, nameToken.endPos));
                     fileSymbols.possibleSubroutineUsages.emplace_back(subUsage);
                 }
@@ -307,8 +306,7 @@ GlobalVariable getFullyQualifiedVariableName(const std::string &packageVariableN
 std::optional<VariableDeclarationWithUsages> findVariableAtLocation(FileSymbols &fileSymbols, FilePos location) {
     for (const auto &variable : fileSymbols.variableUsages) {
         if (insideRange(variable.first->declaration, variable.first->symbolEnd, location)) {
-            // Found variable
-
+            // Found variable at declaration
             return std::optional<VariableDeclarationWithUsages>(
                     VariableDeclarationWithUsages(variable.first, variable.second));
         }

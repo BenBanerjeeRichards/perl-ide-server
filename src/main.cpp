@@ -7,7 +7,6 @@
 #include "Test.h"
 #include "PerlServer.h"
 #include "SymbolLoader.h"
-#include "Serialize.h"
 
 struct TimeInfo {
     long long int tokenise;
@@ -38,7 +37,6 @@ std::shared_ptr<SymbolNode> findBadSymbolNode(std::shared_ptr<SymbolNode> node) 
 }
 
 void basicOutput(std::string path) {
-    // TODO enable second pass
     Tokeniser tokeniser(readFile(path), false);
     for (auto &token : tokeniser.tokenise()) {
         if (token.type == TokenType::Whitespace || token.type == TokenType::Newline ||
@@ -195,11 +193,11 @@ void debugPrint(const std::string &path) {
     }
 
 
-    auto begin = std::chrono::steady_clock::now();
-    auto asJson = toJson(fileSymbols);
-    writeFile(fileName(path) + ".json", asJson.dump());
-    auto end = std::chrono::steady_clock::now();
-    auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+//    auto begin = std::chrono::steady_clock::now();
+//    auto asJson = toJson(fileSymbols);
+//    writeFile(fileName(path) + ".json", asJson.dump());
+//    auto end = std::chrono::steady_clock::now();
+//    auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
 //    begin = std::chrono::steady_clock::now();
 //    auto newSyms = symbolNodeFromJson(asJson);
@@ -207,7 +205,7 @@ void debugPrint(const std::string &path) {
 //    auto timeTaken2 = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
 
-    std::cout << "DONE " << timeTaken << " - " << std::endl;
+//    std::cout << "DONE " << timeTaken << " - " << std::endl;
 }
 
 
@@ -218,8 +216,10 @@ void buildSymbolsTest() {
 
 int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
+    Cache cache;
+    analysis::renameSymbol(file, FilePos(39, 10, 99), "main::NewSubroutineName", std::vector<std::string>{}, cache);
+    return 0;
 
-//    std::string file = "/System/Library/Perl/5.18/Math/BigFloat.pm";
     std::string arg1 = argc >= 2 ? std::string(args[1]) : "";
     std::string arg2 = argc >= 3 ? std::string(args[2]) : "";
 
@@ -267,8 +267,6 @@ int main(int argc, char **args) {
     } else {
         debugPrint(file);
     }
-
-    //startAndBlock(1234);
 
     return 0;
 }

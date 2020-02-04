@@ -123,25 +123,29 @@ SubroutineMap buildSubroutineMap(FileSymbolMap &fileSymbolsMap) {
     std::unordered_map<std::string, SubroutineDecl> nameToDecl;
     std::unordered_map<std::string, SubroutineDecl> cache;
 
-
     for (const auto &pathToFileSymbol : fileSymbolsMap) {
         std::string path = pathToFileSymbol.first;
         if (isSystemPath(path)) continue;
 
         FileSymbols fileSymbols = pathToFileSymbol.second;
+        // First make every subroutine declaration a usage
+        for (auto subDecl : fileSymbols.subroutineDeclarations) {
+            SubroutineDecl subroutineDecl(*subDecl.second, pathToFileSymbol.first);
+            subroutineMap.addSubUsage(subroutineDecl, subroutineDecl.subroutine.code, path,
+                                      subroutineDecl.subroutine.location);
+        }
 
         for (auto sub : fileSymbols.fileSubroutineUsages) {
             auto decl = SubroutineDecl(sub.first, path);
             subroutineMap.addSubUsages(decl, sub.second, path);
         }
-        std::cout << path << " - " << std::endl;
+
         for (auto usage : fileSymbols.possibleSubroutineUsages) {
             auto maybeDecl = findSubDeclaration(fileSymbolsMap, usage.package, usage.name, cache);
             if (maybeDecl.has_value()) {
-                subroutineMap.addSubUsage(maybeDecl.value(), usage.pos, path);
+                subroutineMap.addSubUsage(maybeDecl.value(), std::string(), path, usage.pos);
             }
         }
-
     }
 
     return subroutineMap;

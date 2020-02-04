@@ -11,6 +11,15 @@
 #include "Symbols.h"
 #include "SymbolLoader.h"
 #include "Cache.h"
+#include "Refactor.h"
+
+using std::cout;
+using std::cerr;
+using std::endl;
+using std::unordered_map;
+using std::string;
+using std::vector;
+using std::optional;
 
 namespace analysis {
 
@@ -50,6 +59,26 @@ namespace analysis {
     std::optional<std::unordered_map<std::string, std::vector<Range>>>
     findSubroutineUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
                          Symbols &symbols);
+
+    void renameSymbol(const std::string &filePath, FilePos location, std::string renameTo,
+                      std::vector<std::string> projectFiles, Cache &cache);
+
+    bool isSymbol(const std::string &filePath, FilePos location);
+
+    optional<unordered_map<string, vector<SubroutineCode>>>
+    findSubroutineUsagesCode(const std::string &filePath, const std::string &contextPath, FilePos location,
+                             Symbols &symbols);
+
+    optional<unordered_map<string, vector<GlobalVariable>>>
+    findGlobalVariableUsages(const string &filePath, const string &contextPath, FilePos location, Symbols &symbols);
+
+    optional<GlobalVariable>
+    findGlobalVariable(const string &filePath, const string &contextPath, FilePos location, Symbols &symbols);
+
+    optional<vector<Range>>
+    findLocalVariableUsages(const string &filePath, const string &contextPath, FilePos location, Symbols &symbols);
+
+    optional<SubroutineDecl> doFindSubroutineDeclaration(string contextPath, FilePos location, Symbols &symbols);
 }
 
 #endif //PERLPARSE_FILEANALYSIS_H

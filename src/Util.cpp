@@ -82,6 +82,32 @@ void writeFile(const std::string &path, const std::string &contents) {
     file << contents;
 }
 
+
+std::string replaceAll(std::string contents, std::vector<Range> targets, const std::string &replacement) {
+    auto oldContents = contents;
+    std::vector<int> targetPos;
+    for (int i = 0; i < targets.size(); i++) {
+        Range target = targets[i];
+        int len = (target.to.position - target.from.position) + 1;
+        if (len <= 0 || target.from.position >= contents.size() || target.from.position + len > contents.size()) {
+            std::cerr << "Bad replacement -  " << target.toStr() << " with r=" << replacement << std::endl;
+            return oldContents;
+        }
+
+        contents = contents.replace(target.from.position, len, replacement);
+
+        // Now update all future ranges
+        // difference = negative if replacement is smaller, positive if larger
+        int difference = (int) replacement.size() - len;
+        for (int j = i + 1; j < targets.size(); j++) {
+            targets[j].from.position += difference;
+            targets[j].to.position += difference;
+        }
+    }
+
+    return contents;
+}
+
 // https://stackoverflow.com/a/18427254
 std::string join(const std::vector<std::string> &vec, const char *delim) {
     if (vec.empty()) return "";

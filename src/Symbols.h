@@ -24,6 +24,17 @@ enum class ImportMechanism {
     Use, Require
 };
 
+struct SubroutineCode {
+    SubroutineCode(const Range &location, const std::string &code);
+
+    Range location;
+    std::string code;
+
+    std::string toStr() {
+        return location.toStr();
+    }
+};
+
 struct Import {
     Import(const FilePos &location, ImportType type, ImportMechanism mechanism, const std::string &data,
            const std::vector<std::string> &exports);
@@ -58,8 +69,9 @@ struct SubroutineUsage {
     std::string package;
     std::string name;
     Range pos;
+    std::string code;
 
-    SubroutineUsage(const std::string &package, const std::string &name, const Range &pos);
+    SubroutineUsage(const std::string &package, const std::string &name, std::string code, const Range &pos);
 
     std::string toStr();
 };
@@ -93,7 +105,7 @@ struct FileSymbols {
     std::unordered_map<std::string, std::shared_ptr<Subroutine>> subroutineDeclarations;
 
     // Where a subroutine call is declared in the current file
-    std::unordered_map<Subroutine, std::vector<Range>> fileSubroutineUsages;
+    std::unordered_map<Subroutine, std::vector<SubroutineCode>> fileSubroutineUsages;
 
     // We can't be sure these are actual subroutine usages until we've parsed all files so we can so declaration
     // resolution
@@ -108,7 +120,9 @@ struct FileSymbols {
     // This is as they are implicitly declared when they are used
     // And it is impossible to find a first usage without running the perl code
     // These are all exported
-    std::unordered_map<GlobalVariable, std::vector<Range>> globals;
+    // Note that the usages are given as a list of GlobalVariables to allow renaming
+    // - it's so we know that the code package
+    std::unordered_map<GlobalVariable, std::vector<GlobalVariable>> globals;
 
     // Debug information, FIXME to be removed when a better alternative is found
     int partialParse;
@@ -128,22 +142,22 @@ typedef std::unordered_map<std::string, FileSymbols> FileSymbolMap;
 struct GlobalVariablesMap {
     // Global Variable -> (File path -> [usages])
     // So GlobalVariablesMap[var]["perl.pm"] is the usages of global var in file "perl.pm"
-    std::unordered_map<GlobalVariable, std::unordered_map<std::string, std::vector<Range>>> globalsMap;
+    std::unordered_map<GlobalVariable, std::unordered_map<std::string, std::vector<GlobalVariable>>> globalsMap;
 
-    void addGlobal(GlobalVariable global, std::string path, std::vector<Range> usages);
+    void addGlobal(GlobalVariable global, std::string path, std::vector<GlobalVariable> usages);
 
     std::string toStr();
 };
 
 struct SubroutineMap {
     // Map from declaration -> (files -> [usages])
-    std::unordered_map<SubroutineDecl, std::unordered_map<std::string, std::vector<Range>>> subsMap;
+    std::unordered_map<SubroutineDecl, std::unordered_map<std::string, std::vector<SubroutineCode>>> subsMap;
 
-    void addSubUsage(SubroutineDecl declaration, Range &usageRange, std::string &usagePath);
+    void addSubUsage(SubroutineDecl declaration, std::string code, std::string &usagePath, Range &usageRange);
 
     std::string toStr();
 
-    void addSubUsages(SubroutineDecl declaration, std::vector<Range> &usages, std::string &usagePath);
+    void addSubUsages(SubroutineDecl declaration, std::vector<SubroutineCode> &usages, std::string &usagePath);
 };
 
 
