@@ -81,6 +81,8 @@ namespace constant {
                                                                                 "version",
                                                                                 "vmsish", "warnings",
                                                                                 "warnings::register"};
+
+    const int CACHE_MAX_ITEMS = 1000;
 }
 
 #endif //PERLPARSE_CONSTANTS_H

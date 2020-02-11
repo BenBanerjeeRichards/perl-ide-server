@@ -7,9 +7,12 @@
 
 #include <string>
 #include <unordered_map>
+#include <chrono>
 #include "Util.h"
 #include "Symbols.h"
+#include "Constants.h"
 #include "../lib/md5.h"
+
 
 struct CacheItem {
 
@@ -17,14 +20,32 @@ struct CacheItem {
 
     CacheItem();
 
+    void markJustUsed();
+
+    bool operator<(const CacheItem &other) const {
+        return this->lastUsed < other.lastUsed;
+    }
+
+    bool operator==(const CacheItem &other) {
+        return this->lastUsed == other.lastUsed;
+    }
+
+    bool operator>(const CacheItem &other) {
+        return this->lastUsed > other.lastUsed;
+    }
+
     bool isSystemPath;
     std::string md5;
     std::shared_ptr<FileSymbols> fileSymbols;
+    int64_t lastUsed;
+
 };
 
 
 class Cache {
     std::unordered_map<std::string, CacheItem> cache;
+
+    void evictItems();
 
 public:
     void addItem(std::string path, std::shared_ptr<FileSymbols> fileSymbols);
@@ -32,6 +53,7 @@ public:
     std::optional<std::shared_ptr<FileSymbols>> getItem(std::string path);
 
     std::string toStr();
+
 
 };
 
