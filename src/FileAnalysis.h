@@ -28,6 +28,13 @@ namespace analysis {
         FilePos pos;
     };
 
+    struct RenameResult {
+        RenameResult(bool success, const string &error);
+
+        bool success;
+        std::string error;
+    };
+
     typedef std::unordered_map<std::string, std::vector<FilePos>> UsagesMap;
 
     FileSymbols getFileSymbols(const std::string &path);
@@ -60,8 +67,8 @@ namespace analysis {
     findSubroutineUsages(const std::string &filePath, const std::string &contextPath, FilePos location,
                          Symbols &symbols);
 
-    void renameSymbol(const std::string &filePath, FilePos location, std::string renameTo,
-                      std::vector<std::string> projectFiles, Cache &cache);
+    RenameResult renameSymbol(const std::string &filePath, FilePos location, std::string renameTo,
+                              std::vector<std::string> projectFiles, Cache &cache);
 
     bool isSymbol(const std::string &filePath, FilePos location);
 
@@ -79,6 +86,8 @@ namespace analysis {
     findLocalVariableUsages(const string &filePath, const string &contextPath, FilePos location, Symbols &symbols);
 
     optional<SubroutineDecl> doFindSubroutineDeclaration(string contextPath, FilePos location, Symbols &symbols);
+
+    optional<string> getSymbolName(string &filePath, FilePos location, vector<string> projectFiles, Cache &cache);
 }
 
 #endif //PERLPARSE_FILEANALYSIS_H

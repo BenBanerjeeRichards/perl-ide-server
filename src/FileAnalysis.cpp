@@ -270,6 +270,29 @@ analysis::findSubroutineDeclaration(const std::string &filePath, const std::stri
 }
 
 
+optional<string>
+analysis::getSymbolName(std::string &filePath, FilePos location, vector<string> projectFiles, Cache &cache) {
+    auto symbolsMaybe = buildProjectSymbols(filePath, filePath, std::move(projectFiles), cache, true, false, true);
+    if (!symbolsMaybe.has_value()) {
+        return {};
+    }
+    auto symbols = symbolsMaybe.value();
+
+    if (auto localVar = findVariableAtLocation(symbols.rootFileSymbols, location)) {
+        return localVar.value().declaration->name;
+    }
+
+    if (auto sub = analysis::doFindSubroutineDeclaration(filePath, location, symbols)) {
+        return sub.value().subroutine.code;
+    }
+
+    if (auto glob = analysis::findGlobalVariable(filePath, filePath, location, symbols)) {
+        return glob.value().getCodeName();
+    }
+
+    return {};
+}
+
 /**
  * Load project files (and their imports) into cache, for fast future loading
  * @param projectFiles
@@ -281,11 +304,11 @@ void analysis::indexProject(std::vector<std::string> projectFiles, Cache &cache)
     }
 }
 
-void analysis::renameSymbol(const string &filePath, FilePos location, string renameTo,
-                            vector<string> projectFiles, Cache &cache) {
+analysis::RenameResult analysis::renameSymbol(const string &filePath, FilePos location, string renameTo,
+                                              vector<string> projectFiles, Cache &cache) {
     auto symbolsMaybe = buildProjectSymbols(filePath, filePath, std::move(projectFiles), cache, true, false, true);
     if (!symbolsMaybe.has_value()) {
-        return;
+        return RenameResult(false, "Rename error");
     }
     auto symbols = symbolsMaybe.value();
 
@@ -330,7 +353,7 @@ void analysis::renameSymbol(const string &filePath, FilePos location, string ren
         if (packagedSymbol.package != existingPackage) {
             std::cerr << "Attempted change of package on rename: " << renameTo << " from " << existingPackage
                       << " to " << packagedSymbol.package << std::endl;
-            return;
+            return RenameResult(false, "Rename changes symbol's package");
         }
 
 
@@ -348,7 +371,7 @@ void analysis::renameSymbol(const string &filePath, FilePos location, string ren
                         auto packageParts = splitPackage(canonicalName);
                         if (packageParts.empty()) {
                             cerr << "Package parts empty, something gone very wrong" << endl;
-                            return;
+                            return RenameResult(false, "Rename error");
                         }
 
                         // Do the actual rename
@@ -374,7 +397,7 @@ void analysis::renameSymbol(const string &filePath, FilePos location, string ren
                         auto packageParts = splitPackage(canonicalName);
                         if (packageParts.empty()) {
                             cerr << "Package parts empty, something gone very wrong" << endl;
-                            return;
+                            return RenameResult(false, "Rename error");
                         }
 
                         // Do the actual rename
@@ -404,5 +427,7 @@ void analysis::renameSymbol(const string &filePath, FilePos location, string ren
         writeFile(fileReplacement.first, newFile);
     }
 
+    return RenameResult(true, "");
 }
 
+analysis::RenameResult::RenameResult(bool success, const string &error) : success(success), error(error) {}

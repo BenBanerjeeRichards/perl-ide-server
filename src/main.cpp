@@ -216,9 +216,9 @@ void buildSymbolsTest() {
 
 int main(int argc, char **args) {
     std::string file = "../perl/input.pl";
-    Cache cache;
-    analysis::renameSymbol(file, FilePos(39, 10, 99), "main::NewSubroutineName", std::vector<std::string>{}, cache);
-    return 0;
+//    Cache cache;
+//    analysis::renameSymbol(file, FilePos(39, 10, 99), "main::NewSubroutineName", std::vector<std::string>{}, cache);
+//    return 0;
 
     std::string arg1 = argc >= 2 ? std::string(args[1]) : "";
     std::string arg2 = argc >= 3 ? std::string(args[2]) : "";

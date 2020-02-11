@@ -3,8 +3,6 @@
 //
 
 #include "PerlServer.h"
-#include <chrono>
-#include <thread>
 
 
 void sendJson(httplib::Response &res, json &jsonObject, std::string error = "", std::string errorMessage = "") {
@@ -175,14 +173,50 @@ void handleIndexProject(httplib::Response &res, json params, Cache &cache) {
     sendJson(res, response);
 }
 
+void handleIsSymbol(httplib::Response &res, json params, Cache &cache) {
+    int line = params["line"];
+    int col = params["col"];
+    std::string path = params["path"];
+    std::vector<std::string> projectFiles = params["projectFiles"];
+    json response;
+
+    if (auto symbolName = analysis::getSymbolName(path, FilePos(line, col), projectFiles, cache)) {
+        response["exists"] = true;
+        response["name"] = symbolName.value();
+    } else {
+        response["exists"] = false;
+    }
+
+    sendJson(res, response);
+}
+
+void handleRenameSymbol(httplib::Response &res, json params, Cache &cache) {
+    int line = params["line"];
+    int col = params["col"];
+    std::string path = params["path"];
+    std::vector<std::string> projectFiles = params["projectFiles"];
+    std::string renameTo = params["renameTo"];
+    json response;
+    auto renameRes = analysis::renameSymbol(path, FilePos(line, col), renameTo, projectFiles, cache);
+    if (renameRes.success) {
+        sendJson(res, response);
+    } else {
+        sendJson(res, "BAD_RENAME", renameRes.error);
+    }
+}
 
 void startAndBlock(int port) {
     httplib::Server httpServer;
 
     // Setup cache
     Cache cache;
+    // Mutex to only allow one request at once
+    std::mutex mutex;
 
     httpServer.Post("/", [&](const httplib::Request &req, httplib::Response &res) {
+        std::cout << "Waiting for lock..." << std::endl;
+        std::unique_lock<std::mutex> lock(mutex);
+        std::cout << "Got lock" << std::endl;
         json reqJson;
         try {
             reqJson = json::parse(req.body);
@@ -212,11 +246,15 @@ void startAndBlock(int port) {
                 handleFindDeclaration(res, params, cache);
             } else if (reqJson["method"] == "index-project") {
                 handleIndexProject(res, params, cache);
+            } else if (reqJson["method"] == "is-symbol") {
+                handleIsSymbol(res, params, cache);
+            } else if (reqJson["method"] == "rename") {
+                handleRenameSymbol(res, params, cache);
             } else {
                 sendJson(res, "UNKNOWN_METHOD", "Method " + std::string(reqJson["method"]) + " not supported");
                 return;
             }
-        } catch (json::exception &) {
+        } catch (json::exception &e) {
             sendJson(res, "BAD_PARAMS", "Bad Params 2");
             return;
         }
