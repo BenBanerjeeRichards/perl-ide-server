@@ -27,6 +27,8 @@ public:
 
     std::string tokenToStrWithCode(Token token);
 
+    std::string matchIdentifier();
+
 private:
     char nextChar();
 
@@ -130,8 +132,6 @@ private:
     std::string matchBasicIdentifier(int &i);
 
     std::string doMatchNormalIdentifier(int &i);
-
-    std::string matchIdentifier();
 
     void matchDereferenceBrackets(std::vector<Token> &tokens);
 

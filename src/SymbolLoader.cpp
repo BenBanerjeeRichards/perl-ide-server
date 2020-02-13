@@ -143,7 +143,7 @@ SubroutineMap buildSubroutineMap(FileSymbolMap &fileSymbolsMap) {
         for (auto usage : fileSymbols.possibleSubroutineUsages) {
             auto maybeDecl = findSubDeclaration(fileSymbolsMap, usage.package, usage.name, cache);
             if (maybeDecl.has_value()) {
-                subroutineMap.addSubUsage(maybeDecl.value(), std::string(), path, usage.pos);
+                subroutineMap.addSubUsage(maybeDecl.value(), maybeDecl.value().subroutine.code, path, usage.pos);
             }
         }
     }

@@ -348,6 +348,10 @@ analysis::RenameResult analysis::renameSymbol(const string &filePath, FilePos lo
         // Here we have a packaged symbol - e.g. Subroutine or global variable
         // Must check packages and take care during renames
         std::string canonicalReplacement = getCanonicalPackageName(renameTo);
+        // If global remove sigil
+        if (!canonicalReplacement.empty() && isGlobal) {
+            canonicalReplacement = canonicalReplacement.substr(1, canonicalReplacement.size() - 1);
+        }
         PackagedSymbol packagedSymbol = splitOnPackage(canonicalReplacement, packageAtLocation);
 
         if (packagedSymbol.package != existingPackage) {
@@ -358,6 +362,11 @@ analysis::RenameResult analysis::renameSymbol(const string &filePath, FilePos lo
 
 
         if (isGlobal) {
+            Tokeniser tokeniser(renameTo, false);
+            if (tokeniser.matchIdentifier() != renameTo) {
+                return RenameResult(false, "Invalid global name");
+            }
+
             if (auto globalUsages = analysis::findGlobalVariableUsages(filePath, filePath, location, symbols)) {
                 for (auto fileGlobals : globalUsages.value()) {
                     if (isSystemPath(fileGlobals.first)) {
@@ -375,7 +384,7 @@ analysis::RenameResult analysis::renameSymbol(const string &filePath, FilePos lo
                         }
 
                         // Do the actual rename
-                        packageParts[packageParts.size() - 1] = renameTo;
+                        packageParts[packageParts.size() - 1] = packagedSymbol.symbol;
                         auto rep = join(packageParts, "::");
                         replacementMap[fileGlobals.first].emplace_back(Replacement(global.getLocation(), rep));
                     }
@@ -384,6 +393,11 @@ analysis::RenameResult analysis::renameSymbol(const string &filePath, FilePos lo
         }
 
         if (isSub) {
+            Tokeniser tokeniser(renameTo, false);
+            if (tokeniser.matchIdentifier() != renameTo) {
+                return RenameResult(false, "Invalid subroutine name");
+            }
+
             if (auto subUsages = analysis::findSubroutineUsagesCode(filePath, filePath, location, symbols)) {
                 for (auto subUsage : subUsages.value()) {
                     if (isSystemPath(subUsage.first)) {
@@ -391,9 +405,9 @@ analysis::RenameResult analysis::renameSymbol(const string &filePath, FilePos lo
                     }
 
                     replacementMap[subUsage.first] = vector<Replacement>();
-                    for (auto global : subUsage.second) {
+                    for (auto sub : subUsage.second) {
                         // We know the package is the same, so only alter the new part
-                        auto canonicalName = getCanonicalPackageName(global.code);
+                        auto canonicalName = getCanonicalPackageName(sub.code);
                         auto packageParts = splitPackage(canonicalName);
                         if (packageParts.empty()) {
                             cerr << "Package parts empty, something gone very wrong" << endl;
@@ -403,7 +417,7 @@ analysis::RenameResult analysis::renameSymbol(const string &filePath, FilePos lo
                         // Do the actual rename
                         packageParts[packageParts.size() - 1] = packagedSymbol.symbol;
                         auto rep = join(packageParts, "::");
-                        replacementMap[subUsage.first].emplace_back(Replacement(global.location, rep));
+                        replacementMap[subUsage.first].emplace_back(Replacement(sub.location, rep));
                     }
                 }
             }
