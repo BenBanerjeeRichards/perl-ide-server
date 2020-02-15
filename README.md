@@ -10,7 +10,7 @@ Server provides the following language analysis tools
 
 ## Build
 
-This project uses `cmake 3`. 
+This project uses cmake 3. You need to use a sufficiently modern C++ compiler for the build to succeed - any compiler supporting `<optional>` should work. To chance the compiler used by cmake, set the `CXX` environment variable before invoking cmake. 
 
 ```shell script
 git clone github.com/benbanerjeerichards/Perl-Ide-Server
