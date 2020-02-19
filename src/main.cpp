@@ -99,6 +99,25 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
     return fileSymbols;
 }
 
+int timeParse(const std::string &path, int num = 1) {
+    auto contents = readFile(path);
+    auto totalBegin = std::chrono::steady_clock::now();
+    for (int i = 0; i < num; i++) {
+        Tokeniser tokeniser(contents);
+        FileSymbols fileSymbols;
+
+        auto tokens = tokeniser.tokenise();
+        int partiallyParsed = -1;
+        auto parseTree = buildParseTree(tokens, partiallyParsed);
+        fileSymbols.partialParse = partiallyParsed;
+        fileSymbols.packages = parsePackages(parseTree);
+        parseFirstPass(parseTree, fileSymbols);
+    }
+
+    auto totalEnd = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(totalEnd - totalBegin).count();
+}
+
 void testFiles() {
     auto perlFiles = globglob("/Users/bbr/honours/perl-dl/src/download/2/*");
     std::cout << "file,tokens,lines,total_ms,tok_ms,parse_ms,analysis_ms" << std::endl;
@@ -231,6 +250,12 @@ int main(int argc, char **args) {
     if (argc >= 2) file = args[1];
     if (argc == 2 && strncmp(args[1], "strtest", 7) == 0) {
         testFiles();
+        return 0;
+    }
+
+    if (argc == 3 && strncmp(args[1], "time", 3) == 0) {
+        timeParse(args[2]);
+        std::cout << timeParse(args[2], 10) << std::endl;
         return 0;
     }
 
