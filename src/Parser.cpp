@@ -19,7 +19,7 @@ int nextTokenIdx(const std::vector<Token> &tokens, int currentIdx) {
     return -1;
 }
 
-void doBuildParseTree(const std::shared_ptr<BlockNode> &node, const std::vector<Token> &tokens, int &tokenIdx) {
+void doBuildParseTree(const std::shared_ptr<BlockNode> &node, std::vector<Token> &tokens, int &tokenIdx) {
     std::vector<Token> tokensAcc;
     while (tokenIdx < tokens.size()) {
         Token token = tokens[tokenIdx];
@@ -27,6 +27,25 @@ void doBuildParseTree(const std::shared_ptr<BlockNode> &node, const std::vector<
         tokenIdx += 1;
 
         if (token.type == TokenType::LBracket) {
+
+            // Consider case of hashes - still has LBracket but is not a scope
+            // i..e ... = {a => ..., key => ..., ...}
+            int i = tokenIdx + 1;
+            while (i < tokens.size() && isWhitespaceNewlineComment(tokens[i].type)) i++;
+            if (tokens[i].type == TokenType::HashKey) {
+                i++;
+                while (i < tokens.size() && isWhitespaceNewlineComment(tokens[i].type)) i++;
+                if (tokens[i].type == TokenType::Operator && tokens[i].data == "=>") {
+                    // Then a hash! Don't make new scope
+                    tokens[tokenIdx].type = TokenType::HashBlockStart;
+
+                    // Update ending bracket so we don't pop scope either
+                    i++;
+                    while (i < tokens.size() && tokens[i].type) i++;
+
+                }
+            }
+
             node->children.emplace_back(std::make_shared<TokensNode>(tokensAcc));
             tokensAcc.clear();
 

@@ -70,6 +70,9 @@ FileSymbols analysisWithTime(const std::string &path, TimeInfo &timing, bool pri
     begin = std::chrono::steady_clock::now();
     int partiallyParsed = -1;
     auto parseTree = buildParseTree(tokens, partiallyParsed);
+    cout << endl << "Parse Tree" << endl;
+    printParseTree(parseTree);
+    cout << endl << endl;
     fileSymbols.partialParse = partiallyParsed;
     end = std::chrono::steady_clock::now();
     timing.parse = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
@@ -201,7 +204,6 @@ void localFrequency() {
 void debugPrint(const std::string &path) {
     TimeInfo timeInfo{};
     FileSymbols fileSymbols = analysisWithTime(path, timeInfo, true);
-//    return;
     printFileSymbols(fileSymbols);
 
     std::cout << console::bold << std::endl << "Variables at position" << console::clear << std::endl;

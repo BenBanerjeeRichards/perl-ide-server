@@ -72,6 +72,8 @@ enum class TokenType {
     HashSubEnd,
     HashDerefStart,
     HashDerefEnd,
+    HashBlockStart,
+    HashBlockEnd,
     QuoteIdent,
     StringModifiers,
     FileTest,
