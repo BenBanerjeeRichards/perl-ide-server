@@ -323,23 +323,6 @@ std::optional<VariableDeclarationWithUsages> findVariableAtLocation(FileSymbols 
     return std::optional<VariableDeclarationWithUsages>();
 }
 
-/**
- * Find usages for the variable located at the given location
- *
- * @param fileSymbols
- * @param location
- * @return list of usages in the current file
- */
-std::vector<Range> findLocalVariableUsages(FileSymbols &fileSymbols, FilePos location) {
-    auto maybeVariable = findVariableAtLocation(fileSymbols, location);
-    if (!maybeVariable.has_value()) {
-        // None found
-        std::cout << "FindUsages - No symbol found at location " << location.toStr() << std::endl;
-        return std::vector<Range>();
-    }
-
-    return maybeVariable.value().usages;
-}
 
 std::optional<FilePos> findVariableDeclaration(FileSymbols &fileSymbols, FilePos location) {
     auto maybeVariable = findVariableAtLocation(fileSymbols, location);

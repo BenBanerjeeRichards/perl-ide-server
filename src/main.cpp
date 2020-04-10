@@ -143,6 +143,60 @@ void testFiles() {
     }
 }
 
+std::vector<std::string> allTestPaths() {
+    vector<string> paths = globglob("/Users/bbr/honours/perl-dl/src/download/1/*");
+    auto files = globglob("/Users/bbr/honours/perl-dl/src/download/2/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    files = globglob("/Users/bbr/honours/perl-dl/src/download/3/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    files = globglob("/Users/bbr/honours/perl-dl/src/download/4/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    files = globglob("/Users/bbr/honours/perl-dl/src/download/5/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    files = globglob("/Users/bbr/honours/perl-dl/src/download/6/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    files = globglob("/Users/bbr/honours/perl-dl/src/download/7/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    files = globglob("/Users/bbr/honours/perl-dl/src/download/8/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    files = globglob("/Users/bbr/honours/perl-dl/src/download/9/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    files = globglob("/Users/bbr/honours/perl-dl/src/download/10/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    files = globglob("/Users/bbr/honours/perl-dl/src/download/11/*");
+    paths.insert(paths.end(), files.begin(), files.end());
+    return paths;
+}
+
+void localFrequency() {
+    auto perlFiles = allTestPaths();
+    int n = 0;
+    int locals = 0;
+    int len = perlFiles.size();
+
+    for (auto file : perlFiles) {
+        try {
+            Tokeniser tokeniser(readFile(file));
+            auto tokens = tokeniser.tokenise();
+            int percent = (100 * n) / len;
+            cout << "[" << percent << "%]" << file << endl;
+            for (auto token : tokens) {
+                if (token.type == TokenType::Local) {
+                    locals++;
+                    goto end;
+                }
+            }
+        } catch (...) {
+            cerr << "File " << file << " threw exception" << endl;
+        }
+
+        end:
+        n++;
+    }
+
+    cout << "n=" << n << " locals=" << locals << endl;
+}
+
 
 void debugPrint(const std::string &path) {
     TimeInfo timeInfo{};
@@ -234,6 +288,8 @@ void buildSymbolsTest() {
 }
 
 int main(int argc, char **args) {
+//    localFrequency();
+//    return 0;
     std::string file = "../perl/input.pl";
 //    Cache cache;
 //    analysis::renameSymbol(file, FilePos(39, 10, 99), "main::NewSubroutineName", std::vector<std::string>{}, cache);
